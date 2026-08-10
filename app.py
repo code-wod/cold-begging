@@ -48,6 +48,12 @@ def process():
     gmail_credentials = request.form.get('gmail_credentials', '').strip() or None
     max_emails = request.form.get('max_emails', '').strip()
     rate_limit = request.form.get('rate_limit', '').strip()
+    ai_model = request.form.get('ai_model', 'claude-3.5').strip() or 'claude-3.5'
+    tone = request.form.get('tone', 'professional').strip() or 'professional'
+    subject_style = request.form.get('subject_style', 'personalized').strip() or 'personalized'
+    email_length = request.form.get('email_length', 'medium').strip() or 'medium'
+    use_company_research = request.form.get('use_company_research') == 'on'
+    custom_prompt = request.form.get('custom_prompt', '').strip() or None
     use_gmail_api = request.form.get('use_gmail_api') == 'on'
     send_now = request.form.get('send_now') == 'on'
 
@@ -70,7 +76,13 @@ def process():
         sender_email=sender_email,
         smtp_password=smtp_password,
         gmail_credentials=gmail_credentials,
-        rate_limit=rate_limit
+        rate_limit=rate_limit,
+        ai_model=ai_model,
+        tone=tone,
+        subject_style=subject_style,
+        email_length=email_length,
+        use_company_research=use_company_research,
+        custom_prompt=custom_prompt,
     )
 
     dry_run = not send_now
@@ -100,7 +112,15 @@ def process():
         review_queue=review_queue,
         dry_run=dry_run,
         send_now=send_now,
-        use_gmail_api=use_gmail_api
+        use_gmail_api=use_gmail_api,
+        options={
+            'ai_model': ai_model,
+            'tone': tone,
+            'subject_style': subject_style,
+            'email_length': email_length,
+            'use_company_research': use_company_research,
+            'custom_prompt': custom_prompt,
+        }
     )
 
 

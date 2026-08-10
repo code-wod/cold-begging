@@ -26,6 +26,12 @@ async def process_excel(
     gmail_credentials: str = Form(None),
     max_emails: int = Form(None),
     rate_limit: float = Form(2.0),
+    ai_model: str = Form('claude-3.5'),
+    tone: str = Form('professional'),
+    subject_style: str = Form('personalized'),
+    email_length: str = Form('medium'),
+    use_company_research: bool = Form(True),
+    custom_prompt: str = Form(None),
     use_gmail_api: bool = Form(False),
     send_now: bool = Form(False),
 ):
@@ -46,6 +52,12 @@ async def process_excel(
             smtp_password=smtp_password,
             gmail_credentials=gmail_credentials,
             rate_limit=rate_limit,
+            ai_model=ai_model,
+            tone=tone,
+            subject_style=subject_style,
+            email_length=email_length,
+            use_company_research=use_company_research,
+            custom_prompt=custom_prompt,
         )
 
         results = agent.process_and_send_emails(
@@ -57,6 +69,14 @@ async def process_excel(
         return {
             'dry_run': not send_now,
             'use_gmail_api': use_gmail_api,
+            'options': {
+                'ai_model': ai_model,
+                'tone': tone,
+                'subject_style': subject_style,
+                'email_length': email_length,
+                'use_company_research': use_company_research,
+                'custom_prompt': custom_prompt,
+            },
             'results': results,
         }
     finally:

@@ -35,7 +35,22 @@ EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class ColdEmailAgent:
-    def __init__(self, excel_path, sender_email=None, smtp_password=None, gmail_credentials=None, token_path='token.json', rate_limit=2):
+    def __init__(
+        self,
+        excel_path,
+        sender_email=None,
+        smtp_password=None,
+        gmail_credentials=None,
+        token_path='token.json',
+        rate_limit=2,
+        ai_model='claude-3.5',
+        tone='professional',
+        subject_style='personalized',
+        email_length='medium',
+        use_company_research=True,
+        custom_prompt=None,
+        max_tokens=500,
+    ):
         self.excel_path = excel_path
         self.sender_email = sender_email or os.getenv('SENDER_EMAIL')
         self.smtp_password = smtp_password or os.getenv('GMAIL_APP_PASSWORD')
@@ -46,6 +61,13 @@ class ColdEmailAgent:
         self.anthropic_key = os.getenv('ANTHROPIC_API_KEY')
         self.anthropic_client = self._init_anthropic()
         self.gmail_service = None
+        self.ai_model = ai_model
+        self.tone = tone
+        self.subject_style = subject_style
+        self.email_length = email_length
+        self.use_company_research = use_company_research
+        self.custom_prompt = custom_prompt
+        self.max_tokens = max_tokens
 
         if self.gmail_credentials and HAVE_GMAIL_API:
             self.gmail_service = self._init_gmail_api()
@@ -156,7 +178,7 @@ class ColdEmailAgent:
             return ''
 
     def research_company(self, company_data):
-        if not self.anthropic_client:
+        if not self.use_company_research or not self.anthropic_client:
             return {
                 'company_pain_points': [],
                 'growth_stage': 'unknown',
@@ -206,6 +228,27 @@ class ColdEmailAgent:
             }
 
     def generate_personalized_email(self, company_data, company_profile):
+        tone_map = {
+            'professional': 'Professional but conversational',
+            'conversational': 'Conversational and approachable',
+            'friendly': 'Friendly and warm',
+            'formal': 'Formal and respectful',
+        }
+        subject_map = {
+            'personalized': f'Personalized subject line about {company_data["company_name"]}',
+            'curiosity': 'Create a curiosity-driven subject line',
+            'benefit': 'Create a benefit-focused subject line',
+        }
+        length_map = {
+            'short': '2 short paragraphs maximum',
+            'medium': '3-4 short paragraphs maximum',
+            'long': '4-5 short paragraphs maximum',
+        }
+
+        tone_instruction = tone_map.get(self.tone, tone_map['professional'])
+        subject_instruction = subject_map.get(self.subject_style, subject_map['personalized'])
+        length_instruction = length_map.get(self.email_length, length_map['medium'])
+
         prompt = (
             f"Write a personalized cold email for a job opportunity. Requirements:\n\n"
             f"Recipient Context:\n"
@@ -218,21 +261,24 @@ class ColdEmailAgent:
             f"- Growth Stage: {company_profile.get('growth_stage')}\n"
             f"- Culture: {company_profile.get('company_culture')}\n\n"
             f"Email Requirements:\n"
-            f"1. Subject line: SHORT, personalized, NOT generic\n"
-            f"2. Body: 3-4 short paragraphs max\n"
-            f"3. Tone: Professional but conversational (for job opportunity)\n"
-            f"4. NEVER mention salary or benefits first\n"
-            f"5. Focus on: company achievement, your interest, value proposition\n"
-            f"6. CTA: Ask for a brief call/chat (low friction)\n"
-            f"7. NO generic templates - MUST be specific to company\n\n"
+            f"1. Subject line: SHORT, personalized, NOT generic. {subject_instruction}.\n"
+            f"2. Body: {length_instruction}.\n"
+            f"3. Tone: {tone_instruction}.\n"
+            f"4. NEVER mention salary or benefits first.\n"
+            f"5. Focus on: company achievement, your interest, value proposition.\n"
+            f"6. CTA: Ask for a brief call/chat with low friction.\n"
+            f"7. NO generic templates - MUST be specific to company.\n\n"
             f"Format response EXACTLY as:\n"
             f"SUBJECT: [subject line]\n"
             f"BODY:\n"
             f"[email body]\n\n"
-            f"If you have optional details such as recent news or funding status, include them naturally."
+            f"If you have optional details such as recent news or funding status, include them naturally.\n"
         )
 
-        raw = self._anthropic_completion(prompt, max_tokens=500) if self.anthropic_client else ''
+        if self.custom_prompt:
+            prompt += f"Additional instructions: {self.custom_prompt}\n"
+
+        raw = self._anthropic_completion(prompt, max_tokens=self.max_tokens, model=self.ai_model) if self.anthropic_client else ''
         if raw:
             raw = raw.replace('```', '').strip()
             parts = raw.split('BODY:')

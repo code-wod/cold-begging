@@ -21,6 +21,19 @@
       <h1>Processing Results</h1>
       <p>{{ 'Dry run only - no emails sent.' if dry_run else 'Emails were sent.' }}</p>
       <p>{{ review_queue|length }} rows processed.</p>
+      <div style="margin:1rem 0; padding:1rem; background:#f5f8ff; border-radius:10px; border:1px solid #dce7f5;">
+        <strong>AI settings:</strong>
+        <ul style="margin:0.75rem 0 0 1rem; padding:0; list-style:disc;">
+          <li>Model: {{ options.ai_model }}</li>
+          <li>Tone: {{ options.tone }}</li>
+          <li>Subject style: {{ options.subject_style }}</li>
+          <li>Email length: {{ options.email_length }}</li>
+          <li>Company research: {{ 'enabled' if options.use_company_research else 'disabled' }}</li>
+          {% if options.custom_prompt %}
+            <li>Custom prompt applied</li>
+          {% endif %}
+        </ul>
+      </div>
 
       <table>
         <thead>

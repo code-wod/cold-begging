@@ -61,6 +61,51 @@
           </div>
         </div>
 
+        <div class="field-row">
+          <div>
+            <label for="ai_model">AI model</label>
+            <select id="ai_model" name="ai_model">
+              <option value="claude-3.5">claude-3.5</option>
+              <option value="claude-4">claude-4</option>
+            </select>
+          </div>
+          <div>
+            <label for="tone">Email tone</label>
+            <select id="tone" name="tone">
+              <option value="professional">Professional</option>
+              <option value="conversational">Conversational</option>
+              <option value="friendly">Friendly</option>
+              <option value="formal">Formal</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div>
+            <label for="subject_style">Subject style</label>
+            <select id="subject_style" name="subject_style">
+              <option value="personalized">Personalized</option>
+              <option value="curiosity">Curiosity-driven</option>
+              <option value="benefit">Benefit-focused</option>
+            </select>
+          </div>
+          <div>
+            <label for="email_length">Email length</label>
+            <select id="email_length" name="email_length">
+              <option value="short">Short</option>
+              <option value="medium" selected>Medium</option>
+              <option value="long">Long</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="checkbox" style="margin-top:1rem;">
+          <label><input type="checkbox" name="use_company_research" checked> Use company research (AI-driven profile)</label>
+        </div>
+
+        <label for="custom_prompt">Custom AI prompt (optional)</label>
+        <textarea id="custom_prompt" name="custom_prompt" rows="4" style="width:100%; padding:0.85rem; border:1px solid #dfe3ea; border-radius:8px;" placeholder="Add instructions such as 'Make the tone more urgent' or 'Mention product-market fit.'"></textarea>
+
         <div class="checkbox" style="margin-top:1rem;">
           <label><input type="checkbox" name="use_gmail_api"> Use Gmail API (instead of SMTP)</label>
         </div>

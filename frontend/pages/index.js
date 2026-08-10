@@ -7,6 +7,12 @@ export default function Home() {
   const [gmailCredentials, setGmailCredentials] = useState('');
   const [maxEmails, setMaxEmails] = useState('10');
   const [rateLimit, setRateLimit] = useState('2.0');
+  const [aiModel, setAiModel] = useState('claude-3.5');
+  const [tone, setTone] = useState('professional');
+  const [subjectStyle, setSubjectStyle] = useState('personalized');
+  const [emailLength, setEmailLength] = useState('medium');
+  const [useCompanyResearch, setUseCompanyResearch] = useState(true);
+  const [customPrompt, setCustomPrompt] = useState('');
   const [useGmailApi, setUseGmailApi] = useState(false);
   const [sendNow, setSendNow] = useState(false);
   const [status, setStatus] = useState(null);
@@ -26,6 +32,12 @@ export default function Home() {
     formData.append('gmail_credentials', gmailCredentials);
     formData.append('max_emails', maxEmails);
     formData.append('rate_limit', rateLimit);
+    formData.append('ai_model', aiModel);
+    formData.append('tone', tone);
+    formData.append('subject_style', subjectStyle);
+    formData.append('email_length', emailLength);
+    formData.append('use_company_research', useCompanyResearch ? 'true' : 'false');
+    formData.append('custom_prompt', customPrompt);
     formData.append('use_gmail_api', useGmailApi ? 'true' : 'false');
     formData.append('send_now', sendNow ? 'true' : 'false');
 
@@ -96,9 +108,53 @@ export default function Home() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <div>
+              <label>AI model</label>
+              <select style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
+                <option value="claude-3.5">claude-3.5</option>
+                <option value="claude-4">claude-4</option>
+              </select>
+            </div>
+            <div>
+              <label>Email tone</label>
+              <select style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} value={tone} onChange={(e) => setTone(e.target.value)}>
+                <option value="professional">Professional</option>
+                <option value="conversational">Conversational</option>
+                <option value="friendly">Friendly</option>
+                <option value="formal">Formal</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <div>
+              <label>Subject style</label>
+              <select style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} value={subjectStyle} onChange={(e) => setSubjectStyle(e.target.value)}>
+                <option value="personalized">Personalized</option>
+                <option value="curiosity">Curiosity-driven</option>
+                <option value="benefit">Benefit-focused</option>
+              </select>
+            </div>
+            <div>
+              <label>Email length</label>
+              <select style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} value={emailLength} onChange={(e) => setEmailLength(e.target.value)}>
+                <option value="short">Short</option>
+                <option value="medium">Medium</option>
+                <option value="long">Long</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+            <label><input type="checkbox" checked={useCompanyResearch} onChange={(e) => setUseCompanyResearch(e.target.checked)} /> Use company research</label>
             <label><input type="checkbox" checked={useGmailApi} onChange={(e) => setUseGmailApi(e.target.checked)} /> Use Gmail API</label>
             <label><input type="checkbox" checked={sendNow} onChange={(e) => setSendNow(e.target.checked)} /> Send now</label>
+          </div>
+
+          <div style={{ marginBottom: '1rem' }}>
+            <label>Custom AI prompt (optional)</label>
+            <textarea style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', minHeight: '120px' }} value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)} placeholder="Add instructions such as 'Make the tone more urgent' or 'Mention product-market fit.'" />
           </div>
 
           <button type="submit" style={{ padding: '0.9rem 1.5rem', borderRadius: 10, background: '#0070f3', color: '#fff', border: 'none', cursor: 'pointer' }}>Submit</button>
@@ -108,6 +164,18 @@ export default function Home() {
           <section style={{ marginTop: '2rem' }}>
             <h2>Results</h2>
             <p>{results.results.length} rows processed</p>
+            {results.options && (
+              <div style={{ marginBottom: '1rem', padding: '1rem', borderRadius: 10, background: '#f0f5ff' }}>
+                <strong>AI settings:</strong>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
+                  <span>Model: {results.options.ai_model}</span>
+                  <span>Tone: {results.options.tone}</span>
+                  <span>Subject style: {results.options.subject_style}</span>
+                  <span>Email length: {results.options.email_length}</span>
+                  <span>Company research: {results.options.use_company_research ? 'enabled' : 'disabled'}</span>
+                </div>
+              </div>
+            )}
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f1f5f9' }}>
