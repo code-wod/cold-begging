@@ -6,3 +6,5 @@ __pycache__/
 .env
 token.json
 node_modules/
+frontend/node_modules/
+backend/.venv/
