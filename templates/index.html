@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cold Email Automation</title>
+    <style>
+      body {font-family: Arial, sans-serif; margin: 2rem; background: #f5f7fb; color:#20232a;}
+      .container {max-width: 760px; margin: 0 auto; padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 16px 35px rgba(0,0,0,0.08);}
+      h1 {margin-top:0;}
+      label {display:block; margin:1rem 0 0.5rem; font-weight:600;}
+      input[type=text], input[type=file], input[type=number], input[type=password] {width:100%; padding:0.85rem; border:1px solid #dfe3ea; border-radius:8px;}
+      button {margin-top:1.25rem; padding:0.95rem 1.5rem; background:#007bff; color:white; border:none; border-radius:8px; cursor:pointer;}
+      button:hover {background:#0056d2;}
+      .field-row {display:grid; grid-template-columns:1fr 1fr; gap:1rem;}
+      .alert {padding:1rem; border-radius:8px; margin-bottom:1rem;}
+      .alert.error {background:#ffebe9; color:#a20d0f;}
+      .alert.success {background:#e8f5e9; color:#127a28;}
+      .checkbox label {display:inline-block; font-weight:normal;}
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Cold Email Automation</h1>
+      <p>Upload your Excel file with the required columns, then generate or send personalized outreach.</p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert {{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <form action="/process" method="post" enctype="multipart/form-data">
+        <label for="excel_file">Excel file (.xlsx)</label>
+        <input type="file" id="excel_file" name="excel_file" accept=".xlsx" required>
+
+        <div class="field-row">
+          <div>
+            <label for="sender_email">Sender email</label>
+            <input type="text" id="sender_email" name="sender_email" placeholder="you@gmail.com">
+          </div>
+          <div>
+            <label for="smtp_password">Gmail app password</label>
+            <input type="password" id="smtp_password" name="smtp_password" placeholder="App password">
+          </div>
+        </div>
+
+        <label for="gmail_credentials">Gmail credentials path (optional for API send)</label>
+        <input type="text" id="gmail_credentials" name="gmail_credentials" placeholder="path/to/credentials.json">
+
+        <div class="field-row">
+          <div>
+            <label for="max_emails">Max emails</label>
+            <input type="number" id="max_emails" name="max_emails" min="1" placeholder="10">
+          </div>
+          <div>
+            <label for="rate_limit">Rate limit (seconds)</label>
+            <input type="number" id="rate_limit" name="rate_limit" min="0" step="0.5" value="2.0">
+          </div>
+        </div>
+
+        <div class="checkbox" style="margin-top:1rem;">
+          <label><input type="checkbox" name="use_gmail_api"> Use Gmail API (instead of SMTP)</label>
+        </div>
+        <div class="checkbox">
+          <label><input type="checkbox" name="send_now"> Send emails now (uncheck to dry run)</label>
+        </div>
+
+        <button type="submit">Process</button>
+      </form>
+    </div>
+  </body>
+</html>

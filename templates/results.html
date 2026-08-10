@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cold Email Automation Results</title>
+    <style>
+      body {font-family: Arial, sans-serif; margin: 2rem; background: #f5f7fb; color:#20232a;}
+      .container {max-width: 880px; margin: 0 auto; padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 16px 35px rgba(0,0,0,0.08);}
+      h1 {margin-top:0;}
+      table {width:100%; border-collapse:collapse; margin-top:1rem;}
+      th, td {border:1px solid #e2e8f0; padding:0.75rem; text-align:left; vertical-align:top;}
+      th {background:#f3f6fc;}
+      tr:nth-child(even) {background:#fbfcff;}
+      pre {white-space:pre-wrap; word-break:break-word; background:#f8f9fc; padding:1rem; border-radius:8px;}
+      a.button {display:inline-block; margin-top:1rem; padding:0.9rem 1.3rem; background:#007bff; color:white; text-decoration:none; border-radius:8px;}
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Processing Results</h1>
+      <p>{{ 'Dry run only - no emails sent.' if dry_run else 'Emails were sent.' }}</p>
+      <p>{{ review_queue|length }} rows processed.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Email</th>
+            <th>Company</th>
+            <th>Status</th>
+            <th>Subject</th>
+            <th>Body Preview</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in review_queue %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>{{ row.email }}</td>
+              <td>{{ row.company_name }}</td>
+              <td>{{ row.status }}</td>
+              <td>{{ row.subject }}</td>
+              <td><pre>{{ row.body[:220] }}{% if row.body|length > 220 %}...{% endif %}</pre></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <a class="button" href="/">Back to upload</a>
+    </div>
+  </body>
+</html>
