@@ -53,7 +53,7 @@ export default function AIAgents() {
     api('/api/ai-agents').then(setAgents).catch((e) => toast(e.message, 'error'));
     api('/api/ai-models').then(setModels).catch(() => {});
   };
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -184,11 +184,11 @@ export default function AIAgents() {
         <Field label="Description">
           <TextArea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </Field>
-        <Field label="AI model" help="Leave empty to use your default model.">
+        <Field label="AI model" help="Free platform models need no API key on your side.">
           <Select value={form.ai_model_id || ''} onChange={(e) => setForm({ ...form, ai_model_id: e.target.value ? Number(e.target.value) : null })}>
             <option value="">Default model</option>
             {models.map((m) => (
-              <option key={m.id} value={m.id}>{m.name} ({m.model})</option>
+              <option key={m.id} value={m.id}>{m.name} ({m.model}){m.is_platform && m.price_usd === 0 ? ' · Free' : m.is_platform ? ' · Pro' : ''}</option>
             ))}
           </Select>
         </Field>

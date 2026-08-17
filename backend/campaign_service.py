@@ -38,6 +38,38 @@ def _plan_of(db, user):
     return sub.plan if sub else 'free'
 
 
+def model_visible_to(db, user, model_id):
+    """A model the user may use: their own, or a platform model (free for all, paid for Pro)."""
+    if not model_id:
+        return None
+    model = db.query(AIModel).filter(AIModel.id == model_id).first()
+    if not model:
+        return None
+    if model.user_id == user.id:
+        return model
+    if model.is_platform:
+        plan = _plan_of(db, user)
+        if (model.price_usd or 0) == 0 or plan == 'pro':
+            return model
+    return None
+
+
+def list_visible_models(db, user):
+    """User's own models plus the platform models they may use (free for all, paid for Pro)."""
+    plan = _plan_of(db, user)
+    own = db.query(AIModel).filter(AIModel.user_id == user.id).all()
+    platforms = db.query(AIModel).filter(AIModel.is_platform.is_(True)).all()
+    visible = own + [m for m in platforms if (m.price_usd or 0) == 0 or plan == 'pro']
+    seen = set()
+    out = []
+    for m in visible:
+        if m.id in seen:
+            continue
+        seen.add(m.id)
+        out.append(m)
+    return sorted(out, key=lambda m: m.id)
+
+
 def validate_rate(plan, emails_per_hour):
     """Validate an hourly sending rate against the plan. Returns an error string or None."""
     try:
@@ -77,11 +109,23 @@ def load_agent_model(db, user, campaign):
         )
     model = None
     if agent and agent.ai_model_id:
-        model = db.query(AIModel).filter(AIModel.id == agent.ai_model_id, AIModel.user_id == user.id).first()
+        model = model_visible_to(db, user, agent.ai_model_id)
     if model is None and campaign.ai_model_id:
-        model = db.query(AIModel).filter(AIModel.id == campaign.ai_model_id, AIModel.user_id == user.id).first()
+        model = model_visible_to(db, user, campaign.ai_model_id)
     if model is None:
-        model = db.query(AIModel).filter(AIModel.user_id == user.id, AIModel.is_default.is_(True)).first()
+        model = (
+            db.query(AIModel)
+            .filter(AIModel.user_id == user.id, AIModel.is_default.is_(True))
+            .first()
+        )
+    if model is None:
+        free_platforms = (
+            db.query(AIModel)
+            .filter(AIModel.is_platform.is_(True), AIModel.price_usd == 0)
+            .order_by(AIModel.id)
+            .first()
+        )
+        model = free_platforms
     return agent, model
 
 
@@ -92,6 +136,15 @@ def resolve_provider(db, user, campaign, agent, model):
         if plan != 'pro':
             raise PermissionError('The managed default AI model requires a Pro plan')
         return AnthropicProvider(), MANAGED_MODEL_NAME, 1000, 0.7
+    if model and model.is_platform:
+        if (model.price_usd or 0) > 0 and plan != 'pro':
+            raise PermissionError(
+                f'{model.name} is a paid platform model and requires a Pro plan'
+            )
+        api_key = decrypt_plaintext(model.api_key_encrypted)
+        provider = provider_for(model, api_key=api_key)
+        if provider is not None:
+            return provider, model.model, model.max_tokens or 1000, model.temperature or 0.7
     if model:
         api_key = decrypt_plaintext(model.api_key_encrypted)
         provider = provider_for(model, api_key=api_key)
@@ -100,7 +153,8 @@ def resolve_provider(db, user, campaign, agent, model):
     if plan == 'pro':
         return AnthropicProvider(), MANAGED_MODEL_NAME, 1000, 0.7
     raise RuntimeError(
-        'No AI model configured. Add your own API key (AI Models) or upgrade to Pro for the managed model.'
+        'No AI model configured. Add your own API key (AI Models), use a free platform model, '
+        'or upgrade to Pro for the managed model.'
     )
 
 

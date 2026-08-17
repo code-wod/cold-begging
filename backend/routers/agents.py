@@ -3,6 +3,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from .. import campaign_service
 from ..config import MANAGED_MODEL_NAME
 from ..database import get_db
 from ..encryption import decrypt_plaintext, encrypt_plaintext
@@ -23,6 +24,8 @@ def _model_out(model):
         temperature=model.temperature,
         max_tokens=model.max_tokens,
         is_default=model.is_default,
+        is_platform=model.is_platform,
+        price_usd=model.price_usd or 0,
         has_api_key=bool(model.api_key_encrypted),
         created_at=model.created_at.isoformat() if model.created_at else None,
     )
@@ -61,18 +64,12 @@ def _get_plan(db, user):
 # ---------------- Models ----------------
 @router.get('/ai-models', response_model=list[AIModelOut])
 def list_models(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    models = (
-        db.query(AIModel).filter(AIModel.user_id == user.id).order_by(AIModel.id).all()
-    )
-    return [_model_out(m) for m in models]
+    return [_model_out(m) for m in campaign_service.list_visible_models(db, user)]
 
 
 @router.get('/ai-models/available', response_model=dict)
 def available_models(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    models = [
-        _model_out(m).dict()
-        for m in db.query(AIModel).filter(AIModel.user_id == user.id).order_by(AIModel.id).all()
-    ]
+    models = [_model_out(m).dict() for m in campaign_service.list_visible_models(db, user)]
     plan = _get_plan(db, user)
     return {
         'models': models,
@@ -155,7 +152,7 @@ def delete_model(
 
 @router.post('/ai-models/{model_id}/test')
 def test_model(model_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    model = _load_model(db, user.id, model_id)
+    model = campaign_service.model_visible_to(db, user, model_id)
     if not model:
         raise HTTPException(status_code=404, detail='Model not found')
     key = decrypt_api_key(model)
@@ -179,10 +176,7 @@ def list_agents(user: User = Depends(get_current_user), db: Session = Depends(ge
     agents = (
         db.query(AIAgent).filter(AIAgent.user_id == user.id).order_by(AIAgent.id).all()
     )
-    models = {
-        m.id: m
-        for m in db.query(AIModel).filter(AIModel.user_id == user.id).all()
-    }
+    models = {m.id: m for m in campaign_service.list_visible_models(db, user)}
     return [_agent_out(a, models.get(a.ai_model_id)) for a in agents]
 
 
@@ -193,7 +187,7 @@ def create_agent(
     db: Session = Depends(get_db),
 ):
     if payload.ai_model_id:
-        if not _load_model(db, user.id, payload.ai_model_id):
+        if not campaign_service.model_visible_to(db, user, payload.ai_model_id):
             raise HTTPException(status_code=404, detail='Model not found')
     agent = AIAgent(user_id=user.id, **payload.dict())
     count = db.query(AIAgent).filter(AIAgent.user_id == user.id).count()
@@ -201,7 +195,7 @@ def create_agent(
     db.add(agent)
     db.commit()
     db.refresh(agent)
-    return _agent_out(agent, _load_model(db, user.id, agent.ai_model_id))
+    return _agent_out(agent, campaign_service.model_visible_to(db, user, agent.ai_model_id))
 
 
 @router.put('/ai-agents/{agent_id}', response_model=AIAgentOut)
@@ -216,11 +210,14 @@ def update_agent(
     )
     if not agent:
         raise HTTPException(status_code=404, detail='Agent not found')
+    if payload.ai_model_id:
+        if not campaign_service.model_visible_to(db, user, payload.ai_model_id):
+            raise HTTPException(status_code=404, detail='Model not found')
     for field, value in payload.dict().items():
         setattr(agent, field, value)
     db.commit()
     db.refresh(agent)
-    return _agent_out(agent, _load_model(db, user.id, agent.ai_model_id))
+    return _agent_out(agent, campaign_service.model_visible_to(db, user, agent.ai_model_id))
 
 
 @router.post('/ai-agents/{agent_id}/duplicate', response_model=AIAgentOut)
@@ -249,7 +246,7 @@ def duplicate_agent(
     db.add(copy)
     db.commit()
     db.refresh(copy)
-    return _agent_out(copy, _load_model(db, user.id, copy.ai_model_id))
+    return _agent_out(copy, campaign_service.model_visible_to(db, user, copy.ai_model_id))
 
 
 @router.post('/ai-agents/{agent_id}/toggle', response_model=AIAgentOut)
@@ -266,7 +263,7 @@ def toggle_agent(
     agent.status = 'disabled' if agent.status == 'active' else 'active'
     db.commit()
     db.refresh(agent)
-    return _agent_out(agent, _load_model(db, user.id, agent.ai_model_id))
+    return _agent_out(agent, campaign_service.model_visible_to(db, user, agent.ai_model_id))
 
 
 @router.delete('/ai-agents/{agent_id}')
@@ -301,13 +298,20 @@ def resolve_generation_config(db, user, agent_id, model_id=None):
         agent = db.query(AIAgent).filter(AIAgent.user_id == user.id, AIAgent.is_default.is_(True)).first()
     model = None
     if agent:
-        model = _load_model(db, user.id, agent.ai_model_id)
+        model = campaign_service.model_visible_to(db, user, agent.ai_model_id)
     if model is None and model_id:
-        model = _load_model(db, user.id, model_id)
+        model = campaign_service.model_visible_to(db, user, model_id)
     if model is None:
         model = (
             db.query(AIModel)
             .filter(AIModel.user_id == user.id, AIModel.is_default.is_(True))
+            .first()
+        )
+    if model is None:
+        model = (
+            db.query(AIModel)
+            .filter(AIModel.is_platform.is_(True), AIModel.price_usd == 0)
+            .order_by(AIModel.id)
             .first()
         )
     return agent, model

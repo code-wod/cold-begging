@@ -23,3 +23,23 @@ def get_db():
 def init_db():
     from . import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
+    _promote_admins()
+
+
+def _promote_admins():
+    """Persistently promote users listed in ADMIN_EMAILS (comma-separated) to admin."""
+    from .config import ADMIN_EMAILS
+    from .models import User
+
+    emails = [e.strip().lower() for e in (ADMIN_EMAILS or '').split(',') if e.strip()]
+    if not emails:
+        return
+    db = SessionLocal()
+    try:
+        for email in emails:
+            user = db.query(User).filter(User.email == email).first()
+            if user and not user.is_admin:
+                user.is_admin = True
+        db.commit()
+    finally:
+        db.close()

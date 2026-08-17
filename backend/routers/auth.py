@@ -33,6 +33,7 @@ def _user_out(user, db):
         full_name=user.full_name,
         avatar_url=user.avatar_url,
         is_verified=user.is_verified,
+        is_admin=bool(user.is_admin),
         plan=sub.plan if sub else 'free',
         created_at=user.created_at.isoformat() if user.created_at else None,
     )

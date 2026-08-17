@@ -20,6 +20,8 @@ const NAV = [
   { href: '/profile', label: 'Profile', icon: 'profile' },
 ];
 
+const ADMIN_NAV = [{ href: '/admin', label: 'Admin', icon: 'settings' }];
+
 export default function Layout({ title, breadcrumb, actions, children }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
@@ -56,9 +58,17 @@ export default function Layout({ title, breadcrumb, actions, children }) {
                 className={`sidebar-link ${router.pathname === item.href || router.pathname.startsWith(item.href + '/') ? 'active' : ''}`}>
                 {Icons[item.icon]}
                 <span>{item.label}</span>
+            </Link>
+          )
+        )}
+          {user.is_admin &&
+            ADMIN_NAV.map((item) => (
+              <Link key={item.href} href={item.href}
+                className={`sidebar-link ${router.pathname === item.href ? 'active' : ''}`}>
+                {Icons[item.icon]}
+                <span>{item.label}</span>
               </Link>
-            )
-          )}
+            ))}
         </nav>
         <div className="sidebar-footer">
           <span className="plan-pill">

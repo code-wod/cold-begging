@@ -2,11 +2,10 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/dashboard": "pages/dashboard.js",
-  "/campaigns": "pages/campaigns.js",
-  "/settings": "pages/settings.js",
+  "/campaigns/new": "pages/campaigns/new.js",
+  "/campaigns/[id]": "pages/campaigns/[id].js",
   "/email-accounts": "pages/email-accounts.js",
-  "/analytics": "pages/analytics.js",
+  "/recipients": "pages/recipients.js",
   "/history": "pages/history.js",
-  "/ai-agents": "pages/ai-agents.js"
+  "/campaigns": "pages/campaigns.js"
 }

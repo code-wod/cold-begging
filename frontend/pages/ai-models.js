@@ -27,7 +27,7 @@ export default function AIModels() {
     api('/api/ai-models').then(setModels).catch((e) => toast(e.message, 'error'));
     api('/api/ai-models/available').then(setManaged).catch(() => {});
   };
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_MODEL); setModalOpen(true); };
   const openEdit = (m) => {
@@ -92,8 +92,9 @@ export default function AIModels() {
       <div className="page-head">
         <h1>AI Models</h1>
         <div className="muted">
-          Bring your own provider API keys, or upgrade to Pro to use the platform-managed model. Keys are encrypted and
-          never sent to your browser. <b>You are responsible for usage charges</b> from your own AI provider.
+          Bring your own provider API keys, use a free platform model (no key needed), or upgrade to Pro for the
+          platform-managed model. Keys are encrypted and never sent to your browser. <b>You are responsible for
+          usage charges</b> from your own AI provider.
         </div>
       </div>
 
@@ -132,7 +133,15 @@ export default function AIModels() {
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))' }}>
           {models.map((m) => (
             <Panel key={m.id} title={m.name}
-              actions={m.is_default ? <StatusBadge status="Default" tone="blue" /> : <StatusBadge status={m.provider} tone="gray" />}>
+              actions={
+                m.is_platform ? (
+                  m.price_usd === 0 ? <StatusBadge status="Free (platform)" tone="green" /> : <StatusBadge status="Pro (platform)" tone="amber" />
+                ) : m.is_default ? (
+                  <StatusBadge status="Default" tone="blue" />
+                ) : (
+                  <StatusBadge status={m.provider} tone="gray" />
+                )
+              }>
               <table className="dense" style={{ margin: '6px 0' }}>
                 <tbody>
                   <tr><td className="muted">Provider</td><td>{PROVIDER_LABELS[m.provider] || m.provider}</td></tr>
@@ -141,14 +150,21 @@ export default function AIModels() {
                   <tr><td className="muted">Max tokens</td><td>{m.max_tokens}</td></tr>
                   <tr><td className="muted">API key</td><td>{m.has_api_key ? '•••••••• (encrypted)' : 'Not set'}</td></tr>
                   {m.base_url && <tr><td className="muted">Base URL</td><td>{m.base_url}</td></tr>}
+                  {m.is_platform && (
+                    <tr><td className="muted">Pricing</td><td>{m.price_usd === 0 ? 'Free for all users' : `$${m.price_usd}/mo · Pro only`}</td></tr>
+                  )}
                 </tbody>
               </table>
               <div className="flex">
                 <Button variant="secondary" sm disabled={testingId === m.id} onClick={() => testConnection(m)}>
                   {testingId === m.id ? <Spinner /> : Icons.check} Test
                 </Button>
-                <Button variant="secondary" sm onClick={() => openEdit(m)}>{Icons.edit} Edit</Button>
-                <Button variant="secondary" sm onClick={() => setConfirmDelete(m)}>{Icons.trash}</Button>
+                {!m.is_platform && (
+                  <>
+                    <Button variant="secondary" sm onClick={() => openEdit(m)}>{Icons.edit} Edit</Button>
+                    <Button variant="secondary" sm onClick={() => setConfirmDelete(m)}>{Icons.trash}</Button>
+                  </>
+                )}
               </div>
             </Panel>
           ))}

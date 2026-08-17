@@ -14,7 +14,7 @@ export default function Billing() {
     api('/api/billing').then(setUsage).catch((e) => toast(e.message, 'error'));
     api('/api/billing/subscription').then(setSub).catch((e) => toast(e.message, 'error'));
   };
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const change = async (action) => {
     try {

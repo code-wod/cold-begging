@@ -33,7 +33,7 @@ export default function EmailAccounts() {
   const load = () => {
     api('/api/email-accounts').then(setAccounts).catch((e) => toast(e.message, 'error'));
   };
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const connectGoogle = async () => {
     setConnectBusy(true);

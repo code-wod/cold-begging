@@ -35,7 +35,7 @@ export default function Recipients() {
       .catch((e) => toast(e.message, 'error'));
   };
 
-  useEffect(load, [search]);
+  useEffect(() => { load(); }, [search]);
 
   const submitAdd = async () => {
     try {

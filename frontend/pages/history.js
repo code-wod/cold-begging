@@ -28,7 +28,7 @@ export default function History() {
     params.set('limit', 200);
     api(`/api/emails/history?${params.toString()}`).then(setData).catch((e) => toast(e.message, 'error'));
   };
-  useEffect(load, [filters]);
+  useEffect(() => { load(); }, [filters]);
 
   useEffect(() => {
     api('/api/campaigns').then(setCampaigns).catch(() => {});

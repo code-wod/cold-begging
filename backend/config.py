@@ -55,6 +55,9 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 API_BASE = os.getenv('API_BASE', 'http://localhost:8000')
 ACCESS_TOKEN_EXPIRE_DAYS = int(os.getenv('ACCESS_TOKEN_EXPIRE_DAYS', '7'))
 
+# Comma-separated emails promoted to admin at startup (persisted in the DB).
+ADMIN_EMAILS = os.getenv('ADMIN_EMAILS', '')
+
 # Paid feature flag: the platform-managed model is a Pro plan feature.
 MANAGED_MODEL_NAME = os.getenv('MANAGED_MODEL_NAME', 'claude-3.5')
 

@@ -26,7 +26,7 @@ export default function CampaignDetail() {
     api(`/api/campaigns/${id}/emails`).then(setEmails).catch((e) => toast(e.message, 'error'));
     api('/api/email-accounts').then(setAccounts).catch(() => {});
   };
-  useEffect(load, [id]);
+  useEffect(() => { load(); }, [id]);
 
   const act = async (path, msg, then) => {
     try {
@@ -103,7 +103,7 @@ export default function CampaignDetail() {
             <Button onClick={() => act(`/api/campaigns/${id}/launch`, 'Campaign scheduled')}>{Icons.play} Launch</Button>
           )}
 {['scheduled', 'running'].includes(campaign.status) && (
-            <Button variant="secondary" onClick={() => act(`/api/campaigns/${id}/pause`, 'Sending stopped — campaign paused')}><Icons.pause /> Stop</Button>
+            <Button variant="secondary" onClick={() => act(`/api/campaigns/${id}/pause`, 'Sending stopped — campaign paused')}>{Icons.pause} Stop</Button>
           )}
           {campaign.status === 'paused' && (
             <Button onClick={() => act(`/api/campaigns/${id}/resume`, 'Campaign resumed')}>{Icons.play} Resume</Button>

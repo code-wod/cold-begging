@@ -30,6 +30,7 @@ class UserOut(BaseModel):
     full_name: str
     avatar_url: str
     is_verified: bool
+    is_admin: bool = False
     plan: str = 'free'
     created_at: Optional[str] = None
 
@@ -39,6 +40,61 @@ class TokenOut(BaseModel):
     access_token: str
     token_type: str = 'bearer'
     user: UserOut
+
+
+# ---------- Admin ----------
+class AdminModelIn(BaseModel):
+    name: str
+    provider: str
+    model: str
+    api_key: str = ''
+    base_url: str = ''
+    temperature: float = 0.7
+    max_tokens: int = 1000
+    price_usd: float = 0  # 0 = free for all users; >0 = Pro-only platform model
+
+
+class AdminModelUpdate(BaseModel):
+    name: Optional[str] = None
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
+    price_usd: Optional[float] = None
+
+
+class AdminModelOut(BaseModel):
+    id: int
+    name: str
+    provider: str
+    model: str
+    base_url: str
+    temperature: float
+    max_tokens: int
+    price_usd: float = 0
+    is_platform: bool = True
+    has_api_key: bool = False
+    created_at: Optional[str] = None
+
+
+class AdminUserOut(BaseModel):
+    id: int
+    email: str
+    full_name: str
+    plan: str = 'free'
+    is_admin: bool = False
+    is_verified: bool = False
+    created_at: Optional[str] = None
+
+
+class AdminPlanUpdate(BaseModel):
+    plan: str
+
+
+class AdminRoleUpdate(BaseModel):
+    is_admin: bool
 
 
 class ProfileUpdate(BaseModel):
@@ -102,6 +158,8 @@ class AIModelOut(BaseModel):
     temperature: float
     max_tokens: int
     is_default: bool
+    is_platform: bool = False
+    price_usd: float = 0
     has_api_key: bool = False
     created_at: Optional[str] = None
 

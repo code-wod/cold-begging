@@ -10,7 +10,7 @@ export default function Campaigns() {
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const load = () => api('/api/campaigns').then(setItems).catch((e) => toast(e.message, 'error'));
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const act = async (path, msg) => {
     try {

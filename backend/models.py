@@ -29,6 +29,7 @@ class User(Base):
     full_name = Column(String(255), default='')
     avatar_url = Column(String(1024), default='')
     is_verified = Column(Boolean, default=False)
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -99,6 +100,8 @@ class AIModel(Base):
     temperature = Column(Float, default=0.7)
     max_tokens = Column(Integer, default=1000)
     is_default = Column(Boolean, default=False)
+    is_platform = Column(Boolean, default=False)  # admin-managed, shared model (platform credentials)
+    price_usd = Column(Float, default=0)  # 0 = free for all users; >0 = Pro-only platform model
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 

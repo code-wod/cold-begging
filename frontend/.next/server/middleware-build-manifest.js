@@ -19,25 +19,20 @@ self.__BUILD_MANIFEST = {
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/ai-agents": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/ai-agents.js"
-    ],
-    "/analytics": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/analytics.js"
-    ],
     "/campaigns": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
       "static/chunks/pages/campaigns.js"
     ],
-    "/dashboard": [
+    "/campaigns/[id]": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/dashboard.js"
+      "static/chunks/pages/campaigns/[id].js"
+    ],
+    "/campaigns/new": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/campaigns/new.js"
     ],
     "/email-accounts": [
       "static/chunks/webpack.js",
@@ -49,10 +44,10 @@ self.__BUILD_MANIFEST = {
       "static/chunks/main.js",
       "static/chunks/pages/history.js"
     ],
-    "/settings": [
+    "/recipients": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/settings.js"
+      "static/chunks/pages/recipients.js"
     ]
   },
   "ampFirstPages": []

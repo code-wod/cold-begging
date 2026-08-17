@@ -5,7 +5,18 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import FRONTEND_URL
 from .database import init_db
-from .routers import agents, analytics, auth, billing, campaigns, chat, email_accounts, emails, recipients
+from .routers import (
+    admin,
+    agents,
+    analytics,
+    auth,
+    billing,
+    campaigns,
+    chat,
+    email_accounts,
+    emails,
+    recipients,
+)
 from .worker import CampaignWorker
 
 worker = CampaignWorker()
@@ -29,7 +40,7 @@ app.add_middleware(
     allow_credentials=True,
 )
 
-for router in (auth, recipients, email_accounts, agents, campaigns, emails, analytics, billing, chat):
+for router in (auth, recipients, email_accounts, agents, campaigns, emails, analytics, billing, chat, admin):
     app.include_router(router.router)
 
 

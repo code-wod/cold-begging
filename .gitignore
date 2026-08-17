@@ -13,3 +13,4 @@ backend/.secret_key
 backend/.fernet_key
 uploads/
 review_queue.json
+frontend/.next/
