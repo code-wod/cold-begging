@@ -8,3 +8,8 @@ token.json
 node_modules/
 frontend/node_modules/
 backend/.venv/
+backend/*.db
+backend/.secret_key
+backend/.fernet_key
+uploads/
+review_queue.json

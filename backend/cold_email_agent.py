@@ -50,6 +50,7 @@ class ColdEmailAgent:
         use_company_research=True,
         custom_prompt=None,
         max_tokens=500,
+        ai_provider=None,
     ):
         self.excel_path = excel_path
         self.sender_email = sender_email or os.getenv('SENDER_EMAIL')
@@ -68,6 +69,7 @@ class ColdEmailAgent:
         self.use_company_research = use_company_research
         self.custom_prompt = custom_prompt
         self.max_tokens = max_tokens
+        self.ai_provider = ai_provider
 
         if self.gmail_credentials and HAVE_GMAIL_API:
             self.gmail_service = self._init_gmail_api()
@@ -152,6 +154,9 @@ class ColdEmailAgent:
         return result
 
     def _anthropic_completion(self, prompt, max_tokens=400, model='claude-3.5'):
+        if self.ai_provider:
+            return self.ai_provider.complete(prompt, model, max_tokens, 0.7)
+
         if not self.anthropic_client:
             return ''
 
@@ -178,7 +183,7 @@ class ColdEmailAgent:
             return ''
 
     def research_company(self, company_data):
-        if not self.use_company_research or not self.anthropic_client:
+        if not self.use_company_research or not (self.anthropic_client or self.ai_provider):
             return {
                 'company_pain_points': [],
                 'growth_stage': 'unknown',
@@ -278,7 +283,7 @@ class ColdEmailAgent:
         if self.custom_prompt:
             prompt += f"Additional instructions: {self.custom_prompt}\n"
 
-        raw = self._anthropic_completion(prompt, max_tokens=self.max_tokens, model=self.ai_model) if self.anthropic_client else ''
+        raw = self._anthropic_completion(prompt, max_tokens=self.max_tokens, model=self.ai_model) if (self.anthropic_client or self.ai_provider) else ''
         if raw:
             raw = raw.replace('```', '').strip()
             parts = raw.split('BODY:')

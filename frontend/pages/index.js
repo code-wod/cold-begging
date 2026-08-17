@@ -1,206 +1,218 @@
-import { useState } from 'react';
+import Link from 'next/link';
+import { useAuth } from '../lib/auth';
 
-export default function Home() {
-  const [file, setFile] = useState(null);
-  const [senderEmail, setSenderEmail] = useState('');
-  const [smtpPassword, setSmtpPassword] = useState('');
-  const [gmailCredentials, setGmailCredentials] = useState('');
-  const [maxEmails, setMaxEmails] = useState('10');
-  const [rateLimit, setRateLimit] = useState('2.0');
-  const [aiModel, setAiModel] = useState('claude-3.5');
-  const [tone, setTone] = useState('professional');
-  const [subjectStyle, setSubjectStyle] = useState('personalized');
-  const [emailLength, setEmailLength] = useState('medium');
-  const [useCompanyResearch, setUseCompanyResearch] = useState(true);
-  const [customPrompt, setCustomPrompt] = useState('');
-  const [useGmailApi, setUseGmailApi] = useState(false);
-  const [sendNow, setSendNow] = useState(false);
-  const [status, setStatus] = useState(null);
-  const [results, setResults] = useState(null);
+const FEATURES = [
+  ['Gmail integration', 'Connect your own Gmail account via Google OAuth. We never ask for your password.'],
+  ['Excel / CSV import', 'Import your recipient list with company, industry and role details for personalization.'],
+  ['AI personalization', 'Each email is researched and written for the specific company and recipient.'],
+  ['Multiple AI agents', 'Create dedicated agents — outreach, company research, follow-ups — each with its own model.'],
+  ['Multiple AI models', 'Bring your own OpenAI, Anthropic or compatible model API keys, or use the managed model.'],
+  ['Email preview & edit', 'Review, edit and approve every email before it is sent.'],
+  ['Scheduling', 'Set send windows, active days, delays and daily limits. Manual sending is always available.'],
+  ['Campaign tracking', 'Follow every campaign from draft to completion with clear status and history.'],
+];
 
-  const onSubmit = async (event) => {
-    event.preventDefault();
-    if (!file) {
-      setStatus({ type: 'error', message: 'Please choose an Excel file.' });
-      return;
-    }
+const WORKFLOW = [
+  'Import Recipients',
+  'Configure AI Agent',
+  'Research & Personalize',
+  'Preview Emails',
+  'Schedule / Send',
+  'Track Results',
+];
 
-    const formData = new FormData();
-    formData.append('excel_file', file);
-    formData.append('sender_email', senderEmail);
-    formData.append('smtp_password', smtpPassword);
-    formData.append('gmail_credentials', gmailCredentials);
-    formData.append('max_emails', maxEmails);
-    formData.append('rate_limit', rateLimit);
-    formData.append('ai_model', aiModel);
-    formData.append('tone', tone);
-    formData.append('subject_style', subjectStyle);
-    formData.append('email_length', emailLength);
-    formData.append('use_company_research', useCompanyResearch ? 'true' : 'false');
-    formData.append('custom_prompt', customPrompt);
-    formData.append('use_gmail_api', useGmailApi ? 'true' : 'false');
-    formData.append('send_now', sendNow ? 'true' : 'false');
+const PLANS = [
+  {
+    name: 'Free',
+    price: '$0',
+    tag: 'For trying the platform',
+    featured: false,
+    items: [
+      'Connect your own Gmail',
+      'Import recipients (Excel / CSV)',
+      'Recipient management',
+      'Use your own AI API key',
+      'Email preview & manual editing',
+      'Manual sending',
+      'Basic campaigns',
+    ],
+  },
+  {
+    name: 'Pro',
+    price: 'Paid',
+    tag: 'For serious outreach',
+    featured: true,
+    items: [
+      'Everything in Free',
+      'Managed default AI model',
+      'Multiple AI agents',
+      'Advanced scheduling & rate control',
+      'Higher AI usage',
+      'Campaign analytics',
+      'Advanced personalization',
+      'Priority processing',
+    ],
+  },
+];
 
-    setStatus({ type: 'info', message: 'Uploading and processing…' });
-    setResults(null);
-
-    try {
-      const response = await fetch('http://localhost:8000/process', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const body = await response.json();
-        throw new Error(body.detail || 'Processing failed');
-      }
-
-      const data = await response.json();
-      setStatus({ type: 'success', message: 'Completed successfully.' });
-      setResults(data);
-    } catch (error) {
-      setStatus({ type: 'error', message: error.message });
-    }
-  };
-
+export default function Landing() {
+  const { user } = useAuth();
   return (
-    <main style={{ fontFamily: 'Arial, sans-serif', padding: '2rem', background: '#f5f7fb', minHeight: '100vh' }}>
-      <div style={{ maxWidth: 900, margin: '0 auto', background: '#fff', padding: '2rem', borderRadius: 16, boxShadow: '0 18px 32px rgba(0,0,0,0.08)' }}>
-        <h1>Cold Email Automation</h1>
-        <p>Upload an Excel sheet and generate outreach emails with optional send behavior.</p>
+    <div className="landing">
+      <nav className="landing-nav">
+        <div style={{ fontWeight: 800, fontSize: 18 }}>
+          ✉️ PulseBoard <span style={{ color: '#2563eb' }}>Cold Email AI</span>
+        </div>
+        <div className="flex">
+          {user ? (
+            <Link href="/dashboard" className="btn">Open Dashboard</Link>
+          ) : (
+            <>
+              <Link href="/login" className="btn ghost">Login</Link>
+              <Link href="/signup" className="btn">Get Started Free</Link>
+            </>
+          )}
+        </div>
+      </nav>
 
-        {status && (
-          <div style={{ marginBottom: '1rem', padding: '1rem', borderRadius: 10, background: status.type === 'error' ? '#ffe8e6' : '#e8f5e9', color: status.type === 'error' ? '#ba1b1b' : '#095c22' }}>
-            {status.message}
-          </div>
-        )}
+      <header className="landing-hero">
+        <h1>AI-Powered Personalized<br />Cold Email Automation</h1>
+        <p>
+          Turn your recipient list into personalized outreach campaigns using your own
+          Gmail account and the AI model of your choice.
+        </p>
+        <div className="flex" style={{ justifyContent: 'center' }}>
+          {user ? (
+            <Link href="/dashboard" className="btn" style={{ padding: '12px 24px', fontSize: 15 }}>Open Dashboard</Link>
+          ) : (
+            <>
+              <Link href="/signup" className="btn" style={{ padding: '12px 24px', fontSize: 15 }}>Get Started Free</Link>
+              <a href="#how" className="btn secondary" style={{ padding: '12px 24px', fontSize: 15 }}>See How It Works</a>
+            </>
+          )}
+        </div>
+      </header>
 
-        <form onSubmit={onSubmit}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label>Excel file (.xlsx)</label>
-            <input type="file" accept=".xlsx" onChange={(e) => setFile(e.target.files[0])} required />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label>Sender email</label>
-              <input style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} value={senderEmail} onChange={(e) => setSenderEmail(e.target.value)} placeholder="you@gmail.com" />
-            </div>
-            <div>
-              <label>Gmail app password</label>
-              <input style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} type="password" value={smtpPassword} onChange={(e) => setSmtpPassword(e.target.value)} placeholder="App password" />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: '1rem' }}>
-            <label>Gmail credentials JSON path (optional for Gmail API)</label>
-            <input style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} value={gmailCredentials} onChange={(e) => setGmailCredentials(e.target.value)} placeholder="backend credentials path" />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label>Max emails</label>
-              <input type="number" style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} min="1" value={maxEmails} onChange={(e) => setMaxEmails(e.target.value)} />
-            </div>
-            <div>
-              <label>Rate limit (seconds)</label>
-              <input type="number" style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} min="0" step="0.5" value={rateLimit} onChange={(e) => setRateLimit(e.target.value)} />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label>AI model</label>
-              <select style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
-                <option value="claude-3.5">claude-3.5</option>
-                <option value="claude-4">claude-4</option>
-              </select>
-            </div>
-            <div>
-              <label>Email tone</label>
-              <select style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} value={tone} onChange={(e) => setTone(e.target.value)}>
-                <option value="professional">Professional</option>
-                <option value="conversational">Conversational</option>
-                <option value="friendly">Friendly</option>
-                <option value="formal">Formal</option>
-              </select>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <div>
-              <label>Subject style</label>
-              <select style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} value={subjectStyle} onChange={(e) => setSubjectStyle(e.target.value)}>
-                <option value="personalized">Personalized</option>
-                <option value="curiosity">Curiosity-driven</option>
-                <option value="benefit">Benefit-focused</option>
-              </select>
-            </div>
-            <div>
-              <label>Email length</label>
-              <select style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }} value={emailLength} onChange={(e) => setEmailLength(e.target.value)}>
-                <option value="short">Short</option>
-                <option value="medium">Medium</option>
-                <option value="long">Long</option>
-              </select>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
-            <label><input type="checkbox" checked={useCompanyResearch} onChange={(e) => setUseCompanyResearch(e.target.checked)} /> Use company research</label>
-            <label><input type="checkbox" checked={useGmailApi} onChange={(e) => setUseGmailApi(e.target.checked)} /> Use Gmail API</label>
-            <label><input type="checkbox" checked={sendNow} onChange={(e) => setSendNow(e.target.checked)} /> Send now</label>
-          </div>
-
-          <div style={{ marginBottom: '1rem' }}>
-            <label>Custom AI prompt (optional)</label>
-            <textarea style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', minHeight: '120px' }} value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)} placeholder="Add instructions such as 'Make the tone more urgent' or 'Mention product-market fit.'" />
-          </div>
-
-          <button type="submit" style={{ padding: '0.9rem 1.5rem', borderRadius: 10, background: '#0070f3', color: '#fff', border: 'none', cursor: 'pointer' }}>Submit</button>
-        </form>
-
-        {results && (
-          <section style={{ marginTop: '2rem' }}>
-            <h2>Results</h2>
-            <p>{results.results.length} rows processed</p>
-            {results.options && (
-              <div style={{ marginBottom: '1rem', padding: '1rem', borderRadius: 10, background: '#f0f5ff' }}>
-                <strong>AI settings:</strong>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
-                  <span>Model: {results.options.ai_model}</span>
-                  <span>Tone: {results.options.tone}</span>
-                  <span>Subject style: {results.options.subject_style}</span>
-                  <span>Email length: {results.options.email_length}</span>
-                  <span>Company research: {results.options.use_company_research ? 'enabled' : 'disabled'}</span>
-                </div>
-              </div>
-            )}
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: '#f1f5f9' }}>
-                  <th style={{ padding: '0.75rem', border: '1px solid #e2e8f0' }}>#</th>
-                  <th style={{ padding: '0.75rem', border: '1px solid #e2e8f0' }}>Email</th>
-                  <th style={{ padding: '0.75rem', border: '1px solid #e2e8f0' }}>Company</th>
-                  <th style={{ padding: '0.75rem', border: '1px solid #e2e8f0' }}>Status</th>
-                  <th style={{ padding: '0.75rem', border: '1px solid #e2e8f0' }}>Subject</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.results.map((row, index) => (
-                  <tr key={`${row.email}-${index}`} style={{ background: index % 2 ? '#fff' : '#f8fbff' }}>
-                    <td style={{ padding: '0.75rem', border: '1px solid #e2e8f0' }}>{index + 1}</td>
-                    <td style={{ padding: '0.75rem', border: '1px solid #e2e8f0' }}>{row.email}</td>
-                    <td style={{ padding: '0.75rem', border: '1px solid #e2e8f0' }}>{row.company_name}</td>
-                    <td style={{ padding: '0.75rem', border: '1px solid #e2e8f0' }}>{row.status}</td>
-                    <td style={{ padding: '0.75rem', border: '1px solid #e2e8f0' }}>{row.subject}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        )}
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 40px' }}>
+        <div className="panel" style={{ boxShadow: '0 20px 60px rgba(16,24,40,0.12)' }}>
+          <img
+            src="https://placehold.co/1080x520/eef1f6/667085?text=PulseBoard+—+Campaign+Dashboard"
+            alt="PulseBoard dashboard preview"
+            style={{ width: '100%', display: 'block', borderRadius: 'var(--radius)' }}
+          />
+        </div>
       </div>
-    </main>
+
+      <section className="landing-section" id="how">
+        <h2>How it works</h2>
+        <p className="sub">From spreadsheet to personalized outreach in minutes.</p>
+        <div className="landing-grid">
+          {WORKFLOW.map((step, i) => (
+            <div key={step} className="feature-card">
+              <div className="muted" style={{ fontSize: 12, fontWeight: 700 }}>STEP {i + 1}</div>
+              <h4 style={{ margin: '6px 0' }}>{step}</h4>
+              <p>{i === 2 ? 'The platform researches each company and writes a tailored email.' : 'Guided, step by step, from the dashboard.'}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="landing-section">
+        <h2>Key features</h2>
+        <p className="sub">A serious cloud-automation workspace, not a chat template.</p>
+        <div className="landing-grid">
+          {FEATURES.map(([t, d]) => (
+            <div key={t} className="feature-card">
+              <h4>{t}</h4>
+              <p>{d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="landing-section">
+        <h2>Free setup</h2>
+        <p className="sub">
+          Start free by connecting your own Google account. You bring the Gmail account; we bring the automation.
+          Bring your own AI API key or upgrade for the managed model.
+        </p>
+        <div className="landing-grid">
+          <div className="feature-card">
+            <h4>1 · Create account</h4>
+            <p>Sign up in seconds. No credit card required.</p>
+          </div>
+          <div className="feature-card">
+            <h4>2 · Connect Gmail</h4>
+            <p>One-click Google OAuth. We only request the permission needed to send on your behalf.</p>
+          </div>
+          <div className="feature-card">
+            <h4>3 · Import & go</h4>
+            <p>Upload your recipients, pick an AI agent, and launch your first campaign.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="landing-section">
+        <h2>Pricing</h2>
+        <p className="sub">Free to start. Pay only when you need more power.</p>
+        <div className="landing-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+          {PLANS.map((p) => (
+            <div key={p.name} className={`pricing-card ${p.featured ? 'featured' : ''}`}>
+              <h3>{p.name}</h3>
+              <div className="price">{p.price}</div>
+              <p className="muted" style={{ marginTop: -8 }}>{p.tag}</p>
+              <ul>
+                {p.items.map((i) => (
+                  <li key={i}>✓ {i}</li>
+                ))}
+              </ul>
+              {user ? (
+                <Link href="/billing" className="btn" style={{ justifyContent: 'center' }}>Manage Plan</Link>
+              ) : (
+                <Link href="/signup" className="btn" style={{ justifyContent: 'center' }}>
+                  {p.name === 'Free' ? 'Start Free' : 'Upgrade'}
+                </Link>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="panel mt-16" style={{ padding: 18 }}>
+          <strong>Need recipient emails?</strong>
+          <p className="muted mb-0" style={{ marginTop: 4 }}>
+            We don't provide lists for free. Recipient discovery is a separate paid service — bring your own
+            list, or contact us about our recipient data service.
+          </p>
+        </div>
+      </section>
+
+      <section className="landing-section">
+        <h2>Security</h2>
+        <p className="sub">Your credentials stay encrypted and out of the browser.</p>
+        <div className="landing-grid">
+          <div className="feature-card">
+            <h4>Google OAuth, not passwords</h4>
+            <p>Gmail access happens through Google's official authentication flow. We never ask for — or store — your Gmail password.</p>
+          </div>
+          <div className="feature-card">
+            <h4>Encrypted secrets</h4>
+            <p>OAuth tokens and AI API keys are encrypted at rest on the server and never sent to your browser.</p>
+          </div>
+          <div className="feature-card">
+            <h4>Scoped access</h4>
+            <p>We request only the minimum Gmail permission needed to send on your behalf. Your data is isolated per account.</p>
+          </div>
+        </div>
+      </section>
+
+      <footer className="footer">
+        <Link href="#how">Documentation</Link>
+        <Link href="#pricing">Pricing</Link>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <a href="#">Contact</a>
+        <Link href="/login">Login</Link>
+        <Link href="/signup">Sign Up</Link>
+      </footer>
+    </div>
   );
 }

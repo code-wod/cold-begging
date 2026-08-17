@@ -73,17 +73,17 @@ class ColdEmailAgent:
         self.gmail_service = self._init_gmail()
         self.sent_count = 0
         self.rate_limit_delay = 1  # seconds between emails
-        
+
     def _init_gmail(self):
         """Initialize Gmail API connection"""
         credentials = service_account.Credentials.from_service_account_file(
             self.credentials_path, scopes=SCOPES)
-        
+
         # If using personal Gmail, use this instead:
         # from google.auth.oauthlib.flow import InstalledAppFlow
         # flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
         # creds = flow.run_local_server()
-        
+
         from googleapiclient.discovery import build
         return build('gmail', 'v1', credentials=credentials)
 
@@ -91,7 +91,7 @@ class ColdEmailAgent:
         """Read email list from Excel"""
         wb = openpyxl.load_workbook(self.excel_path)
         ws = wb.active
-        
+
         emails = []
         for row in ws.iter_rows(min_row=2, values_only=True):
             if row[0]:  # If email exists
@@ -112,7 +112,7 @@ class ColdEmailAgent:
         - Company: {company_data['company_name']}
         - Website: {company_data['website']}
         - Industry: {company_data['industry']}
-        
+
         Provide ONLY JSON format with these fields:
         {{
             "company_pain_points": ["issue1", "issue2"],
@@ -121,10 +121,10 @@ class ColdEmailAgent:
             "company_culture": "brief description",
             "key_keywords": ["keyword1", "keyword2"]
         }}
-        
+
         Be realistic and specific. If you don't know details, make educated guesses based on industry.
         """
-        
+
         message = self.client.messages.create(
             model="claude-opus-4-6",
             max_tokens=500,
@@ -132,7 +132,7 @@ class ColdEmailAgent:
                 {"role": "user", "content": prompt}
             ]
         )
-        
+
         try:
             # Extract JSON from response
             response_text = message.content[0].text
@@ -154,18 +154,18 @@ class ColdEmailAgent:
         """Generate personalized email using Claude"""
         prompt = f"""
         Write a personalized cold email for a job opportunity. Requirements:
-        
+
         Recipient Context:
         - Company: {company_data['company_name']}
         - Recipient Email: {company_data['email']}
         - Target Job Role: {company_data['job_role']}
         - Position Level: {company_data['position_level']}
-        
+
         Company Profile:
         - Pain Points: {', '.join(company_profile.get('company_pain_points', []))}
         - Growth Stage: {company_profile.get('growth_stage')}
         - Culture: {company_profile.get('company_culture')}
-        
+
         Email Requirements:
         1. Subject line: SHORT, personalized, NOT generic
         2. Body: 3-4 short paragraphs max
@@ -174,15 +174,15 @@ class ColdEmailAgent:
         5. Focus on: company achievement, your interest, value proposition
         6. CTA: Ask for a brief call/chat (low friction)
         7. NO generic templates - MUST be specific to company
-        
+
         Format response EXACTLY as:
         SUBJECT: [subject line]
         BODY:
         [email body]
-        
+
         Remember: This is for attracting talent TO the company, not job hunting.
         """
-        
+
         message = self.client.messages.create(
             model="claude-opus-4-6",
             max_tokens=400,
@@ -190,9 +190,9 @@ class ColdEmailAgent:
                 {"role": "user", "content": prompt}
             ]
         )
-        
+
         response_text = message.content[0].text
-        
+
         # Parse response
         try:
             parts = response_text.split('BODY:')
@@ -210,9 +210,9 @@ class ColdEmailAgent:
         message['subject'] = subject
         if sender_email:
             message['from'] = sender_email
-        
+
         raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
-        
+
         try:
             self.gmail_service.users().messages().send(
                 userId='me',
@@ -230,20 +230,20 @@ class ColdEmailAgent:
         emails = self.read_excel()
         if max_emails:
             emails = emails[:max_emails]
-        
+
         results = []
-        
+
         for idx, email_data in enumerate(emails, 1):
             logger.info(f"\n[{idx}/{len(emails)}] Processing {email_data['company_name']}")
-            
+
             # Step 1: Research company
             logger.info("  → Researching company profile...")
             company_profile = self.research_company(email_data)
-            
+
             # Step 2: Generate email
             logger.info("  → Generating personalized email...")
             subject, body = self.generate_personalized_email(email_data, company_profile)
-            
+
             if not subject or not body:
                 logger.error(f"  ✗ Email generation failed")
                 results.append({
@@ -252,7 +252,7 @@ class ColdEmailAgent:
                     'reason': 'generation_failed'
                 })
                 continue
-            
+
             # Step 3: Send email
             if dry_run:
                 logger.info(f"  [DRY RUN] Would send email:")
@@ -270,10 +270,10 @@ class ColdEmailAgent:
                     'status': 'sent' if success else 'failed',
                     'subject': subject
                 })
-            
+
             # Rate limiting
             time.sleep(self.rate_limit_delay)
-        
+
         logger.info(f"\n✓ Completed: {self.sent_count} emails sent")
         return results
 
@@ -283,10 +283,10 @@ if __name__ == "__main__":
         credentials_path='path/to/credentials.json',
         excel_path='cold_email_list.xlsx'
     )
-    
+
     # Start with dry run first!
     results = agent.process_and_send_emails(dry_run=True)
-    
+
     # Then send for real
     # results = agent.process_and_send_emails(max_emails=10)
 ```
@@ -319,7 +319,7 @@ class ColdEmailAgent {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(filePath);
     const worksheet = workbook.getWorksheet(1);
-    
+
     const emails = [];
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber > 1 && row.values[1]) { // Skip header
@@ -340,7 +340,7 @@ class ColdEmailAgent {
     try {
       const response = await axios.get(`https://${website}`, { timeout: 5000 });
       const $ = cheerio.load(response.data);
-      
+
       return {
         description: $('meta[name="description"]').attr('content') || '',
         aboutText: $('section[id*="about"]').text().slice(0, 200) || '',
@@ -359,7 +359,7 @@ class ColdEmailAgent {
       messages: [{
         role: "user",
         content: `Create a personalized cold email for a job opportunity:
-        
+
 Company: ${emailData.companyName}
 Target Role: ${emailData.jobRole}
 Position Level: ${emailData.positionLevel}
@@ -373,7 +373,7 @@ Requirements:
 - Clear CTA for a call
 - Professional but conversational
 
-Format: 
+Format:
 SUBJECT: [subject]
 BODY:
 [body text]`
@@ -415,7 +415,7 @@ BODY:
 
       // Scrape company website
       const companyInfo = await this.scrapeCompanyWebsite(emailData.website);
-      
+
       // Generate email
       const { subject, body } = await this.generateEmail(emailData, companyInfo);
 
@@ -625,3 +625,9 @@ LinkedIn: Send connection request on Day 2
 - **Monitoring**: Sentry (error tracking)
 - **Webhooks**: Zapier or Make (integrate with CRM)
 - **Email Tracking**: Mailgun or SendGrid (better analytics)
+
+## server start backend
+cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+# then, from the repo root:
+- backend/.venv/bin/uvicorn backend.main:app --port 8000
+- The server starts at http://localhost:8000 (health check: curl http://localhost:8000/health). It auto-creates backend/cold_email.db and the SECRET_KEY/FERNET_KEY files on first boot.

@@ -1,86 +1,43 @@
-import os
-import tempfile
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-from backend.cold_email_agent import ColdEmailAgent
+from contextlib import asynccontextmanager
 
-app = FastAPI(title='Cold Email Automation Backend')
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from .config import FRONTEND_URL
+from .database import init_db
+from .routers import agents, analytics, auth, billing, campaigns, chat, email_accounts, emails, recipients
+from .worker import CampaignWorker
+
+worker = CampaignWorker()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    worker.start()
+    yield
+    worker.stop()
+
+
+app = FastAPI(title='Cold Email AI', version='1.0.0', lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=[FRONTEND_URL, 'http://localhost:3001', 'http://127.0.0.1:3001'],
     allow_methods=['*'],
     allow_headers=['*'],
+    allow_credentials=True,
 )
+
+for router in (auth, recipients, email_accounts, agents, campaigns, emails, analytics, billing, chat):
+    app.include_router(router.router)
 
 
 @app.get('/health')
-def health_check():
+def health():
     return {'status': 'ok'}
 
 
-@app.post('/process')
-async def process_excel(
-    excel_file: UploadFile = File(...),
-    sender_email: str = Form(None),
-    smtp_password: str = Form(None),
-    gmail_credentials: str = Form(None),
-    max_emails: int = Form(None),
-    rate_limit: float = Form(2.0),
-    ai_model: str = Form('claude-3.5'),
-    tone: str = Form('professional'),
-    subject_style: str = Form('personalized'),
-    email_length: str = Form('medium'),
-    use_company_research: bool = Form(True),
-    custom_prompt: str = Form(None),
-    use_gmail_api: bool = Form(False),
-    send_now: bool = Form(False),
-):
-    if excel_file.content_type not in (
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/octet-stream',
-    ):
-        raise HTTPException(status_code=400, detail='Upload an .xlsx file')
-
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as temp_file:
-        temp_file.write(await excel_file.read())
-        temp_path = temp_file.name
-
-    try:
-        agent = ColdEmailAgent(
-            excel_path=temp_path,
-            sender_email=sender_email,
-            smtp_password=smtp_password,
-            gmail_credentials=gmail_credentials,
-            rate_limit=rate_limit,
-            ai_model=ai_model,
-            tone=tone,
-            subject_style=subject_style,
-            email_length=email_length,
-            use_company_research=use_company_research,
-            custom_prompt=custom_prompt,
-        )
-
-        results = agent.process_and_send_emails(
-            max_emails=max_emails,
-            dry_run=not send_now,
-            use_gmail_api=use_gmail_api,
-        )
-
-        return {
-            'dry_run': not send_now,
-            'use_gmail_api': use_gmail_api,
-            'options': {
-                'ai_model': ai_model,
-                'tone': tone,
-                'subject_style': subject_style,
-                'email_length': email_length,
-                'use_company_research': use_company_research,
-                'custom_prompt': custom_prompt,
-            },
-            'results': results,
-        }
-    finally:
-        try:
-            os.remove(temp_path)
-        except OSError:
-            pass
+@app.get('/')
+def root():
+    return {'name': 'Cold Email AI API', 'docs': '/docs', 'health': '/health'}

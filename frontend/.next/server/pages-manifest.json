@@ -2,5 +2,11 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/": "pages/index.js"
+  "/dashboard": "pages/dashboard.js",
+  "/campaigns": "pages/campaigns.js",
+  "/settings": "pages/settings.js",
+  "/email-accounts": "pages/email-accounts.js",
+  "/analytics": "pages/analytics.js",
+  "/history": "pages/history.js",
+  "/ai-agents": "pages/ai-agents.js"
 }

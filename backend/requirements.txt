@@ -7,3 +7,9 @@ google-api-python-client
 google-auth
 google-auth-oauthlib
 python-dotenv
+sqlalchemy
+bcrypt
+PyJWT
+cryptography
+httpx
+email-validator
