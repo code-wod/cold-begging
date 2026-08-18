@@ -175,7 +175,7 @@ export default function NewCampaign() {
               </Select>
             </Field>
             {selected && (
-              <div className="panel" style={{ padding: 12, background: '#f8fafc' }}>
+              <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
                 <div className="muted" style={{ fontSize: 12 }}>PURPOSE</div>
                 <p style={{ margin: '4px 0 8px' }}>{selected.purpose || '—'}</p>
                 <div className="muted" style={{ fontSize: 12 }}>MODEL</div>
@@ -196,7 +196,7 @@ export default function NewCampaign() {
               </Select>
             </Field>
             {account && (
-              <div className="panel" style={{ padding: 12, background: '#f8fafc' }}>
+              <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
                 <StatusBadge status={account.status} tone={account.status === 'connected' ? 'green' : 'red'} />
                 <p className="muted mt-8">{account.provider === 'google' ? 'Google OAuth' : 'SMTP'} account. {account.is_default ? 'This is your default sending account.' : ''}</p>
               </div>
@@ -267,25 +267,25 @@ export default function NewCampaign() {
 
         {step === 5 && (
           <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div className="panel" style={{ padding: 12, background: '#f8fafc' }}>
+            <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
               <div className="stat-label">Campaign</div>
               <b>{form.name}</b>
               <div className="muted">{form.review_required ? 'Review before send' : 'Auto-send'}{form.dry_run ? ' · dry run' : ''}</div>
             </div>
-            <div className="panel" style={{ padding: 12, background: '#f8fafc' }}>
+            <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
               <div className="stat-label">Recipients</div>
               <b>{selectedIds.length}</b>
             </div>
-            <div className="panel" style={{ padding: 12, background: '#f8fafc' }}>
+            <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
               <div className="stat-label">AI agent</div>
               <b>{selected?.name || '—'}</b>
               <div className="muted">{selected?.model_name || 'Default model'}</div>
             </div>
-            <div className="panel" style={{ padding: 12, background: '#f8fafc' }}>
+            <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
               <div className="stat-label">Sending account</div>
               <b>{account?.email || '—'}</b>
             </div>
-            <div className="panel" style={{ padding: 12, background: '#f8fafc' }}>
+            <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
               <div className="stat-label">Schedule</div>
               <b>{form.send_start_time} – {form.send_end_time}</b>
               <div className="muted">
@@ -293,7 +293,7 @@ export default function NewCampaign() {
                 · {form.emails_per_hour}/hr · {form.daily_limit ? `${form.daily_limit}/day cap` : 'no daily cap'}
               </div>
             </div>
-            <div className="panel" style={{ padding: 12, background: '#f8fafc' }}>
+            <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
               <div className="stat-label">Estimated sends</div>
               <b>{form.max_sends ? `Stops after ${form.max_sends}` : `${selectedIds.length} recipients`}</b>
               <div className="muted">

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../lib/auth';
 import { Button, Field, Input, Panel } from '../components/ui';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function Signup() {
   const { signup } = useAuth();
@@ -29,6 +30,7 @@ export default function Signup() {
 
   return (
     <div className="auth-wrap">
+      <div className="auth-theme"><ThemeToggle /></div>
       <Panel>
         <div style={{ textAlign: 'center', marginBottom: 18 }}>
           <div style={{ fontSize: 26 }}>✉️</div>

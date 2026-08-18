@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../lib/auth';
 import ChatWidget from './ChatWidget';
+import ThemeToggle from './ThemeToggle';
 import { Icons, Spinner } from './ui';
 
 const NAV = [
@@ -88,6 +89,7 @@ export default function Layout({ title, breadcrumb, actions, children }) {
             {title && <div style={{ fontWeight: 600, fontSize: 15 }}>{title}</div>}
           </div>
           <div className="flex">
+            <ThemeToggle />
             <Link href="/campaigns/new" className="btn sm">
               {Icons.plus} New Campaign
             </Link>

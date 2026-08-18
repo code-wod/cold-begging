@@ -70,7 +70,7 @@ export default function Onboarding() {
       </div>
 
       {state.gmail && state.recipients && state.ai && (
-        <div className="panel mt-16" style={{ padding: 18, borderColor: '#b9e5cb', background: '#f5fdf8' }}>
+        <div className="panel mt-16" style={{ padding: 18, borderColor: 'var(--success-soft-border)', background: 'var(--success-soft-bg)' }}>
           <strong>You're ready to launch. 🎉</strong>
           <p className="muted mb-8">Everything is set up. Create your first campaign now.</p>
           <Link href="/campaigns/new" className="btn">Create Campaign</Link>
