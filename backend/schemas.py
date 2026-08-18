@@ -103,6 +103,22 @@ class ProfileUpdate(BaseModel):
     bio: Optional[str] = None
 
 
+# ---------- Profile assets ----------
+class ProfileAssetIn(BaseModel):
+    asset_type: str  # resume_link | github | linkedin | website
+    title: str = ''
+    url: str = ''
+
+
+class ProfileAssetOut(BaseModel):
+    id: int
+    asset_type: str
+    title: str
+    url: str = ''
+    filename: str = ''
+    created_at: Optional[str] = None
+
+
 # ---------- Recipients ----------
 class RecipientIn(BaseModel):
     email: EmailStr
@@ -238,6 +254,7 @@ class CampaignIn(BaseModel):
     email_account_id: Optional[int] = None
     ai_model_id: Optional[int] = None
     recipient_ids: Optional[List[int]] = None
+    asset_ids: Optional[List[int]] = None
     review_required: bool = True
     dry_run: bool = True
     use_company_research: bool = True
@@ -261,6 +278,7 @@ class CampaignUpdate(BaseModel):
     name: Optional[str] = None
     agent_id: Optional[int] = None
     email_account_id: Optional[int] = None
+    asset_ids: Optional[List[int]] = None
     review_required: Optional[bool] = None
     dry_run: Optional[bool] = None
     use_company_research: Optional[bool] = None
@@ -308,6 +326,7 @@ class CampaignOut(BaseModel):
     failed_count: int = 0
     pending_count: int = 0
     cancelled_count: int = 0
+    asset_ids: List[int] = []
     created_at: Optional[str] = None
 
 

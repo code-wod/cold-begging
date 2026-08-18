@@ -14,3 +14,6 @@ backend/.fernet_key
 uploads/
 review_queue.json
 frontend/.next/
+frontend/.next/*
+frontend/.next/
+.next/

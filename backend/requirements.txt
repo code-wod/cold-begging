@@ -13,3 +13,4 @@ PyJWT
 cryptography
 httpx
 email-validator
+pypdf

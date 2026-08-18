@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Table,
     Text,
     UniqueConstraint,
 )
@@ -124,6 +125,35 @@ class AIAgent(Base):
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+campaign_assets = Table(
+    'campaign_assets',
+    Base.metadata,
+    Column('campaign_id', Integer, ForeignKey('campaigns.id'), primary_key=True),
+    Column('asset_id', Integer, ForeignKey('user_profile_assets.id'), primary_key=True),
+)
+
+
+class UserProfileAsset(Base):
+    """A personal profile asset: a resume PDF, resume link, or social/website URL.
+
+    asset_type: resume | resume_link | github | linkedin | website
+    Resumes (PDF or link) are the compulsory input for campaign personalization
+    and count toward the per-user resume cap (free = 5, Pro higher).
+    """
+
+    __tablename__ = 'user_profile_assets'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=False)
+    asset_type = Column(String(32), nullable=False)
+    title = Column(String(255), default='')  # display label, e.g. 'Product resume' or 'GitHub'
+    url = Column(String(1024), default='')  # for resume_link/github/linkedin/website
+    filename = Column(String(255), default='')  # original PDF filename
+    stored_path = Column(String(1024), default='')  # server path under uploads/
+    text_content = Column(Text, default='')  # extracted PDF text, used as sender context
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+
+
 class Campaign(Base):
     __tablename__ = 'campaigns'
 
@@ -152,6 +182,7 @@ class Campaign(Base):
     max_sends = Column(Integer, default=0)  # total sends per campaign; 0 = unlimited. Auto-stops when reached
     timezone = Column(String(64), default='UTC')
     last_sent_at = Column(DateTime(timezone=True))
+    assets = relationship('UserProfileAsset', secondary=campaign_assets, lazy='selectin')
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 

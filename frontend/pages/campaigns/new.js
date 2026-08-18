@@ -1,16 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
 import { api } from '../../lib/api';
-import { Button, Field, Icons, Input, Panel, Select, StatusBadge, TextArea, useToast } from '../../components/ui';
+import { Button, Field, Icons, Input, Modal, Panel, Select, Spinner, StatusBadge, TextArea, useToast } from '../../components/ui';
 
 const STEPS = [
-  'Campaign Details', 'Recipients', 'AI Agent', 'Sending Account', 'Schedule', 'Review',
+  'Campaign Details', 'Recipients', 'AI Agent', 'Your Profile', 'Sending Account', 'Schedule', 'Review',
 ];
+
+const RESUME_TYPES = ['resume', 'resume_link'];
+const FREE_RESUME_LIMIT = 5;
+const PRO_RESUME_LIMIT = 100;
 
 const DAYS = [
   ['Monday', 0], ['Tuesday', 1], ['Wednesday', 2], ['Thursday', 3], ['Friday', 4], ['Saturday', 5], ['Sunday', 6],
+];
+
+const TIMEZONES = [
+  ['Asia/Kolkata', 'IST (India)'], ['UTC', 'UTC'], ['America/New_York', 'EST (New York)'],
+  ['America/Chicago', 'CST (Chicago)'], ['America/Denver', 'MST (Denver)'], ['America/Los_Angeles', 'PST (Los Angeles)'],
+  ['Europe/London', 'GMT (London)'], ['Europe/Berlin', 'CET (Berlin)'], ['Asia/Dubai', 'GST (Dubai)'],
+  ['Asia/Singapore', 'SGT (Singapore)'], ['Asia/Tokyo', 'JST (Tokyo)'], ['Australia/Sydney', 'AEST (Sydney)'],
 ];
 
 export default function NewCampaign() {
@@ -20,20 +31,26 @@ export default function NewCampaign() {
   const [recipients, setRecipients] = useState([]);
   const [agents, setAgents] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [assets, setAssets] = useState([]);
   const [billing, setBilling] = useState(null);
   const [form, setForm] = useState({
     name: '', tone: 'professional', subject_style: 'personalized', email_length: 'medium',
     custom_prompt: '', use_company_research: true, review_required: true, dry_run: true,
-    agent_id: null, email_account_id: null,
+    agent_id: null, email_account_id: null, asset_ids: [],
     send_start_time: '09:00', send_end_time: '17:00', active_days: [0, 1, 2, 3, 4],
-    emails_per_hour: 10, delay_seconds: 0, daily_limit: 0, max_sends: 0, timezone: 'UTC', start_at: '', end_at: '',
+    emails_per_hour: 10, delay_seconds: 0, daily_limit: 0, max_sends: 0, timezone: 'Asia/Kolkata', start_at: '', end_at: '',
   });
   const [selectedIds, setSelectedIds] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkForm, setLinkForm] = useState({ asset_type: 'resume_link', title: '', url: '' });
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     api('/api/recipients?limit=500').then(setRecipients).catch((e) => toast(e.message, 'error'));
     api('/api/ai-agents').then(setAgents).catch((e) => toast(e.message, 'error'));
+    api('/api/profile-assets').then(setAssets).catch((e) => toast(e.message, 'error'));
     api('/api/email-accounts')
       .then((list) => {
         setAccounts(list);
@@ -68,11 +85,67 @@ export default function NewCampaign() {
   const toggleRecipient = (id) =>
     setSelectedIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
+  const toggleAsset = (id) =>
+    setForm((f) => ({
+      ...f,
+      asset_ids: f.asset_ids.includes(id) ? f.asset_ids.filter((x) => x !== id) : [...f.asset_ids, id],
+    }));
+
+  const resumeLimit = isPro ? PRO_RESUME_LIMIT : FREE_RESUME_LIMIT;
+  const resumeCount = assets.filter((a) => RESUME_TYPES.includes(a.asset_type)).length;
+  const selectedAssets = assets.filter((a) => form.asset_ids.includes(a.id));
+  const hasResumeSelected = selectedAssets.some((a) => RESUME_TYPES.includes(a.asset_type));
+
+  const uploadResume = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (resumeCount >= resumeLimit) {
+      toast(`Resume limit reached (${resumeLimit}). Delete a resume or upgrade to Pro to keep more.`, 'error');
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const asset = await api('/api/profile-assets/resume', { method: 'POST', form: formData });
+      setAssets((prev) => [asset, ...prev]);
+      setForm((f) => ({ ...f, asset_ids: [...f.asset_ids, asset.id] }));
+      toast('Resume uploaded and attached', 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const addLink = async () => {
+    if (!linkForm.url.trim()) {
+      toast('A URL is required', 'error');
+      return;
+    }
+    if (linkForm.asset_type === 'resume_link' && resumeCount >= resumeLimit) {
+      toast(`Resume limit reached (${resumeLimit}). Delete a resume or upgrade to Pro to keep more.`, 'error');
+      return;
+    }
+    try {
+      const asset = await api('/api/profile-assets/link', { method: 'POST', body: linkForm });
+      setAssets((prev) => [asset, ...prev]);
+      setForm((f) => ({ ...f, asset_ids: [...f.asset_ids, asset.id] }));
+      setLinkOpen(false);
+      setLinkForm({ asset_type: 'resume_link', title: '', url: '' });
+      toast('Link added and attached', 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
+
   const canNext =
     (step !== 0 || form.name.trim()) &&
     (step !== 1 || selectedIds.length > 0) &&
     (step !== 2 || form.agent_id) &&
-    (step !== 3 || form.email_account_id);
+    (step !== 3 || hasResumeSelected) &&
+    (step !== 4 || form.email_account_id);
 
   const create = async () => {
     setBusy(true);
@@ -187,6 +260,52 @@ export default function NewCampaign() {
 
         {step === 3 && (
           <>
+            <p className="muted">
+              These assets personalize each email with your real background. Select at least one resume
+              (PDF or link) — GitHub, LinkedIn and website are optional extras. <b>{resumeCount} / {resumeLimit}</b> resumes saved
+              {!isPro && resumeCount >= resumeLimit ? <> · <Link href="/billing">upgrade to Pro</Link> for more</> : null}.
+            </p>
+            <div className="flex mb-16" style={{ gap: 8 }}>
+              <Button sm variant="secondary" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                {uploading ? <Spinner /> : Icons.plus} Upload resume PDF
+              </Button>
+              <Button sm variant="secondary" onClick={() => setLinkOpen(true)}>{Icons.plus} Add link</Button>
+            </div>
+            <input ref={fileRef} type="file" accept="application/pdf,.pdf" style={{ display: 'none' }} onChange={uploadResume} />
+            {assets.length === 0 ? (
+              <div className="alert warning">
+                No profile assets yet — upload a resume or add a resume link to continue.
+              </div>
+            ) : (
+              <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
+                {assets.map((a) => {
+                  const isResume = RESUME_TYPES.includes(a.asset_type);
+                  const checked = form.asset_ids.includes(a.id);
+                  return (
+                    <label key={a.id} className="panel flex" style={{ padding: 12, gap: 10, cursor: 'pointer', alignItems: 'flex-start' }}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleAsset(a.id)} style={{ marginTop: 3 }} />
+                      <div style={{ flex: 1 }}>
+                        <div className="flex" style={{ justifyContent: 'space-between', gap: 8 }}>
+                          <b>{a.title || a.asset_type}</b>
+                          <StatusBadge status={isResume ? (a.asset_type === 'resume' ? 'Resume PDF' : 'Resume link') : a.asset_type} tone={isResume ? 'blue' : 'gray'} />
+                        </div>
+                        <div className="muted" style={{ wordBreak: 'break-all' }}>
+                          {a.asset_type === 'resume' ? (a.filename || 'resume.pdf') : a.url}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            <div className="mt-8">
+              <Link href="/profile" className="btn secondary sm">Manage profile assets</Link>
+            </div>
+          </>
+        )}
+
+        {step === 4 && (
+          <>
             <Field label="Sending account" help="The Gmail/email account used to send this campaign.">
               <Select value={form.email_account_id || ''} onChange={(e) => setForm({ ...form, email_account_id: e.target.value ? Number(e.target.value) : null })}>
                 <option value="">Select an account…</option>
@@ -205,7 +324,7 @@ export default function NewCampaign() {
           </>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <>
             <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Field label="Send start time" hint="Local to campaign timezone">
@@ -259,13 +378,17 @@ export default function NewCampaign() {
                 <Input type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
               </Field>
             </div>
-            <Field label="Timezone">
-              <Input value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} placeholder="UTC" />
+            <Field label="Timezone" help="The send window above is in this timezone.">
+              <Select value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}>
+                {TIMEZONES.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </Select>
             </Field>
           </>
         )}
 
-        {step === 5 && (
+        {step === 6 && (
           <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
               <div className="stat-label">Campaign</div>
@@ -284,6 +407,15 @@ export default function NewCampaign() {
             <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
               <div className="stat-label">Sending account</div>
               <b>{account?.email || '—'}</b>
+            </div>
+            <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
+              <div className="stat-label">Your profile</div>
+              <b>{hasResumeSelected ? `${selectedAssets.filter((a) => RESUME_TYPES.includes(a.asset_type)).length} resume${selectedAssets.filter((a) => RESUME_TYPES.includes(a.asset_type)).length === 1 ? '' : 's'}` : 'No resume'}</b>
+              <div className="muted">
+                {selectedAssets.length
+                  ? selectedAssets.map((a) => a.title || a.asset_type).join(' · ')
+                  : 'No assets selected'}
+              </div>
             </div>
             <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
               <div className="stat-label">Schedule</div>
@@ -309,7 +441,7 @@ export default function NewCampaign() {
           <Button variant="secondary" onClick={() => (step === 0 ? router.push('/campaigns') : setStep(step - 1))}>
             {step === 0 ? 'Cancel' : 'Back'}
           </Button>
-          {step < 5 ? (
+          {step < 6 ? (
             <Button disabled={!canNext} onClick={() => setStep(step + 1)}>Continue <span style={{ transform: 'rotate(90deg)', display: 'inline-flex' }}>{Icons.up}</span></Button>
           ) : (
             <Button disabled={busy} onClick={create}>
@@ -318,6 +450,29 @@ export default function NewCampaign() {
           )}
         </div>
       </Panel>
+
+      <Modal open={linkOpen} title="Add a profile link" onClose={() => setLinkOpen(false)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setLinkOpen(false)}>Cancel</Button>
+            <Button onClick={addLink}>Add link</Button>
+          </>
+        }>
+        <Field label="Type">
+          <Select value={linkForm.asset_type} onChange={(e) => setLinkForm({ ...linkForm, asset_type: e.target.value })}>
+            <option value="resume_link">Resume link (e.g. Google Docs)</option>
+            <option value="github">GitHub</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="website">Personal website</option>
+          </Select>
+        </Field>
+        <Field label="Title (optional)">
+          <Input value={linkForm.title} onChange={(e) => setLinkForm({ ...linkForm, title: e.target.value })} placeholder="e.g. Product resume" />
+        </Field>
+        <Field label="URL">
+          <Input value={linkForm.url} onChange={(e) => setLinkForm({ ...linkForm, url: e.target.value })} placeholder="https://…" />
+        </Field>
+      </Modal>
     </Layout>
   );
 }

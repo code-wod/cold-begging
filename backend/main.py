@@ -15,6 +15,7 @@ from .routers import (
     chat,
     email_accounts,
     emails,
+    profile_assets,
     recipients,
 )
 from .worker import CampaignWorker
@@ -40,7 +41,7 @@ app.add_middleware(
     allow_credentials=True,
 )
 
-for router in (auth, recipients, email_accounts, agents, campaigns, emails, analytics, billing, chat, admin):
+for router in (auth, recipients, email_accounts, agents, campaigns, emails, analytics, billing, chat, admin, profile_assets):
     app.include_router(router.router)
 
 

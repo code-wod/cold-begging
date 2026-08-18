@@ -65,3 +65,10 @@ MANAGED_MODEL_NAME = os.getenv('MANAGED_MODEL_NAME', 'claude-3.5')
 FREE_RATE_PER_HOUR = int(os.getenv('FREE_RATE_PER_HOUR', '10'))
 MAX_RATE_PER_HOUR = int(os.getenv('MAX_RATE_PER_HOUR', '50'))
 MIN_RATE_PER_HOUR = int(os.getenv('MIN_RATE_PER_HOUR', '4'))
+
+# Profile-asset limits (number of resumes a user may keep).
+FREE_RESUME_LIMIT = int(os.getenv('FREE_RESUME_LIMIT', '5'))
+PRO_RESUME_LIMIT = int(os.getenv('PRO_RESUME_LIMIT', '100'))
+
+# Storage for uploaded resume PDFs (gitignored).
+UPLOAD_DIR = os.getenv('UPLOAD_DIR', os.path.join(BASE_DIR, 'uploads'))

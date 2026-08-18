@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { api } from '../lib/api';
@@ -12,10 +12,22 @@ const EMPTY_FORM = {
   smtp_host: 'smtp.gmail.com', smtp_port: 465, smtp_secure: true, smtp_username: '',
 };
 
+const ASSET_LABELS = {
+  resume: ['Resume PDF', 'blue'],
+  resume_link: ['Resume link', 'teal'],
+  github: ['GitHub', 'gray'],
+  linkedin: ['LinkedIn', 'gray'],
+  website: ['Website', 'gray'],
+};
+
+const FREE_RESUME_LIMIT = 5;
+const PRO_RESUME_LIMIT = 100;
+
 export default function Profile() {
   const { user, setUser } = useAuth();
   const toast = useToast();
   const [accounts, setAccounts] = useState([]);
+  const [assets, setAssets] = useState([]);
   const [form, setForm] = useState({ full_name: '', avatar_url: '' });
   const [busy, setBusy] = useState(false);
   const [smtpOpen, setSmtpOpen] = useState(false);
@@ -24,10 +36,16 @@ export default function Profile() {
   const [busyId, setBusyId] = useState(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmAsset, setConfirmAsset] = useState(null);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkForm, setLinkForm] = useState({ asset_type: 'resume_link', title: '', url: '' });
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     if (user) setForm({ full_name: user.full_name || '', avatar_url: user.avatar_url || '' });
     api('/api/email-accounts').then(setAccounts).catch(() => {});
+    api('/api/profile-assets').then(setAssets).catch(() => {});
   }, [user?.id]);
 
   const save = async () => {
@@ -113,6 +131,63 @@ export default function Profile() {
     }
   };
 
+  const isPro = user?.plan === 'pro';
+  const resumeLimit = isPro ? PRO_RESUME_LIMIT : FREE_RESUME_LIMIT;
+  const resumeCount = assets.filter((a) => a.asset_type === 'resume' || a.asset_type === 'resume_link').length;
+
+  const uploadResume = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (resumeCount >= resumeLimit) {
+      toast(`Resume limit reached (${resumeLimit}). Delete a resume or upgrade to Pro to keep more.`, 'error');
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const asset = await api('/api/profile-assets/resume', { method: 'POST', form: formData });
+      setAssets((prev) => [asset, ...prev]);
+      toast('Resume uploaded', 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const addLink = async () => {
+    if (!linkForm.url.trim()) {
+      toast('A URL is required', 'error');
+      return;
+    }
+    if (linkForm.asset_type === 'resume_link' && resumeCount >= resumeLimit) {
+      toast(`Resume limit reached (${resumeLimit}). Delete a resume or upgrade to Pro to keep more.`, 'error');
+      return;
+    }
+    try {
+      const asset = await api('/api/profile-assets/link', { method: 'POST', body: linkForm });
+      setAssets((prev) => [asset, ...prev]);
+      setLinkOpen(false);
+      setLinkForm({ asset_type: 'resume_link', title: '', url: '' });
+      toast('Link added', 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
+
+  const doDeleteAsset = async () => {
+    try {
+      await api(`/api/profile-assets/${confirmAsset.id}`, { method: 'DELETE' });
+      setAssets((prev) => prev.filter((a) => a.id !== confirmAsset.id));
+      toast('Asset removed', 'success');
+      setConfirmAsset(null);
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
+
   if (!user) {
     return (
       <Layout title="Profile">
@@ -158,6 +233,53 @@ export default function Profile() {
           <div className="mt-16">
             <Link href="/billing" className="btn secondary sm">Manage billing</Link>
           </div>
+        </Panel>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <Panel title="Resume & Profile Assets"
+          actions={
+            <div className="flex" style={{ gap: 8 }}>
+              <Button sm variant="secondary" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                {uploading ? <Spinner /> : Icons.plus} Upload resume PDF
+              </Button>
+              <Button sm variant="secondary" onClick={() => setLinkOpen(true)}>{Icons.plus} Add link</Button>
+            </div>
+          }>
+          <input ref={fileRef} type="file" accept="application/pdf,.pdf" style={{ display: 'none' }} onChange={uploadResume} />
+          <div className="muted mb-16">
+            {resumeCount} / {resumeLimit} resumes
+            {!isPro && resumeCount >= resumeLimit ? (
+              <span> · <Link href="/billing">upgrade to Pro</Link> for more</span>
+            ) : null}. Resumes (PDFs or links) are used to personalize your campaign emails with your real
+            background.
+          </div>
+          {assets.length === 0 ? (
+            <Empty message="No profile assets yet. Upload your resume — campaign emails will reference it." />
+          ) : (
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
+              {assets.map((a) => {
+                const [label, tone] = ASSET_LABELS[a.asset_type] || [a.asset_type, 'gray'];
+                return (
+                  <div key={a.id} className="panel" style={{ padding: 14 }}>
+                    <div className="flex" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
+                      <b>{a.title || label}</b>
+                      <StatusBadge status={label} tone={tone} />
+                    </div>
+                    <div className="muted" style={{ marginBottom: 10, wordBreak: 'break-all' }}>
+                      {a.asset_type === 'resume' ? (a.filename || 'resume.pdf') : a.url}
+                    </div>
+                    <div className="flex" style={{ gap: 6 }}>
+                      {a.url && (
+                        <a href={a.url} target="_blank" rel="noreferrer" className="btn secondary sm">{Icons.eye} Open</a>
+                      )}
+                      <Button sm variant="danger" onClick={() => setConfirmAsset(a)}>{Icons.trash} Remove</Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </Panel>
       </div>
 
@@ -210,6 +332,38 @@ export default function Profile() {
         </div>
         </Panel>
       </div>
+
+      <Confirm open={!!confirmAsset} title="Remove asset" danger
+        message={`Remove ${confirmAsset?.title || 'this asset'}? Your profile will no longer include it, and campaigns using it will lose that context.`}
+        confirmLabel="Remove" onCancel={() => setConfirmAsset(null)} onConfirm={doDeleteAsset} />
+
+      <Modal open={linkOpen} title="Add a profile link" onClose={() => setLinkOpen(false)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setLinkOpen(false)}>Cancel</Button>
+            <Button onClick={addLink}>Add link</Button>
+          </>
+        }>
+        <Field label="Type">
+          <Select value={linkForm.asset_type} onChange={(e) => setLinkForm({ ...linkForm, asset_type: e.target.value })}>
+            <option value="resume_link">Resume link (e.g. Google Docs)</option>
+            <option value="github">GitHub</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="website">Personal website</option>
+          </Select>
+        </Field>
+        <Field label="Title (optional)">
+          <Input value={linkForm.title} onChange={(e) => setLinkForm({ ...linkForm, title: e.target.value })} placeholder="e.g. Product resume" />
+        </Field>
+        <Field label="URL">
+          <Input value={linkForm.url} onChange={(e) => setLinkForm({ ...linkForm, url: e.target.value })} placeholder="https://…" />
+        </Field>
+        {linkForm.asset_type === 'resume_link' && (
+          <div className="muted" style={{ fontSize: 12 }}>
+            Resume links count toward your {resumeLimit} resume limit.
+          </div>
+        )}
+      </Modal>
 
       <Modal open={smtpOpen} title="Add SMTP account" onClose={() => setSmtpOpen(false)}
         footer={

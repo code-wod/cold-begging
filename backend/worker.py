@@ -52,18 +52,49 @@ class CampaignWorker(threading.Thread):
         finally:
             db.close()
 
+    _TZ_ALIASES = {
+        'IST': 'Asia/Kolkata',
+        'EST': 'America/New_York',
+        'EDT': 'America/New_York',
+        'CST': 'America/Chicago',
+        'CDT': 'America/Chicago',
+        'MST': 'America/Denver',
+        'MDT': 'America/Denver',
+        'PST': 'America/Los_Angeles',
+        'PDT': 'America/Los_Angeles',
+        'GMT': 'UTC',
+    }
+
+    def _zone_for(self, name):
+        name = (name or 'UTC').strip()
+        name = self._TZ_ALIASES.get(name.upper(), name)
+        try:
+            return ZoneInfo(name)
+        except Exception:
+            return dt.timezone.utc
+
+    def _naive_utc(self, value):
+        # SQLite returns naive datetimes (tzinfo lost); Postgres returns aware.
+        # Normalize both to naive UTC so comparisons are backend-agnostic.
+        if value is None:
+            return None
+        if value.tzinfo is not None:
+            value = value.astimezone(dt.timezone.utc).replace(tzinfo=None)
+        return value
+
     def _local_now(self, campaign):
         try:
-            return dt.datetime.now(dt.timezone.utc).astimezone(ZoneInfo(campaign.timezone or 'UTC'))
+            return dt.datetime.now(dt.timezone.utc).astimezone(self._zone_for(campaign.timezone))
         except Exception:
             return dt.datetime.now(dt.timezone.utc)
 
     def _process_campaign(self, db, campaign):
         now_utc = dt.datetime.now(dt.timezone.utc)
+        now_naive_utc = now_utc.replace(tzinfo=None)  # SQLite returns naive datetimes for all tz columns
         local = self._local_now(campaign)
-        if campaign.start_at and campaign.start_at > now_utc:
+        if campaign.start_at and self._naive_utc(campaign.start_at) > now_naive_utc:
             return
-        if campaign.end_at and campaign.end_at < now_utc:
+        if campaign.end_at and self._naive_utc(campaign.end_at) < now_naive_utc:
             campaign.status = 'completed'
             return
         if not self._in_schedule(campaign, local):
@@ -79,13 +110,14 @@ class CampaignWorker(threading.Thread):
 
         # Daily safety cap (0 = unlimited) — secondary to the hourly rate.
         if campaign.daily_limit:
-            day_start = local.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_start_local = local.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_start_utc = day_start_local.astimezone(dt.timezone.utc).replace(tzinfo=None)
             sent_today = (
                 db.query(EmailLog)
                 .filter(
                     EmailLog.campaign_id == campaign.id,
                     EmailLog.status == 'sent',
-                    EmailLog.sent_at >= day_start,
+                    EmailLog.sent_at >= day_start_utc,
                 )
                 .count()
             )
@@ -94,7 +126,7 @@ class CampaignWorker(threading.Thread):
 
         # Hourly rate enforcement: never exceed emails_per_hour in the last rolling hour.
         if rate > 0:
-            hour_ago = now_utc - dt.timedelta(hours=1)
+            hour_ago = now_naive_utc - dt.timedelta(hours=1)
             sent_in_hour = (
                 db.query(EmailLog)
                 .filter(
@@ -123,7 +155,7 @@ class CampaignWorker(threading.Thread):
 
         # Space sends by the rate-derived interval.
         if campaign.last_sent_at:
-            elapsed = (now_utc - campaign.last_sent_at).total_seconds()
+            elapsed = (now_naive_utc - self._naive_utc(campaign.last_sent_at)).total_seconds()
             if interval and elapsed < interval:
                 return
 
@@ -153,6 +185,9 @@ class CampaignWorker(threading.Thread):
             if total and sent == total:
                 campaign.status = 'completed'
             return
+
+        if campaign.dry_run:
+            return  # dry-run campaigns generate but never send
 
         status, error = campaign_service.send_generated_email(db, campaign, next_email)
         if status == 'failed':

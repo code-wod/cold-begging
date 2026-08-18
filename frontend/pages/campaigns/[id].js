@@ -134,7 +134,7 @@ export default function CampaignDetail() {
         <Panel title="Schedule">
           <table className="dense">
             <tbody>
-              <tr><td className="muted">Window</td><td>{campaign.send_start_time} – {campaign.send_end_time}</td></tr>
+              <tr><td className="muted">Window</td><td>{campaign.send_start_time} – {campaign.send_end_time} {campaign.timezone}</td></tr>
               <tr><td className="muted">Days</td><td>{campaign.active_days.map((d) => ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][d]).join(', ')}</td></tr>
               <tr><td className="muted">Speed</td><td>{campaign.emails_per_hour}/hr (~1 per {Math.max(1, Math.round(3600 / (campaign.emails_per_hour || 10)))}s)</td></tr>
               {campaign.daily_limit > 0 && <tr><td className="muted">Daily cap</td><td>{campaign.daily_limit}</td></tr>}

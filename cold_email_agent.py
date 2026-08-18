@@ -53,6 +53,7 @@ class ColdEmailAgent:
         custom_prompt=None,
         max_tokens=500,
         ai_provider=None,
+        sender_context=None,
     ):
         self.excel_path = excel_path
         self.sender_email = sender_email or os.getenv('SENDER_EMAIL')
@@ -72,6 +73,7 @@ class ColdEmailAgent:
         self.custom_prompt = custom_prompt
         self.max_tokens = max_tokens
         self.ai_provider = ai_provider
+        self.sender_context = sender_context
 
         if self.gmail_credentials and HAVE_GMAIL_API:
             self.gmail_service = self._init_gmail_api()
@@ -282,6 +284,16 @@ class ColdEmailAgent:
             f"[email body]\n\n"
             f"If you have optional details such as recent news or funding status, include them naturally.\n"
         )
+
+        if self.sender_context:
+            prompt += (
+                f"\nSender Background (REAL facts about the sender — use these to ground the email "
+                f"in genuine experience, projects, and links; never invent skills outside of this):\n"
+                f"{self.sender_context}\n"
+                f"\nReference the sender's real background naturally (specific experience, projects, "
+                f"and a portfolio/linkedin link where relevant) so the email reads as authentically "
+                f"from this person.\n"
+            )
 
         if self.custom_prompt:
             prompt += f"Additional instructions: {self.custom_prompt}\n"

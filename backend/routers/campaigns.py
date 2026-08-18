@@ -16,6 +16,8 @@ from ..models import (
     GeneratedEmail,
     Recipient,
     User,
+    UserProfileAsset,
+    campaign_assets,
 )
 from ..schemas import CampaignIn, CampaignOut, CampaignUpdate
 from ..security import get_current_user
@@ -81,6 +83,7 @@ def _serialize(db, campaign):
         failed_count=failed,
         pending_count=pending,
         cancelled_count=cancelled,
+        asset_ids=[a.id for a in campaign.assets],
         created_at=campaign.created_at.isoformat() if campaign.created_at else None,
     )
 
@@ -111,6 +114,27 @@ def _plan_of(db, user):
     return campaign_service._plan_of(db, user)
 
 
+def _resolve_assets(db, user, asset_ids):
+    """Load the user's own assets for the given ids, enforcing at least one resume."""
+    asset_ids = list(asset_ids or [])
+    assets = (
+        db.query(UserProfileAsset)
+        .filter(
+            UserProfileAsset.id.in_(asset_ids) if asset_ids else False,
+            UserProfileAsset.user_id == user.id,
+        )
+        .all()
+    )
+    if len(assets) != len(set(asset_ids)):
+        raise HTTPException(status_code=400, detail='Invalid profile asset')
+    if not any(a.asset_type in ('resume', 'resume_link') for a in assets):
+        raise HTTPException(
+            status_code=400,
+            detail='Attach at least one resume (PDF or link) to the campaign',
+        )
+    return assets
+
+
 @router.post('', response_model=CampaignOut)
 def create_campaign(payload: CampaignIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     account_id = payload.email_account_id
@@ -135,12 +159,14 @@ def create_campaign(payload: CampaignIn, user: User = Depends(get_current_user),
     rate_error = campaign_service.validate_rate(_plan_of(db, user), payload.emails_per_hour)
     if rate_error:
         raise HTTPException(status_code=403, detail=rate_error)
+    assets = _resolve_assets(db, user, payload.asset_ids)
     campaign = Campaign(
         user_id=user.id,
         name=payload.name,
         agent_id=payload.agent_id,
         email_account_id=account_id,
         ai_model_id=payload.ai_model_id,
+        assets=assets,
         status='draft',
         review_required=payload.review_required,
         dry_run=payload.dry_run,
@@ -212,7 +238,10 @@ def update_campaign(
         rate_error = campaign_service.validate_rate(_plan_of(db, user), payload.emails_per_hour)
         if rate_error:
             raise HTTPException(status_code=403, detail=rate_error)
-    for field, value in payload.dict(exclude_none=True).items():
+    data = payload.dict(exclude_none=True)
+    if 'asset_ids' in data:
+        campaign.assets = _resolve_assets(db, user, data.pop('asset_ids'))
+    for field, value in data.items():
         if field == 'active_days':
             value = json.dumps(value)
         setattr(campaign, field, value)
@@ -339,6 +368,7 @@ def duplicate_campaign(campaign_id: int, user: User = Depends(get_current_user),
         daily_limit=source.daily_limit,
         max_sends=source.max_sends,
         timezone=source.timezone,
+        assets=list(source.assets),
     )
     db.add(copy)
     db.flush()
@@ -351,9 +381,12 @@ def duplicate_campaign(campaign_id: int, user: User = Depends(get_current_user),
 
 @router.delete('/{campaign_id}')
 def delete_campaign(campaign_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    campaign = _load(db, user, campaign_id)
-    db.query(GeneratedEmail).filter(GeneratedEmail.campaign_id == campaign.id).delete(synchronize_session=False)
-    db.query(CampaignRecipient).filter(CampaignRecipient.campaign_id == campaign.id).delete(synchronize_session=False)
-    db.delete(campaign)
+    _load(db, user, campaign_id)
+    # Core deletes only (no ORM delete of the parent): guaranteed to remove every
+    # campaign_assets row, including ones the ORM collection doesn't know about.
+    db.execute(campaign_assets.delete().where(campaign_assets.c.campaign_id == campaign_id))
+    db.query(GeneratedEmail).filter(GeneratedEmail.campaign_id == campaign_id).delete(synchronize_session=False)
+    db.query(CampaignRecipient).filter(CampaignRecipient.campaign_id == campaign_id).delete(synchronize_session=False)
+    db.query(Campaign).filter(Campaign.id == campaign_id).delete(synchronize_session=False)
     db.commit()
     return {'ok': True}

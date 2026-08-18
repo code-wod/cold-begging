@@ -175,11 +175,20 @@ export function Confirm({ open, title = 'Confirm action', message, onCancel, onC
   );
 }
 
+const APP_TZ = 'Asia/Kolkata'; // default display timezone for all timestamps
+
+const parseIso = (iso) => {
+  const s = String(iso || '');
+  if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) return new Date(s);
+  return new Date(`${s}Z`); // SQLite stores naive UTC; treat offset-less ISO as UTC
+};
+
 export const fmtDate = (iso) => {
   if (!iso) return '—';
   try {
-    return new Date(iso).toLocaleString(undefined, {
-      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    return parseIso(iso).toLocaleString(undefined, {
+      timeZone: APP_TZ,
+      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
     });
   } catch {
     return iso;
@@ -188,7 +197,7 @@ export const fmtDate = (iso) => {
 
 export const fmtRel = (iso) => {
   if (!iso) return '—';
-  const d = new Date(iso);
+  const d = parseIso(iso);
   const days = Math.floor((Date.now() - d.getTime()) / 86400000);
   if (days <= 0) return 'Today';
   if (days === 1) return 'Yesterday';

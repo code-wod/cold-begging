@@ -170,7 +170,33 @@ def build_email_agent(db, user, campaign, agent, model):
         custom_prompt=campaign.custom_prompt or None,
         max_tokens=max_tokens,
         ai_provider=provider,
+        sender_context=_sender_context(campaign),
     )
+
+
+def _sender_context(campaign):
+    """Human-readable sender background from the campaign's profile assets.
+
+    Used to ground generated emails in the sender's real resume and links.
+    """
+    if not campaign.assets:
+        return None
+    parts = []
+    resumes = [a for a in campaign.assets if a.asset_type in ('resume', 'resume_link')]
+    links = [a for a in campaign.assets if a.asset_type in ('github', 'linkedin', 'website')]
+    for resume in resumes[:2]:
+        if resume.asset_type == 'resume':
+            text = (resume.text_content or '').strip()
+            if text:
+                parts.append(f'- Resume {resume.title!r}: {text[:1500]}')
+        elif resume.url:
+            parts.append(f'- Resume link ({resume.title or "resume"}): {resume.url}')
+    for link in links:
+        if link.url:
+            parts.append(f'- {link.title or link.asset_type}: {link.url}')
+    if not parts:
+        return None
+    return '\n'.join(parts)
 
 
 def recipient_to_data(recipient):
