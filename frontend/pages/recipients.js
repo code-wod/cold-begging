@@ -20,6 +20,7 @@ export default function Recipients() {
   const [preview, setPreview] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const fileRef = useRef(null);
+  const pendingFile = useRef(null);
   const [accounts, setAccounts] = useState([]);
   const [compose, setCompose] = useState(null);
   const [composeForm, setComposeForm] = useState({ email_account_id: '', subject: '', body: '' });
@@ -57,6 +58,7 @@ export default function Recipients() {
       const formData = new FormData();
       formData.append('file', file);
       const res = await api('/api/recipients/import/preview', { method: 'POST', form: formData });
+      pendingFile.current = file;
       setPreview(res);
     } catch (err) {
       toast(err.message, 'error');
@@ -67,7 +69,7 @@ export default function Recipients() {
   };
 
   const confirmImport = async () => {
-    const file = fileRef.current?.files?.[0];
+    const file = pendingFile.current;
     if (!file) {
       toast('Please choose a file', 'error');
       return;
@@ -77,6 +79,7 @@ export default function Recipients() {
     try {
       const res = await api('/api/recipients/import', { method: 'POST', form: formData });
       toast(`Imported ${res.added} recipients (${res.duplicates} duplicates, ${res.invalid} invalid)`, 'success');
+      pendingFile.current = null;
       setPreview(null);
       load();
     } catch (e) {

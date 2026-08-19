@@ -22,7 +22,7 @@ def _persist_secret(filename, env_name):
     return value
 
 
-DATABASE_URL = os.getenv('DATABASE_URL', f'sqlite:///{os.path.join(BASE_DIR, "cold_email.db")}')
+DATABASE_URL = os.getenv('DATABASE_URL') or f'sqlite:///{os.path.join(BASE_DIR, "cold_email.db")}'
 SECRET_KEY = _persist_secret('.secret_key', 'SECRET_KEY')
 
 

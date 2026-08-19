@@ -140,6 +140,7 @@ WantedBy=multi-user.target
 
 ## Operational notes
 
+- **SMTP is blocked on the Render free tier.** Since Sept 2025, free web services block outbound traffic to SMTP ports `25`, `465`, `587` — the app's entire sending path (`smtp.gmail.com:465`) fails with `Errno 101 Network is unreachable`. Fix: upgrade to a paid instance (any tier; only port 25 stays blocked on EC2), or use Google OAuth accounts (Gmail API over HTTPS 443, which is allowed) — SMTP accounts stay blocked on free. See https://render.com/changelog/free-web-services-will-no-longer-allow-outbound-traffic-to-smtp-ports.
 - **Schema changes on an existing DB**: new tables are auto-created by `create_all`, but new **columns** on existing tables require a manual `ALTER TABLE ... ADD COLUMN` (SQLite) or `ALTER TABLE ... ADD COLUMN` / migrations (Postgres). Fresh databases are fine.
 - **Resume PDFs are stored on local disk** (`backend/uploads/`, `UPLOAD_DIR`). On Render/Fargate the disk is ephemeral — uploads are lost on every redeploy and you can't share them across instances. This is acceptable for a single-instance setup; for persistence, uploads would need object storage (not yet implemented).
 - **Timezones**: the worker resolves campaign zones via IANA keys (`Asia/Kolkata`, not `IST`). Stored timestamps are naive UTC; the worker normalizes both SQLite (naive) and Postgres (aware) values.
