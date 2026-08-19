@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../lib/auth';
+import { api } from '../lib/api';
 import { Button, Field, Input, Panel } from '../components/ui';
 import ThemeToggle from '../components/ThemeToggle';
 
@@ -13,6 +14,19 @@ export default function Signup() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+
+  const google = async () => {
+    setGoogleBusy(true);
+    setError('');
+    try {
+      const res = await api('/api/auth/google');
+      window.location.href = res.authorize_url;
+    } catch (err) {
+      setError(err.message);
+      setGoogleBusy(false);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -52,6 +66,14 @@ export default function Signup() {
             {busy ? 'Creating account…' : 'Get Started Free'}
           </Button>
         </form>
+        <div className="flex" style={{ alignItems: 'center', gap: 10, margin: '14px 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          <span className="muted" style={{ fontSize: 12 }}>or</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+        </div>
+        <Button variant="secondary" disabled={googleBusy} onClick={google} style={{ width: '100%', justifyContent: 'center' }}>
+          {googleBusy ? 'Redirecting to Google…' : 'Continue with Google'}
+        </Button>
         <div className="mt-16" style={{ textAlign: 'center', fontSize: 13 }}>
           Already have an account? <Link href="/login">Sign in</Link>
         </div>

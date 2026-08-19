@@ -1,9 +1,13 @@
 import datetime as dt
 import secrets
 
+import jwt as pyjwt
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
+from .. import gmail
+from ..config import API_BASE, FRONTEND_URL
 from ..database import get_db
 from ..models import PasswordReset, Profile, Subscription, User
 from ..schemas import (
@@ -16,6 +20,7 @@ from ..schemas import (
     UserOut,
 )
 from ..security import (
+    SECRET_KEY,
     create_access_token,
     get_current_user,
     hash_password,
@@ -23,6 +28,8 @@ from ..security import (
 )
 
 router = APIRouter(prefix='/api/auth', tags=['auth'])
+
+OAUTH_ALGORITHM = 'HS256'
 
 
 def _user_out(user, db):
@@ -64,6 +71,84 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail='Invalid email or password')
     return TokenOut(access_token=create_access_token(user.id), user=_user_out(user, db))
+
+
+def _login_redirect_uri():
+    return f'{API_BASE}/api/auth/google/callback'
+
+
+def _oauth_state():
+    payload = {
+        'nonce': secrets.token_urlsafe(16),
+        'exp': dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=10),
+    }
+    return pyjwt.encode(payload, SECRET_KEY, algorithm=OAUTH_ALGORITHM)
+
+
+def _verify_oauth_state(state):
+    try:
+        pyjwt.decode(state, SECRET_KEY, algorithms=[OAUTH_ALGORITHM])
+        return True
+    except pyjwt.PyJWTError:
+        return False
+
+
+def _redirect_to_login(params):
+    return HTMLResponse(
+        f'<script>window.location.href="{FRONTEND_URL}/login#{params}"</script>'
+    )
+
+
+@router.get('/google')
+def google_login_url():
+    if not gmail.GOOGLE_CLIENT_ID or not gmail.GOOGLE_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=500,
+            detail='Google OAuth is not configured on the server (GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET)',
+        )
+    return {'authorize_url': gmail.build_login_authorize_url(_oauth_state(), _login_redirect_uri())}
+
+
+@router.get('/google/callback')
+def google_login_callback(
+    code: str,
+    state: str,
+    error: str = '',
+    db: Session = Depends(get_db),
+):
+    if error or not _verify_oauth_state(state):
+        return _redirect_to_login('google_error=1')
+    try:
+        info = gmail.exchange_login_code(code, _login_redirect_uri())
+    except Exception:
+        return _redirect_to_login('google_error=1')
+    email = info['email'].lower()
+    user = db.query(User).filter(User.email == email).first()
+    is_new = False
+    if not user:
+        is_new = True
+        user = User(
+            email=email,
+            password_hash=hash_password(secrets.token_urlsafe(32)),
+            full_name=info.get('full_name', ''),
+            avatar_url=info.get('avatar_url', ''),
+            is_verified=bool(info.get('email_verified')),
+        )
+        db.add(user)
+        db.flush()
+        db.add(Profile(user_id=user.id))
+        db.add(Subscription(user_id=user.id, plan='free', status='active'))
+    else:
+        if info.get('full_name') and not user.full_name:
+            user.full_name = info['full_name']
+        if info.get('avatar_url') and not user.avatar_url:
+            user.avatar_url = info['avatar_url']
+        if info.get('email_verified'):
+            user.is_verified = True
+    db.commit()
+    db.refresh(user)
+    token = create_access_token(user.id)
+    return _redirect_to_login(f'google_token={token}{"&new=1" if is_new else ""}')
 
 
 @router.get('/me', response_model=UserOut)

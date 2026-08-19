@@ -20,37 +20,70 @@ SCOPES = [
     'openid',
     'email',
 ]
+# Sign-in scopes: identity only, no mailbox access.
+LOGIN_SCOPES = ['openid', 'email', 'profile']
 
 
-def build_authorize_url(state, redirect_uri):
+def _build_authorize_url(state, redirect_uri, scopes, extra=None):
     params = {
         'client_id': GOOGLE_CLIENT_ID,
         'redirect_uri': redirect_uri,
         'response_type': 'code',
-        'scope': ' '.join(SCOPES),
-        'access_type': 'offline',
-        'prompt': 'consent',
+        'scope': ' '.join(scopes),
         'state': state,
     }
+    if extra:
+        params.update(extra)
     return f'{AUTH_URL}?{urllib.parse.urlencode(params)}'
+
+
+def build_authorize_url(state, redirect_uri):
+    return _build_authorize_url(
+        state, redirect_uri, SCOPES,
+        extra={'access_type': 'offline', 'prompt': 'consent'},
+    )
+
+
+def build_login_authorize_url(state, redirect_uri):
+    return _build_authorize_url(state, redirect_uri, LOGIN_SCOPES, extra={'prompt': 'select_account'})
+
+
+def _email_from_id_token(id_token):
+    claims = _id_token_claims(id_token)
+    return claims.get('email') if claims else None
+
+
+def _id_token_claims(id_token):
+    if not id_token:
+        return {}
+    try:
+        return pyjwt.decode(id_token, options={'verify_signature': False})
+    except pyjwt.PyJWTError:
+        return {}
+
+
+def _token_response(data):
+    response = httpx.post(
+        TOKEN_URL,
+        data=data,
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
 
 
 def exchange_code(code, redirect_uri):
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
         raise RuntimeError('GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not configured')
-    response = httpx.post(
-        TOKEN_URL,
-        data={
+    data = _token_response(
+        {
             'code': code,
             'client_id': GOOGLE_CLIENT_ID,
             'client_secret': GOOGLE_CLIENT_SECRET,
             'redirect_uri': redirect_uri,
             'grant_type': 'authorization_code',
-        },
-        timeout=30,
+        }
     )
-    response.raise_for_status()
-    data = response.json()
     if 'refresh_token' not in data:
         raise RuntimeError('Google did not return a refresh token (access_type=offline required)')
     email = _email_from_id_token(data.get('id_token'))
@@ -62,14 +95,28 @@ def exchange_code(code, redirect_uri):
     }
 
 
-def _email_from_id_token(id_token):
-    if not id_token:
-        return None
-    try:
-        claims = pyjwt.decode(id_token, options={'verify_signature': False})
-        return claims.get('email')
-    except pyjwt.PyJWTError:
-        return None
+def exchange_login_code(code, redirect_uri):
+    """Exchange an authorization code for sign-in identity claims (no refresh token)."""
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise RuntimeError('GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not configured')
+    data = _token_response(
+        {
+            'code': code,
+            'client_id': GOOGLE_CLIENT_ID,
+            'client_secret': GOOGLE_CLIENT_SECRET,
+            'redirect_uri': redirect_uri,
+            'grant_type': 'authorization_code',
+        }
+    )
+    claims = _id_token_claims(data.get('id_token'))
+    if not claims or not claims.get('email'):
+        raise RuntimeError('Google did not return a verified email')
+    return {
+        'email': claims.get('email'),
+        'full_name': claims.get('name', ''),
+        'avatar_url': claims.get('picture', ''),
+        'email_verified': bool(claims.get('email_verified')),
+    }
 
 
 def build_gmail_service(refresh_token):

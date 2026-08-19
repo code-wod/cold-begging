@@ -1,17 +1,33 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../lib/auth';
+import { api } from '../lib/api';
 import { Button, Field, Input, Panel } from '../components/ui';
 import ThemeToggle from '../components/ThemeToggle';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, finishGoogle } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const token = params.get('google_token');
+    if (token) {
+      finishGoogle(token)
+        .then(() => router.replace(params.get('new') === '1' ? '/onboarding' : '/dashboard'))
+        .catch((e) => setError(e.message))
+        .finally(() => window.history.replaceState(null, '', '/login'));
+    } else if (params.get('google_error')) {
+      setError('Google sign-in failed or was cancelled.');
+      window.history.replaceState(null, '', '/login');
+    }
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -24,6 +40,18 @@ export default function Login() {
       setError(err.message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const google = async () => {
+    setGoogleBusy(true);
+    setError('');
+    try {
+      const res = await api('/api/auth/google');
+      window.location.href = res.authorize_url;
+    } catch (err) {
+      setError(err.message);
+      setGoogleBusy(false);
     }
   };
 
@@ -48,6 +76,14 @@ export default function Login() {
             {busy ? 'Signing in…' : 'Sign in'}
           </Button>
         </form>
+        <div className="flex" style={{ alignItems: 'center', gap: 10, margin: '14px 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          <span className="muted" style={{ fontSize: 12 }}>or</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+        </div>
+        <Button variant="secondary" disabled={googleBusy} onClick={google} style={{ width: '100%', justifyContent: 'center' }}>
+          {googleBusy ? 'Redirecting to Google…' : 'Continue with Google'}
+        </Button>
         <div className="mt-16 flex" style={{ justifyContent: 'center', fontSize: 13 }}>
           <Link href="/forgot">Forgot password?</Link>
         </div>

@@ -1,6 +1,7 @@
 import smtplib
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from .. import gmail
@@ -109,17 +110,24 @@ def connect_google(user: User = Depends(get_current_user)):
     return {'authorize_url': gmail.build_authorize_url(state, _redirect_uri())}
 
 
+def _redirect(frontend_path, params=''):
+    url = f'{FRONTEND_URL}{frontend_path}'
+    if params:
+        url = f'{url}?{params}'
+    return HTMLResponse(f'<script>window.location.href="{url}"</script>')
+
+
 @router.get('/callback')
 def oauth_callback(code: str, state: str, error: str = '', db: Session = Depends(get_db)):
     if error:
-        return f'<script>window.location.href="{FRONTEND_URL}/email-accounts?oauth_error=1"</script>'
+        return _redirect('/email-accounts', 'oauth_error=1')
     user_id = decode_access_token(state)
     if not user_id:
         raise HTTPException(status_code=401, detail='Invalid OAuth state')
     try:
         tokens = gmail.exchange_code(code, _redirect_uri())
     except Exception as exc:
-        return f'<script>window.location.href="{FRONTEND_URL}/email-accounts?oauth_error=1"</script>'
+        return _redirect('/email-accounts', 'oauth_error=1')
     email = (tokens.get('email') or '').lower()
     account = (
         db.query(EmailAccount)
@@ -139,7 +147,7 @@ def oauth_callback(code: str, state: str, error: str = '', db: Session = Depends
     account.credentials_encrypted = encrypt_plaintext(tokens['refresh_token'])
     account.status = 'connected'
     db.commit()
-    return f'<script>window.location.href="{FRONTEND_URL}/email-accounts?connected=1"</script>'
+    return _redirect('/email-accounts', 'connected=1')
 
 
 @router.patch('/{account_id}', response_model=EmailAccountOut)

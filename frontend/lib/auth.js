@@ -35,6 +35,13 @@ export function AuthProvider({ children }) {
     return d.user;
   };
 
+  const finishGoogle = async (token) => {
+    setToken(token);
+    const user = await api('/api/auth/me');
+    setUser(user);
+    return user;
+  };
+
   const logout = () => {
     clearToken();
     setUser(null);
@@ -42,7 +49,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, finishGoogle, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );
