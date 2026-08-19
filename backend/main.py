@@ -35,7 +35,7 @@ app = FastAPI(title='Cold Email AI', version='1.0.0', lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL, 'http://localhost:3001', 'http://127.0.0.1:3001'],
+    allow_origins=[FRONTEND_URL, 'http://localhost:3001', 'http://127.0.0.1:3001', 'https://cold-begging.vercel.app', 'https://cold-begging-c4rm2olv2-gk022135s-projects.vercel.app'],
     allow_methods=['*'],
     allow_headers=['*'],
     allow_credentials=True,

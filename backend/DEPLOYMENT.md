@@ -25,7 +25,7 @@ Deploy the FastAPI backend (`backend/`) to **Render** (recommended) or **AWS**. 
 
 - Dashboard → **New → Web Service** → connect your GitHub repo.
 - **Name**: `cold-email-api`
-- **Runtime**: Python 3.9+
+- **Runtime**: Python 3.12 (pinned via `runtime.txt` at the repo root — newer defaults like 3.14 can break binary wheels for `psycopg2-binary`).
 - **Region**: closest to your recipients' servers (Singapore/India recommended for IST sending windows).
 
 ### 2. Build & start commands
@@ -34,6 +34,8 @@ Deploy the FastAPI backend (`backend/`) to **Render** (recommended) or **AWS**. 
 | ----------------- | ------------------------------------------------------------ |
 | Build Command     | `pip install -r backend/requirements.txt`                    |
 | Start Command     | `uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 1` |
+
+`psycopg2-binary` (Postgres driver) is already in `backend/requirements.txt`.
 
 Render injects `$PORT` — do not hardcode `8000`. The `--workers 1` is mandatory (see note above).
 
