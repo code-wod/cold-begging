@@ -7,6 +7,7 @@ import {
 
 const EMPTY_RECIPIENT = {
   email: '', company_name: '', industry: '', company_website: '', job_role: '', position_level: '',
+  category_id: null,
 };
 
 export default function Recipients() {
@@ -17,8 +18,12 @@ export default function Recipients() {
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_RECIPIENT);
   const [importing, setImporting] = useState(false);
+  const [importCategory, setImportCategory] = useState(null);
+  const [importGroupName, setImportGroupName] = useState('');
+  const [importGroupDesc, setImportGroupDesc] = useState('');
   const [preview, setPreview] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [categories, setCategories] = useState([]);
   const fileRef = useRef(null);
   const pendingFile = useRef(null);
   const [accounts, setAccounts] = useState([]);
@@ -28,6 +33,7 @@ export default function Recipients() {
 
   useEffect(() => {
     api('/api/email-accounts').then(setAccounts).catch(() => {});
+    api('/api/categories').then(setCategories).catch(() => {});
   }, []);
 
   const load = () => {
@@ -54,6 +60,9 @@ export default function Recipients() {
     const file = e.target.files[0];
     if (!file) return;
     setImporting(true);
+    setImportCategory(null);
+    setImportGroupName('');
+    setImportGroupDesc('');
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -76,6 +85,9 @@ export default function Recipients() {
     }
     const formData = new FormData();
     formData.append('file', file);
+    if (importCategory) formData.append('category_id', importCategory);
+    if (importGroupName) formData.append('group_name', importGroupName);
+    formData.append('group_description', importGroupDesc);
     try {
       const res = await api('/api/recipients/import', { method: 'POST', form: formData });
       toast(`Imported ${res.added} recipients (${res.duplicates} duplicates, ${res.invalid} invalid)`, 'success');
@@ -164,38 +176,40 @@ export default function Recipients() {
           <Empty message="No recipients yet. Import an Excel/CSV file or add one manually." />
         ) : (
           <table className="dense">
-            <thead>
-              <tr>
-                <th style={{ width: 32 }}>
-                  <input type="checkbox" onChange={(e) => setSelected(e.target.checked ? items.map((i) => i.id) : [])}
-                    checked={selected.length === items.length && items.length > 0} />
-                </th>
-                <th>Email</th>
-                <th>Company</th>
-                <th>Industry</th>
-                <th>Role</th>
-                <th>Added</th>
-                <th style={{ width: 60 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((r) => (
-                <tr key={r.id}>
-                  <td><input type="checkbox" checked={selected.includes(r.id)} onChange={() => toggle(r.id)} /></td>
-                  <td><b>{r.email}</b></td>
-                  <td>{r.company_name || '—'}</td>
-                  <td>{r.industry || '—'}</td>
-                  <td>{r.job_role ? `${r.job_role}${r.position_level ? ` (${r.position_level})` : ''}` : '—'}</td>
-                  <td className="muted">{fmtRel(r.created_at)}</td>
-                  <td>
-                    <div className="flex" style={{ gap: 6 }}>
-                      <button className="btn ghost sm" onClick={() => openCompose(r)}>{Icons.send}</button>
-                      <button className="btn ghost sm" onClick={() => setConfirmDelete(r)}>{Icons.trash}</button>
-                    </div>
-                  </td>
+              <thead>
+                <tr>
+                  <th style={{ width: 32 }}>
+                    <input type="checkbox" onChange={(e) => setSelected(e.target.checked ? items.map((i) => i.id) : [])}
+                      checked={selected.length === items.length && items.length > 0} />
+                  </th>
+                  <th>Email</th>
+                  <th>Company</th>
+                  <th>Industry</th>
+                  <th>Category</th>
+                  <th>Role</th>
+                  <th>Added</th>
+                  <th style={{ width: 60 }}></th>
                 </tr>
-              ))}
-            </tbody>
+              </thead>
+              <tbody>
+                {items.map((r) => (
+                  <tr key={r.id}>
+                    <td><input type="checkbox" checked={selected.includes(r.id)} onChange={() => toggle(r.id)} /></td>
+                    <td><b>{r.email}</b></td>
+                    <td>{r.company_name || '—'}</td>
+                    <td>{r.industry || '—'}</td>
+                    <td>{_categoryName(categories, r.category_id) || '—'}</td>
+                    <td>{r.job_role ? `${r.job_role}${r.position_level ? ` (${r.position_level})` : ''}` : '—'}</td>
+                    <td className="muted">{fmtRel(r.created_at)}</td>
+                    <td>
+                      <div className="flex" style={{ gap: 6 }}>
+                        <button className="btn ghost sm" onClick={() => openCompose(r)}>{Icons.send}</button>
+                        <button className="btn ghost sm" onClick={() => setConfirmDelete(r)}>{Icons.trash}</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
           </table>
         )}
       </Panel>
@@ -209,6 +223,16 @@ export default function Recipients() {
         }>
         <Field label="Email">
           <Input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@company.com" />
+        </Field>
+        <Field label="Category (optional)">
+          <select
+            className="select"
+            value={form.category_id || ''}
+            onChange={(e) => setForm({ ...form, category_id: e.target.value ? parseInt(e.target.value) : null })}
+          >
+            <option value="">Select a category…</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
         </Field>
         <Field label="Company name">
           <Input value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
@@ -235,7 +259,35 @@ export default function Recipients() {
             <p className="muted">
               {preview.valid} valid rows · {preview.duplicates} duplicates · {preview.invalid} invalid. Review before importing.
             </p>
-            <div style={{ maxHeight: 320, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 6 }}>
+
+            <Field label="Category (optional)" help="Assign a category to all imported recipients.">
+              <select
+                className="select"
+                value={importCategory || ''}
+                onChange={(e) => setImportCategory(e.target.value ? parseInt(e.target.value) : null)}
+              >
+                <option value="">No category</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </Field>
+
+            <Field label="Group name (optional)" help="Create a new group and add these recipients to it.">
+              <Input
+                placeholder="e.g. Software Leads Aug 2026"
+                value={importGroupName}
+                onChange={(e) => setImportGroupName(e.target.value)}
+              />
+            </Field>
+
+            <Field label="Group description">
+              <Input
+                placeholder="Brief description of this group..."
+                value={importGroupDesc}
+                onChange={(e) => setImportGroupDesc(e.target.value)}
+              />
+            </Field>
+
+            <div style={{ maxHeight: 320, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 6, marginTop: 12 }}>
               <table className="dense">
                 <thead>
                   <tr><th>Email</th><th>Company</th><th>Industry</th><th>Status</th></tr>
@@ -290,4 +342,10 @@ export default function Recipients() {
         confirmLabel="Remove" onCancel={() => setConfirmDelete(null)} onConfirm={doDelete} />
     </Layout>
   );
+}
+
+function _categoryName(categories, id) {
+  if (!id) return '';
+  const cat = categories.find((c) => c.id === id);
+  return cat ? cat.name : '';
 }

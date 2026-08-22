@@ -27,12 +27,33 @@ export default function Admin() {
   const [tab, setTab] = useState('models');
   const [models, setModels] = useState(null);
   const [users, setUsers] = useState(null);
+  const [recipients, setRecipients] = useState(null);
+  const [groups, setGroups] = useState(null);
+  const [categories, setCategories] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_MODEL);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [testingId, setTestingId] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [recipientsSearch, setRecipientsSearch] = useState('');
+  const [groupName, setGroupName] = useState('');
+  const [groupSlug, setGroupSlug] = useState('');
+  const [groupDesc, setGroupDesc] = useState('');
+  const [groupPrice, setGroupPrice] = useState(0);
+  const [groupIsFree, setGroupIsFree] = useState(false);
+  const [groupRequiredSub, setGroupRequiredSub] = useState('free');
+  const [catName, setCatName] = useState('');
+  const [catSlug, setCatSlug] = useState('');
+  const [editingCat, setEditingCat] = useState(null);
+  const [editingGroup, setEditingGroup] = useState(null);
+  const TABS = [
+    { key: 'models', label: 'AI Models' },
+    { key: 'users', label: 'Users' },
+    { key: 'recipients', label: 'Recipients' },
+    { key: 'groups', label: 'Groups' },
+    { key: 'categories', label: 'Categories' },
+  ];
 
   useEffect(() => {
     if (user && !user.is_admin) router.replace('/dashboard');
@@ -44,9 +65,22 @@ export default function Admin() {
   const loadUsers = () => {
     api('/api/admin/users').then(setUsers).catch((e) => toast(e.message, 'error'));
   };
+  const loadRecipients = () => {
+    let url = '/api/admin/recipients?limit=500';
+    if (recipientsSearch) url += '&search=' + encodeURIComponent(recipientsSearch);
+    api(url).then(setRecipients).catch((e) => toast(e.message, 'error'));
+  };
+  const loadGroups = () => {
+    api('/api/recipient-groups/admin/all').then(setGroups).catch((e) => toast(e.message, 'error'));
+  };
+  const loadCategories = () => {
+    api('/api/categories?active_only=false').then(setCategories).catch((e) => toast(e.message, 'error'));
+  };
   useEffect(() => {
     loadModels();
     loadUsers();
+    loadGroups();
+    loadCategories();
   }, []);
 
   if (!user || !user.is_admin) return null;
@@ -56,6 +90,88 @@ export default function Admin() {
     setEditing(m);
     setForm({ ...EMPTY_MODEL, ...m, api_key: '' });
     setModalOpen(true);
+  };
+
+  const openGroupModal = (g = null) => {
+    setEditingGroup(g);
+    if (g) {
+      setGroupName(g.name);
+      setGroupSlug(g.slug);
+      setGroupDesc(g.description);
+      setGroupPrice(g.price);
+      setGroupIsFree(g.is_free);
+      setGroupRequiredSub(g.required_subscription);
+    } else {
+      setGroupName('');
+      setGroupSlug('');
+      setGroupDesc('');
+      setGroupPrice(0);
+      setGroupIsFree(false);
+      setGroupRequiredSub('free');
+    }
+  };
+
+  const saveGroup = async () => {
+    const payload = {
+      name: groupName, slug: groupSlug || groupName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+      description: groupDesc, price: groupPrice, is_free: groupIsFree,
+      required_subscription: groupRequiredSub,
+    };
+    try {
+      if (editingGroup) {
+        await api('/api/recipient-groups/' + editingGroup.id, { method: 'PATCH', body: payload });
+        toast('Group updated', 'success');
+      } else {
+        await api('/api/recipient-groups', { method: 'POST', body: payload });
+        toast('Group created', 'success');
+      }
+      setEditingGroup(null);
+      loadGroups();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
+
+  const deleteGroup = async (g) => {
+    if (!confirm('Delete group "' + g.name + '"? This removes the group (not recipients).')) return;
+    try {
+      await api('/api/recipient-groups/' + g.id, { method: 'DELETE' });
+      toast('Group deleted', 'success');
+      loadGroups();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
+
+  const openCategoryModal = (c = null) => {
+    setEditingCat(c);
+    setCatName(c ? c.name : '');
+    setCatSlug(c ? c.slug : '');
+  };
+
+  const saveCategory = async () => {
+    if (!catName || !catSlug) {
+      toast('Name and slug are required', 'error');
+      return;
+    }
+    try {
+      if (editingCat) {
+        await api('/api/categories/' + editingCat.id, { method: 'PATCH', body: { name: catName, slug: catSlug } });
+        toast('Category updated', 'success');
+      } else {
+        await api('/api/categories', { method: 'POST', body: { name: catName, slug: catSlug } });
+        toast('Category created', 'success');
+      }
+      setEditingCat(null);
+      loadCategories();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
+
+  const openEditRecipient = (r) => {
+    // For now, just show a toast with recipient info. Could expand to full editor.
+    toast('Recipient id=' + r.id + ' (' + r.email + '). Admin recipient editing coming soon.', 'info');
   };
 
   const save = async () => {
@@ -133,12 +249,14 @@ export default function Admin() {
       </div>
 
       <div className="toolbar">
-        {(['models', 'users']).map((t) => (
-          <Button key={t} variant={tab === t ? 'primary' : 'secondary'} onClick={() => setTab(t)}>
-            {t === 'models' ? 'AI Models' : 'Users'}
+        {TABS.map((t) => (
+          <Button key={t.key} variant={tab === t.key ? 'primary' : 'secondary'} onClick={() => setTab(t.key)}>
+            {t.label}
           </Button>
         ))}
         {tab === 'models' && <Button onClick={openCreate}>{Icons.plus} Add platform model</Button>}
+        {tab === 'groups' && <Button onClick={openGroupModal}>{Icons.plus} New group</Button>}
+        {tab === 'categories' && <Button onClick={openCategoryModal}>{Icons.plus} New category</Button>}
       </div>
 
       {tab === 'models' && (
@@ -227,6 +345,120 @@ export default function Admin() {
         </Panel>
       )}
 
+      {tab === 'recipients' && (
+        <Panel title="All Recipients">
+          <div className="flex" style={{ marginBottom: 12 }}>
+            <input type="checkbox" style={{ width: 16 }} onChange={() => {}} />
+            <Input
+              placeholder="Search recipients…"
+              value={recipientsSearch}
+              onChange={(e) => { setRecipientsSearch(e.target.value); setTimeout(loadRecipients, 300); }}
+              style={{ flex: 1 }}
+            />
+          </div>
+          {recipients === null ? (
+            <Spinner />
+          ) : recipients.length === 0 ? (
+            <Empty message="No recipients found." />
+          ) : (
+            <table className="dense">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Email</th>
+                  <th>Category</th>
+                  <th>Owner</th>
+                  <th>Free</th>
+                  <th>Status</th>
+                  <th>Added</th>
+                  <th style={{ width: 120 }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recipients.map((r) => (
+                  <tr key={r.id}>
+                    <td><input type="checkbox" onChange={() => {}} /></td>
+                    <td><b>{r.email}</b></td>
+                    <td>{_categoryName(categories, r.category_id) || '—'}</td>
+                    <td>{r.added_by}</td>
+                    <td>{r.is_free ? <StatusBadge status="Free" tone="green" /> : <StatusBadge status="Paid" tone="blue" />}</td>
+                    <td>{r.status}</td>
+                    <td className="muted">{r.created_at ? fmtDate(r.created_at) : '—'}</td>
+                    <td>
+                      <Button variant="ghost" sm onClick={() => openEditRecipient(r)}>{Icons.edit}</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Panel>
+      )}
+
+      {tab === 'groups' && (
+        <Panel title="Recipient Groups">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span className="muted">Manage catalog groups and pricing</span>
+          </div>
+          {groups === null ? (
+            <Spinner />
+          ) : groups.length === 0 ? (
+            <Empty message="No groups yet. Create one to start selling recipient bundles." />
+          ) : (
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+              {groups.map((g) => (
+                <Panel key={g.id} title={g.name} actions={
+                  <StatusBadge status={g.is_free ? 'Free' : 'Paid'} tone={g.is_free ? 'green' : 'blue'} />
+                }>
+                  <table className="dense" style={{ margin: '6px 0' }}>
+                    <tbody>
+                      <tr><td className="muted">Category</td><td>{_categoryName(categories, g.category_id) || '—'}</td></tr>
+                      <tr><td className="muted">Contacts</td><td><b>{g.recipient_count}</b></td></tr>
+                      <tr><td className="muted">Price</td><td>${g.price.toFixed(2)}</td></tr>
+                      <tr><td className="muted">Required</td><td>{g.required_subscription}</td></tr>
+                      <tr><td className="muted">Status</td><td>{g.status}</td></tr>
+                    </tbody>
+                  </table>
+                  <div className="flex" style={{ gap: 8, marginTop: 8 }}>
+                    <Button variant="secondary" sm onClick={() => openEditGroup(g)}>{Icons.edit} Edit</Button>
+                    <Button variant="danger" sm onClick={() => deleteGroup(g)}>{Icons.trash} Delete</Button>
+                  </div>
+                </Panel>
+              ))}
+            </div>
+          )}
+        </Panel>
+      )}
+
+      {tab === 'categories' && (
+        <Panel title="Categories">
+          {categories === null ? (
+            <Spinner />
+          ) : categories.length === 0 ? (
+            <Empty message="No categories yet." />
+          ) : (
+            <table className="dense">
+              <thead>
+                <tr><th>Name</th><th>Slug</th><th>Active</th><th>Order</th><th style={{ width: 100 }}></th></tr>
+              </thead>
+              <tbody>
+                {categories.map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.name}</td>
+                    <td>{c.slug}</td>
+                    <td>{c.is_active ? '✅' : '❌'}</td>
+                    <td>{c.sort_order}</td>
+                    <td>
+                      <Button variant="ghost" sm onClick={() => openCategoryModal(c)}>{Icons.edit}</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Panel>
+      )}
+
       <Modal open={modalOpen} title={editing ? 'Edit platform model' : 'Add platform model'} onClose={() => setModalOpen(false)}
         footer={
           <>
@@ -271,6 +503,63 @@ export default function Admin() {
       <Confirm open={!!confirmDelete} title="Delete platform model" danger
         message={`Delete "${confirmDelete?.name}"? This removes it for every user.`}
         confirmLabel="Delete" onCancel={() => setConfirmDelete(null)} onConfirm={doDelete} />
+
+      <Modal open={!!editingGroup} title={editingGroup ? 'Edit Group' : 'New Group'} onClose={() => setEditingGroup(null)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditingGroup(null)}>Cancel</Button>
+            <Button onClick={saveGroup}>Save</Button>
+          </>
+        }>
+        <Field label="Name">
+          <Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="Software Developers" />
+        </Field>
+        <Field label="Slug">
+          <Input value={groupSlug} onChange={(e) => setGroupSlug(e.target.value)} />
+        </Field>
+        <Field label="Description">
+          <Input value={groupDesc} onChange={(e) => setGroupDesc(e.target.value)} />
+        </Field>
+        <label className="flex" style={{ fontSize: 13.5 }}>
+          <input type="checkbox" checked={groupIsFree} onChange={(e) => setGroupIsFree(e.target.checked)} />
+          Free group (accessible to all users)
+        </label>
+        {!groupIsFree && (
+          <>
+            <Field label="Price (USD)">
+              <Input type="number" min="0" step="0.01" value={groupPrice} onChange={(e) => setGroupPrice(Number(e.target.value))} />
+            </Field>
+            <Field label="Required subscription">
+              <select className="select" value={groupRequiredSub} onChange={(e) => setGroupRequiredSub(e.target.value)}>
+                <option value="free">Free</option>
+                <option value="pro">Pro</option>
+                <option value="max">Max</option>
+              </select>
+            </Field>
+          </>
+        )}
+      </Modal>
+
+      <Modal open={!!editingCat} title={editingCat ? 'Edit Category' : 'New Category'} onClose={() => setEditingCat(null)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditingCat(null)}>Cancel</Button>
+            <Button onClick={saveCategory}>Save</Button>
+          </>
+        }>
+        <Field label="Name">
+          <Input value={catName} onChange={(e) => setCatName(e.target.value)} />
+        </Field>
+        <Field label="Slug">
+          <Input value={catSlug} onChange={(e) => setCatSlug(e.target.value)} />
+        </Field>
+      </Modal>
     </Layout>
   );
+}
+
+function _categoryName(categories, id) {
+  if (!id || !categories) return '';
+  const cat = categories.find((c) => c.id === id);
+  return cat ? cat.name : '';
 }
