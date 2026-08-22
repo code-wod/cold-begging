@@ -94,6 +94,11 @@ export default function CampaignDetail() {
           <span className="muted">Created {fmtDate(campaign.created_at)}</span>
         </div>
         <div className="flex">
+          {(['draft', 'review_required', 'paused', 'scheduled', 'running'].includes(campaign.status)) && (
+            <Button variant={campaign.dry_run ? "secondary" : "primary"} sm onClick={() => act(`/api/campaigns/${id}/toggle-dry-run`, null, (res) => toast(`Dry run ${res.dry_run ? 'ON' : 'OFF'}`, 'info'))}>
+              {campaign.dry_run ? 'Dry Run: ON' : 'Dry Run: OFF'}
+            </Button>
+          )}
           {['draft', 'review_required'].includes(campaign.status) && (
             <Button variant="secondary" disabled={busy} onClick={() => { setBusy(true); act(`/api/campaigns/${id}/test`, 'Generating (dry run)…', () => setBusy(false)); }}>
               {Icons.eye} Test / Generate

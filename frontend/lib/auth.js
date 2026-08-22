@@ -25,10 +25,10 @@ export function AuthProvider({ children }) {
     return d.user;
   };
 
-  const signup = async (email, password, fullName) => {
+  const signup = async (email, password, fullName, phone) => {
     const d = await api('/api/auth/signup', {
       method: 'POST',
-      body: { email, password, full_name: fullName },
+      body: { email, password, full_name: fullName, phone },
     });
     setToken(d.access_token);
     setUser(d.user);

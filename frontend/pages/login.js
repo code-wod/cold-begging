@@ -14,16 +14,25 @@ export default function Login() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [verified, setVerified] = useState(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-    const token = params.get('google_token');
+    // Check for verification success after email click
+    const verifiedParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('verified');
+    if (verifiedParam === '1') {
+      setVerified(true);
+      window.history.replaceState(null, '', '/login');
+    }
+
+    // Handle Google OAuth callback via fragment token
+    const hashParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.hash.replace(/^#/, '')) : null;
+    const token = hashParams?.get('google_token');
     if (token) {
       finishGoogle(token)
-        .then(() => router.replace(params.get('new') === '1' ? '/onboarding' : '/dashboard'))
+        .then(() => router.replace(hashParams.get('new') === '1' ? '/onboarding' : '/dashboard'))
         .catch((e) => setError(e.message))
         .finally(() => window.history.replaceState(null, '', '/login'));
-    } else if (params.get('google_error')) {
+    } else if (hashParams?.get('google_error')) {
       setError('Google sign-in failed or was cancelled.');
       window.history.replaceState(null, '', '/login');
     }
@@ -64,6 +73,11 @@ export default function Login() {
           <h1 style={{ fontSize: 20 }}>Sign in to PulseBoard</h1>
           <p className="muted mb-0">Cold email automation, powered by AI.</p>
         </div>
+        {verified && (
+          <div className="toast success" style={{ position: 'static', marginBottom: 14 }}>
+            🎉 Your email has been verified! You can now sign in.
+          </div>
+        )}
         {error && <div className="toast error" style={{ position: 'static', marginBottom: 14 }}>{error}</div>}
         <form onSubmit={submit}>
           <Field label="Email">

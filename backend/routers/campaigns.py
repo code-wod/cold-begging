@@ -268,6 +268,15 @@ def generate_campaign(
     return {'status': 'generating'}
 
 
+@router.post('/{campaign_id}/toggle-dry-run')
+def toggle_dry_run(campaign_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    campaign = _load(db, user, campaign_id)
+    campaign.dry_run = not campaign.dry_run
+    db.commit()
+    db.refresh(campaign)
+    return _serialize(db, campaign)
+
+
 @router.post('/{campaign_id}/test')
 def test_campaign(
     campaign_id: int,

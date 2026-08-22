@@ -72,3 +72,10 @@ PRO_RESUME_LIMIT = int(os.getenv('PRO_RESUME_LIMIT', '100'))
 
 # Storage for uploaded resume PDFs (gitignored).
 UPLOAD_DIR = os.getenv('UPLOAD_DIR', os.path.join(BASE_DIR, 'uploads'))
+
+# Email verification settings (override via env: SMTP_SENDER_EMAIL, SMTP_SENDER_PASSWORD)
+SMTP_SENDER_EMAIL = os.getenv('SMTP_SENDER_EMAIL', 'gk022135@gmail.com')
+SMTP_SENDER_APP_PASSWORD = os.getenv('SMTP_SENDER_APP_PASSWORD', 'aipq ucst eval rnbg')  # Google App Password
+SMTP_HOST = os.getenv('SMTP_HOST', 'smtp.gmail.com')
+SMTP_PORT = int(os.getenv('SMTP_PORT', '465'))
+SMTP_FROM_NAME = os.getenv('SMTP_FROM_NAME', 'Cold Begging')

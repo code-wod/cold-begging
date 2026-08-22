@@ -33,6 +33,7 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    phone = Column(String(64), default='')  # phone number
 
 
 class Profile(Base):
@@ -279,6 +280,17 @@ class UsageRecord(Base):
 
 class PasswordReset(Base):
     __tablename__ = 'password_resets'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=False)
+    token_hash = Column(String(255), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+
+
+class EmailVerification(Base):
+    __tablename__ = 'email_verifications'
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=False)

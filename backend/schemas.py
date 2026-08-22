@@ -8,6 +8,7 @@ class SignupRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     full_name: str = ''
+    phone: str = ''  # compulsory phone number
 
 
 class LoginRequest(BaseModel):

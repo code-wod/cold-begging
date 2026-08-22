@@ -4,7 +4,7 @@ export const getToken = () =>
   typeof window !== 'undefined' ? window.localStorage.getItem(TOKEN_KEY) : null;
 export const setToken = (t) => window.localStorage.setItem(TOKEN_KEY, t);
 export const clearToken = () => window.localStorage.removeItem(TOKEN_KEY);
-const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://10.12.25.237:8000';
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export async function api(path, { method = 'GET', body, form } = {}) {
   const headers = {};

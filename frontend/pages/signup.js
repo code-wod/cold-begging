@@ -11,10 +11,12 @@ export default function Signup() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');  // phone number
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [submitted, setSubmitted] = useState(false);  // show verification message after signup
 
   const google = async () => {
     setGoogleBusy(true);
@@ -33,8 +35,8 @@ export default function Signup() {
     setBusy(true);
     setError('');
     try {
-      await signup(email, password, name);
-      router.push('/onboarding');
+      await signup(email, password, name, phone);
+      setSubmitted(true);  // Show verification message instead of redirecting
     } catch (err) {
       setError(err.message);
     } finally {
@@ -51,6 +53,19 @@ export default function Signup() {
           <h1 style={{ fontSize: 20 }}>Create your free account</h1>
           <p className="muted mb-0">Connect your own Gmail. Use your own AI key. Start today.</p>
         </div>
+        {submitted ? (
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 18 }}>📧</div>
+          <h2 style={{ fontSize: 20, marginBottom: 12 }}>Check your email</h2>
+          <p className="muted mb-0">
+            We sent a verification link to <b>{email}</b>. Click the link to verify your account, then sign in.
+          </p>
+          <div className="mt-16" style={{ textAlign: 'center', fontSize: 13 }}>
+            <Link href="/login">Back to sign in</Link>
+          </div>
+        </div>
+      ) : (
+        <>
         {error && <div className="toast error" style={{ position: 'static', marginBottom: 14 }}>{error}</div>}
         <form onSubmit={submit}>
           <Field label="Full name">
@@ -58,6 +73,9 @@ export default function Signup() {
           </Field>
           <Field label="Work email">
             <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+          </Field>
+          <Field label="Phone number" help="Required to reduce duplicate requests">
+            <Input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1234567890" />
           </Field>
           <Field label="Password" help="At least 8 characters.">
             <Input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
@@ -77,6 +95,8 @@ export default function Signup() {
         <div className="mt-16" style={{ textAlign: 'center', fontSize: 13 }}>
           Already have an account? <Link href="/login">Sign in</Link>
         </div>
+        </>
+      )}
       </Panel>
     </div>
   );

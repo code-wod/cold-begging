@@ -1,15 +1,20 @@
 import datetime as dt
+import logging
 import secrets
+import smtplib
+from email.mime.text import MIMEText
 
+import bcrypt
 import jwt as pyjwt
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import gmail
-from ..config import API_BASE, FRONTEND_URL
+from ..config import API_BASE, FRONTEND_URL, SMTP_SENDER_EMAIL, SMTP_SENDER_APP_PASSWORD, SMTP_HOST, SMTP_PORT, SMTP_FROM_NAME
 from ..database import get_db
-from ..models import PasswordReset, Profile, Subscription, User
+from ..encryption import decrypt_plaintext, encrypt_plaintext
+from ..models import PasswordReset, Profile, Subscription, User, EmailVerification
 from ..schemas import (
     LoginRequest,
     ProfileUpdate,
@@ -23,11 +28,14 @@ from ..security import (
     SECRET_KEY,
     create_access_token,
     get_current_user,
+    get_current_user_unverified,
     hash_password,
     verify_password,
 )
 
 router = APIRouter(prefix='/api/auth', tags=['auth'])
+
+logger = logging.getLogger('cold_email_agent')
 
 OAUTH_ALGORITHM = 'HS256'
 
@@ -46,6 +54,25 @@ def _user_out(user, db):
     )
 
 
+def _send_verification_email(user, token):
+    """Send verification email using SMTP credentials from config."""
+    sender_email = SMTP_SENDER_EMAIL
+    sender_password = SMTP_SENDER_APP_PASSWORD
+    verification_link = f'{API_BASE}/user-email/verification?token={token}&email={user.email}'
+    msg = MIMEText(f'Click here to verify your email: {verification_link}')
+    msg['Subject'] = f'Email Verification - {SMTP_FROM_NAME}'
+    msg['From'] = sender_email
+    msg['To'] = user.email
+    try:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as smtp:
+            smtp.login(sender_email, sender_password)
+            smtp.sendmail(sender_email, user.email, msg.as_string())
+        return True
+    except Exception as e:
+        logger.warning('Verification email failed for %s: %s', user.email, e)
+        return False
+
+
 @router.post('/signup', response_model=TokenOut)
 def signup(payload: SignupRequest, db: Session = Depends(get_db)):
     exists = db.query(User).filter(User.email == payload.email.lower()).first()
@@ -55,13 +82,24 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
         email=payload.email.lower(),
         password_hash=hash_password(payload.password),
         full_name=payload.full_name or '',
+        phone=payload.phone,
     )
     db.add(user)
     db.flush()
     db.add(Profile(user_id=user.id))
     db.add(Subscription(user_id=user.id, plan='free', status='active'))
+    # Generate and send verification token
+    token = secrets.token_urlsafe(32)
+    verification = EmailVerification(
+        user_id=user.id,
+        token_hash=hash_password(token),
+        expires_at=dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=48),
+    )
+    db.add(verification)
     db.commit()
     db.refresh(user)
+    # Send verification email (non-blocking)
+    _send_verification_email(user, token)
     return TokenOut(access_token=create_access_token(user.id), user=_user_out(user, db))
 
 
@@ -70,6 +108,11 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email.lower()).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail='Invalid email or password')
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=403,
+            detail='Please verify your email first. Check your inbox for the verification link.',
+        )
     return TokenOut(access_token=create_access_token(user.id), user=_user_out(user, db))
 
 
@@ -154,6 +197,54 @@ def google_login_callback(
 @router.get('/me', response_model=UserOut)
 def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _user_out(user, db)
+
+
+@router.get('/subscription', response_model=dict)
+def subscription_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    sub = db.query(Subscription).filter(Subscription.user_id == user.id).first()
+    plan = sub.plan if sub else 'free'
+    return {'is_pro': plan == 'pro', 'plan': plan}
+
+
+@router.post('/send-verification')
+def send_verification(user: User = Depends(get_current_user_unverified), db: Session = Depends(get_db)):
+    token = secrets.token_urlsafe(32)
+    token_hash = hash_password(token)
+    expires_at = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=48)
+    verification = EmailVerification(
+        user_id=user.id,
+        token_hash=token_hash,
+        expires_at=expires_at,
+    )
+    db.add(verification)
+    db.commit()
+    db.refresh(verification)
+    # Send verification email
+    _send_verification_email(user, token)
+    return {'message': 'Verification email sent'}
+
+
+@router.get('/verify-email')
+def verify_email(token: str, db: Session = Depends(get_db)):
+    now = dt.datetime.now(dt.timezone.utc)
+    # bcrypt salts random, so we can't filter by hash equality—scan and verify_password
+    candidates = db.query(EmailVerification).filter(
+        EmailVerification.used.is_(False),
+        EmailVerification.expires_at > now,
+    ).all()
+    verification = next(
+        (v for v in candidates if verify_password(token, v.token_hash)),
+        None,
+    )
+    if not verification:
+        raise HTTPException(status_code=400, detail='Invalid or expired verification token')
+    verification.used = True
+    user = db.query(User).filter(User.id == verification.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail='User not found')
+    user.is_verified = True
+    db.commit()
+    return {'message': 'Email verified successfully', 'is_verified': True}
 
 
 @router.patch('/profile', response_model=UserOut)

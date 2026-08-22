@@ -8,7 +8,7 @@ from .. import gmail
 from ..config import API_BASE, FRONTEND_URL
 from ..database import get_db
 from ..encryption import decrypt_plaintext, encrypt_plaintext
-from ..models import EmailAccount, User
+from ..models import EmailAccount, Subscription, User
 from ..schemas import EmailAccountIn, EmailAccountOut, EmailAccountUpdate
 from ..security import create_access_token, decode_access_token, get_current_user
 
@@ -78,6 +78,17 @@ def add_smtp_account(
     )
     if existing:
         raise HTTPException(status_code=409, detail='This email account is already connected')
+    # Check plan-based limits: free tier = 1 SMTP account, Pro = unlimited
+    sub = db.query(Subscription).filter(Subscription.user_id == user.id).first()
+    plan = sub.plan if sub else 'free'
+    if plan == 'free':
+        smtp_count = db.query(EmailAccount).filter(
+            EmailAccount.user_id == user.id, EmailAccount.provider == 'smtp'
+        ).count()
+        if smtp_count >= 1:
+            raise HTTPException(
+                status_code=400, detail='Free plan allows only one SMTP account. Upgrade to Pro for multiple.'
+            )
     count = db.query(EmailAccount).filter(EmailAccount.user_id == user.id).count()
     is_default = payload.is_default or count == 0
     account = EmailAccount(
