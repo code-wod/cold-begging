@@ -15,6 +15,7 @@ from ..models import (
     EmailAccount,
     GeneratedEmail,
     Recipient,
+    RecipientGroup,
     User,
     UserProfileAsset,
     campaign_assets,
@@ -55,6 +56,17 @@ def _serialize(db, campaign):
         .filter(CampaignRecipient.campaign_id == campaign.id)
         .count()
     )
+    group_ids = [
+        g[0]
+        for g in db.query(Recipient.group_id)
+        .join(CampaignRecipient, CampaignRecipient.recipient_id == Recipient.id)
+        .filter(
+            CampaignRecipient.campaign_id == campaign.id,
+            Recipient.group_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    ]
     return CampaignOut(
         id=campaign.id,
         name=campaign.name,
@@ -83,6 +95,7 @@ def _serialize(db, campaign):
         failed_count=failed,
         pending_count=pending,
         cancelled_count=cancelled,
+        group_ids=group_ids,
         asset_ids=[a.id for a in campaign.assets],
         created_at=campaign.created_at.isoformat() if campaign.created_at else None,
     )
@@ -133,6 +146,28 @@ def _resolve_assets(db, user, asset_ids):
             detail='Attach at least one resume (PDF or link) to the campaign',
         )
     return assets
+
+
+def _resolve_group_recipient_ids(db, user, group_ids):
+    """Recipient ids owned by the user across the given owned groups (deduped)."""
+    group_ids = [int(g) for g in (group_ids or [])]
+    if not group_ids:
+        return []
+    owned_groups = (
+        db.query(RecipientGroup.id)
+        .filter(RecipientGroup.user_id == user.id, RecipientGroup.id.in_(group_ids))
+        .all()
+    )
+    owned = {g[0] for g in owned_groups}
+    missing = set(group_ids) - owned
+    if missing:
+        raise HTTPException(status_code=404, detail='Recipient group not found')
+    rows = (
+        db.query(Recipient.id)
+        .filter(Recipient.user_id == user.id, Recipient.group_id.in_(group_ids))
+        .all()
+    )
+    return list({r[0] for r in rows})
 
 
 @router.post('', response_model=CampaignOut)
@@ -188,7 +223,9 @@ def create_campaign(payload: CampaignIn, user: User = Depends(get_current_user),
     )
     db.add(campaign)
     db.flush()
-    for recipient_id in payload.recipient_ids or []:
+    recipient_ids = set(_resolve_group_recipient_ids(db, user, payload.group_ids))
+    recipient_ids.update(int(r) for r in (payload.recipient_ids or []))
+    for recipient_id in recipient_ids:
         recipient = (
             db.query(Recipient)
             .filter(Recipient.id == recipient_id, Recipient.user_id == user.id)
@@ -241,6 +278,20 @@ def update_campaign(
     data = payload.dict(exclude_none=True)
     if 'asset_ids' in data:
         campaign.assets = _resolve_assets(db, user, data.pop('asset_ids'))
+    if 'group_ids' in data:
+        generated = (
+            db.query(GeneratedEmail).filter(GeneratedEmail.campaign_id == campaign.id).count()
+        )
+        if generated:
+            raise HTTPException(
+                status_code=400,
+                detail='Recipients cannot be changed after emails have been generated',
+            )
+        db.query(CampaignRecipient).filter(CampaignRecipient.campaign_id == campaign.id).delete(
+            synchronize_session=False
+        )
+        for recipient_id in _resolve_group_recipient_ids(db, user, data.pop('group_ids')):
+            db.add(CampaignRecipient(campaign_id=campaign.id, recipient_id=recipient_id))
     for field, value in data.items():
         if field == 'active_days':
             value = json.dumps(value)

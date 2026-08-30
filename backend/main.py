@@ -17,6 +17,7 @@ from .routers import (
     email_accounts,
     emails,
     profile_assets,
+    recipient_groups,
     recipients,
 )
 from .routers.auth import _user_out, verify_email
@@ -44,7 +45,7 @@ app.add_middleware(
     allow_credentials=True,
 )
 
-for router in (auth, recipients, email_accounts, agents, campaigns, emails, analytics, billing, chat, admin, profile_assets):
+for router in (auth, recipients, recipient_groups, email_accounts, agents, campaigns, emails, analytics, billing, chat, admin, profile_assets):
     app.include_router(router.router)
 
 

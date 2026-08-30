@@ -121,6 +121,22 @@ class ProfileAssetOut(BaseModel):
 
 
 # ---------- Recipients ----------
+class RecipientGroupIn(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+
+
+class RecipientGroupUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+
+
+class RecipientGroupOut(BaseModel):
+    id: int
+    name: str
+    recipient_count: int = 0
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
 class RecipientIn(BaseModel):
     email: EmailStr
     company_name: str = ''
@@ -133,6 +149,22 @@ class RecipientIn(BaseModel):
     funding_status: str = ''
     recent_news: str = ''
     contact_person_name: str = ''
+    group_id: Optional[int] = None
+    group_name: Optional[str] = None
+
+
+class RecipientUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    company_name: Optional[str] = None
+    industry: Optional[str] = None
+    company_website: Optional[str] = None
+    job_role: Optional[str] = None
+    position_level: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    employee_count: Optional[str] = None
+    funding_status: Optional[str] = None
+    recent_news: Optional[str] = None
+    contact_person_name: Optional[str] = None
 
 
 class RecipientOut(BaseModel):
@@ -143,6 +175,8 @@ class RecipientOut(BaseModel):
     company_website: str
     job_role: str
     position_level: str
+    group_id: Optional[int] = None
+    group_name: str = ''
     created_at: Optional[str] = None
 
 
@@ -255,6 +289,7 @@ class CampaignIn(BaseModel):
     email_account_id: Optional[int] = None
     ai_model_id: Optional[int] = None
     recipient_ids: Optional[List[int]] = None
+    group_ids: Optional[List[int]] = None
     asset_ids: Optional[List[int]] = None
     review_required: bool = True
     dry_run: bool = True
@@ -280,6 +315,7 @@ class CampaignUpdate(BaseModel):
     agent_id: Optional[int] = None
     email_account_id: Optional[int] = None
     asset_ids: Optional[List[int]] = None
+    group_ids: Optional[List[int]] = None
     review_required: Optional[bool] = None
     dry_run: Optional[bool] = None
     use_company_research: Optional[bool] = None
@@ -327,6 +363,7 @@ class CampaignOut(BaseModel):
     failed_count: int = 0
     pending_count: int = 0
     cancelled_count: int = 0
+    group_ids: List[int] = []
     asset_ids: List[int] = []
     created_at: Optional[str] = None
 

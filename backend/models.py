@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Table,
@@ -67,11 +68,31 @@ class EmailAccount(Base):
     __table_args__ = (UniqueConstraint('user_id', 'email', name='uq_email_account_user_email'),)
 
 
+class RecipientGroup(Base):
+    """A user-owned bucket of recipients (e.g. 'Startup Leads').
+
+    Every recipient belongs to exactly one group owned by the same user.
+    Group names are unique per user.""" 
+
+    __tablename__ = 'recipient_groups'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=False)
+    name = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    recipients = relationship('Recipient', back_populates='group', cascade='all, delete-orphan')
+
+    __table_args__ = (UniqueConstraint('user_id', 'name', name='uq_recipient_group_user_name'),)
+
+
 class Recipient(Base):
     __tablename__ = 'recipients'
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=False)
+    group_id = Column(Integer, ForeignKey('recipient_groups.id'), index=True, nullable=False)
     email = Column(String(255), nullable=False)
     company_name = Column(String(255), default='')
     industry = Column(String(255), default='')
@@ -86,7 +107,12 @@ class Recipient(Base):
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
-    __table_args__ = (UniqueConstraint('user_id', 'email', name='uq_recipient_user_email'),)
+    group = relationship('RecipientGroup', back_populates='recipients')
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'email', name='uq_recipient_user_email'),
+        Index('ix_recipient_user_group', 'user_id', 'group_id'),
+    )
 
 
 class AIModel(Base):

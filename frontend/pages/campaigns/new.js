@@ -28,7 +28,7 @@ export default function NewCampaign() {
   const router = useRouter();
   const toast = useToast();
   const [step, setStep] = useState(0);
-  const [recipients, setRecipients] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [agents, setAgents] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [assets, setAssets] = useState([]);
@@ -40,7 +40,7 @@ export default function NewCampaign() {
     send_start_time: '09:00', send_end_time: '17:00', active_days: [0, 1, 2, 3, 4],
     emails_per_hour: 10, delay_seconds: 0, daily_limit: 0, max_sends: 0, timezone: 'Asia/Kolkata', start_at: '', end_at: '',
   });
-  const [selectedIds, setSelectedIds] = useState([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [busy, setBusy] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkForm, setLinkForm] = useState({ asset_type: 'resume_link', title: '', url: '' });
@@ -48,7 +48,7 @@ export default function NewCampaign() {
   const fileRef = useRef(null);
 
   useEffect(() => {
-    api('/api/recipients?limit=500').then(setRecipients).catch((e) => toast(e.message, 'error'));
+    api('/api/recipient-groups').then(setGroups).catch((e) => toast(e.message, 'error'));
     api('/api/ai-agents').then(setAgents).catch((e) => toast(e.message, 'error'));
     api('/api/profile-assets').then(setAssets).catch((e) => toast(e.message, 'error'));
     api('/api/email-accounts')
@@ -82,8 +82,8 @@ export default function NewCampaign() {
       active_days: f.active_days.includes(d) ? f.active_days.filter((x) => x !== d) : [...f.active_days, d],
     }));
 
-  const toggleRecipient = (id) =>
-    setSelectedIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const toggleGroup = (id) =>
+    setSelectedGroupIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
   const toggleAsset = (id) =>
     setForm((f) => ({
@@ -142,15 +142,18 @@ export default function NewCampaign() {
 
   const canNext =
     (step !== 0 || form.name.trim()) &&
-    (step !== 1 || selectedIds.length > 0) &&
+    (step !== 1 || selectedGroupIds.length > 0) &&
     (step !== 2 || form.agent_id) &&
     (step !== 3 || hasResumeSelected) &&
     (step !== 4 || form.email_account_id);
 
+  const selectedGroups = groups.filter((g) => selectedGroupIds.includes(g.id));
+  const selectedGroupsCount = selectedGroups.reduce((n, g) => n + (g.recipient_count || 0), 0);
+
   const create = async () => {
     setBusy(true);
     try {
-      const payload = { ...form, recipient_ids: selectedIds };
+      const payload = { ...form, group_ids: selectedGroupIds };
       if (!payload.start_at) payload.start_at = null;
       if (!payload.end_at) payload.end_at = null;
       const campaign = await api('/api/campaigns', { method: 'POST', body: payload });
@@ -215,24 +218,26 @@ export default function NewCampaign() {
 
         {step === 1 && (
           <>
-            <p className="muted">Select recipients for this campaign. <b>{selectedIds.length}</b> selected.</p>
-            <div style={{ maxHeight: 360, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 6 }}>
-              <table className="dense">
-                <thead><tr><th></th><th>Email</th><th>Company</th><th>Industry</th></tr></thead>
-                <tbody>
-                  {recipients.map((r) => (
-                    <tr key={r.id}>
-                      <td><input type="checkbox" checked={selectedIds.includes(r.id)} onChange={() => toggleRecipient(r.id)} /></td>
-                      <td>{r.email}</td>
-                      <td>{r.company_name || '—'}</td>
-                      <td>{r.industry || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <p className="muted">Select recipient groups for this campaign. <b>{selectedGroupsCount}</b> recipient{selectedGroupsCount === 1 ? '' : 's'} across <b>{selectedGroupIds.length}</b> group{selectedGroupIds.length === 1 ? '' : 's'}.</p>
+            {groups.length === 0 ? (
+              <div className="alert warning">
+                No recipient groups yet. <Link href="/recipients">Create a group and add recipients</Link> first.
+              </div>
+            ) : (
+              <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
+                {groups.map((g) => (
+                  <label key={g.id} className="panel flex" style={{ padding: 12, gap: 10, cursor: 'pointer', alignItems: 'flex-start' }}>
+                    <input type="checkbox" checked={selectedGroupIds.includes(g.id)} onChange={() => toggleGroup(g.id)} style={{ marginTop: 3 }} />
+                    <div style={{ flex: 1 }}>
+                      <b>{g.name}</b>
+                      <div className="muted" style={{ fontSize: 12 }}>{g.recipient_count} recipient{g.recipient_count === 1 ? '' : 's'}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
             <div className="mt-8">
-              <Link href="/recipients" className="btn secondary sm">{Icons.plus} Add recipients first</Link>
+              <Link href="/recipients" className="btn secondary sm">{Icons.plus} Manage recipient groups</Link>
             </div>
           </>
         )}
@@ -397,7 +402,8 @@ export default function NewCampaign() {
             </div>
             <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
               <div className="stat-label">Recipients</div>
-              <b>{selectedIds.length}</b>
+              <b>{selectedGroupsCount}</b>
+              <div className="muted">{selectedGroupIds.length} group{selectedGroupIds.length === 1 ? '' : 's'} · {selectedGroups.length ? selectedGroups.map((g) => g.name).join(', ') : '—'}</div>
             </div>
             <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
               <div className="stat-label">AI agent</div>
@@ -427,9 +433,9 @@ export default function NewCampaign() {
             </div>
             <div className="panel" style={{ padding: 12, background: 'var(--highlight-bg)' }}>
               <div className="stat-label">Estimated sends</div>
-              <b>{form.max_sends ? `Stops after ${form.max_sends}` : `${selectedIds.length} recipients`}</b>
+              <b>{form.max_sends ? `Stops after ${form.max_sends}` : `${selectedGroupsCount} recipients`}</b>
               <div className="muted">
-                {selectedIds.length} recipients at {form.emails_per_hour}/hr
+                {selectedGroupsCount} recipients at {form.emails_per_hour}/hr
                 {form.daily_limit ? ` · ${form.daily_limit}/day cap` : ''}
                 {form.max_sends ? ' · auto-stop' : ''}
               </div>

@@ -4,13 +4,14 @@ import logging
 import re
 
 import openpyxl
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Recipient, User
-from ..schemas import ImportResult, RecipientIn, RecipientOut
+from ..models import Recipient, RecipientGroup, User
+from ..schemas import ImportResult, RecipientIn, RecipientOut, RecipientUpdate
 from ..security import get_current_user
+from .recipient_groups import ensure_group
 
 logger = logging.getLogger('cold_email_agent')
 
@@ -33,6 +34,28 @@ COLUMN_ALIASES = {
     'contact person name': 'contact_person_name',
     'contact name': 'contact_person_name',
 }
+
+
+def _resolve_group(db: Session, user: User, group_id=None, group_name=None) -> RecipientGroup:
+    """Resolve an existing owned group (group_id) or get/create one by name.
+
+    A user can never reach another user's group: the id path is scoped to the
+    authenticated user and the name path creates/returns only their own.
+    """
+    if group_id and group_name:
+        raise HTTPException(status_code=400, detail='Choose either an existing group or a new group name, not both')
+    if not group_id and not group_name:
+        raise HTTPException(status_code=400, detail='Select a recipient group (or create a new group)')
+    if group_id:
+        group = (
+            db.query(RecipientGroup)
+            .filter(RecipientGroup.id == group_id, RecipientGroup.user_id == user.id)
+            .first()
+        )
+        if not group:
+            raise HTTPException(status_code=404, detail='Recipient group not found')
+        return group
+    return ensure_group(db, user, group_name)
 
 
 def _parse_rows_from_rows(headers, data_rows):
@@ -100,27 +123,43 @@ def _existing_emails(db, user_id):
     return {r[0].lower() for r in rows}
 
 
+def _recipient_out(db, r):
+    group_name = ''
+    if r.group_id:
+        group_name = (
+            db.query(RecipientGroup.name).filter(RecipientGroup.id == r.group_id).scalar() or ''
+        )
+    return RecipientOut(
+        id=r.id,
+        email=r.email,
+        company_name=r.company_name,
+        industry=r.industry,
+        company_website=r.company_website,
+        job_role=r.job_role,
+        position_level=r.position_level,
+        group_id=r.group_id,
+        group_name=group_name,
+        created_at=r.created_at.isoformat() if r.created_at else None,
+    )
+
+
 @router.get('', response_model=list[RecipientOut])
 def list_recipients(
     search: str = '',
+    group_id: int = 0,
     limit: int = 100,
     offset: int = 0,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Legacy flat list, still scoped to the current user. New UI queries per-group."""
     query = db.query(Recipient).filter(Recipient.user_id == user.id)
+    if group_id:
+        query = query.filter(Recipient.group_id == group_id)
     if search:
         query = query.filter(Recipient.email.ilike(f'%{search}%'))
-    total = query.count()
     items = query.order_by(Recipient.created_at.desc()).offset(offset).limit(limit).all()
-    return [
-        RecipientOut(
-            id=r.id, email=r.email, company_name=r.company_name, industry=r.industry,
-            company_website=r.company_website, job_role=r.job_role, position_level=r.position_level,
-            created_at=r.created_at.isoformat() if r.created_at else None,
-        )
-        for r in items
-    ]
+    return [_recipient_out(db, r) for r in items]
 
 
 @router.get('/count')
@@ -135,22 +174,73 @@ def add_recipient(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    group = _resolve_group(db, user, payload.group_id, payload.group_name)
     email = payload.email.lower()
     exists = (
         db.query(Recipient).filter(Recipient.user_id == user.id, Recipient.email == email).first()
     )
     if exists:
         raise HTTPException(status_code=409, detail='This recipient already exists')
-    recipient = Recipient(user_id=user.id, email=email, **payload.dict(exclude={'email'}))
+    recipient = Recipient(
+        user_id=user.id,
+        group_id=group.id,
+        email=email,
+        company_name=payload.company_name,
+        industry=payload.industry,
+        company_website=payload.company_website,
+        job_role=payload.job_role,
+        position_level=payload.position_level,
+        linkedin_url=payload.linkedin_url,
+        employee_count=payload.employee_count,
+        funding_status=payload.funding_status,
+        recent_news=payload.recent_news,
+        contact_person_name=payload.contact_person_name,
+    )
     db.add(recipient)
     db.commit()
     db.refresh(recipient)
-    return RecipientOut(
-        id=recipient.id, email=recipient.email, company_name=recipient.company_name,
-        industry=recipient.industry, company_website=recipient.company_website,
-        job_role=recipient.job_role, position_level=recipient.position_level,
-        created_at=recipient.created_at.isoformat() if recipient.created_at else None,
+    return _recipient_out(db, recipient)
+
+
+@router.patch('/{recipient_id}', response_model=RecipientOut)
+def update_recipient(
+    recipient_id: int,
+    payload: RecipientUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Edit recipient details. A recipient's group is never changed here."""
+    recipient = (
+        db.query(Recipient)
+        .filter(Recipient.id == recipient_id, Recipient.user_id == user.id)
+        .first()
     )
+    if not recipient:
+        raise HTTPException(status_code=404, detail='Recipient not found')
+    data = payload.dict(exclude_unset=True)
+    if 'email' in data:
+        email = data['email'].lower()
+        dup = (
+            db.query(Recipient)
+            .filter(
+                Recipient.user_id == user.id,
+                Recipient.email == email,
+                Recipient.id != recipient.id,
+            )
+            .first()
+        )
+        if dup:
+            raise HTTPException(status_code=409, detail='This recipient already exists')
+        recipient.email = email
+    for field in (
+        'company_name', 'industry', 'company_website', 'job_role', 'position_level',
+        'linkedin_url', 'employee_count', 'funding_status', 'recent_news', 'contact_person_name',
+    ):
+        if field in data:
+            setattr(recipient, field, data[field])
+    db.commit()
+    db.refresh(recipient)
+    return _recipient_out(db, recipient)
 
 
 @router.post('/import/preview')
@@ -184,9 +274,12 @@ def import_preview(
 @router.post('/import', response_model=ImportResult)
 def import_recipients(
     file: UploadFile = File(...),
+    group_id: int = Form(None),
+    group_name: str = Form(None),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    group = _resolve_group(db, user, group_id, group_name)
     try:
         rows = _parse_upload(file)
     except ValueError as exc:
@@ -206,6 +299,7 @@ def import_recipients(
         db.add(
             Recipient(
                 user_id=user.id,
+                group_id=group.id,
                 email=email,
                 company_name=row.get('company_name', ''),
                 industry=row.get('industry', ''),
