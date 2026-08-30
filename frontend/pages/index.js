@@ -24,6 +24,13 @@ const WORKFLOW = [
   'Track Results',
 ];
 
+const N8N_NODES = [
+  { icon: '👤', title: 'Your profile', sub: 'Resume · links · details' },
+  { icon: '⚙', title: 'n8n workflow', sub: 'Ready-made automation', active: true },
+  { icon: '🏢', title: 'Job portals', sub: 'Detects matching roles' },
+  { icon: '✓', title: 'Auto-apply', sub: 'Submitted with your profile', done: true },
+];
+
 const PLANS = [
   {
     name: 'Free',
@@ -71,6 +78,7 @@ export default function Landing() {
         <div className="landing-nav-links">
           <a href="#features">Features</a>
           <a href="#how">How it works</a>
+          <a href="#n8n">n8n Auto-apply</a>
           <a href="#pricing">Pricing</a>
           <a href="#security">Security</a>
         </div>
@@ -149,6 +157,29 @@ export default function Landing() {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="landing-section landing-alt" id="n8n">
+        <div className="landing-section-head">
+          <div className="landing-kicker"><span className="badge orange">Coming soon</span> &nbsp;·&nbsp; n8n workflow</div>
+          <h2>Apply to job portals automatically — from your profile</h2>
+          <p>A ready-made n8n workflow ships with your account. Drop in your profile, it applies to matching roles.</p>
+        </div>
+        <div className="n8n-pipeline" style={{ maxWidth: 960, margin: '0 auto' }}>
+          {N8N_NODES.map((n, i) => [
+            i > 0 ? <div className="n8n-flow" aria-hidden="true" key={`flow-${i}`} /> : null,
+            (
+              <div key={n.title} className={`n8n-node${n.active ? ' active' : ''}${n.done ? ' done' : ''}`}>
+                <div className="n8n-node-icon">{n.icon}</div>
+                <div className="n8n-node-title">{n.title}</div>
+                <div className="n8n-node-sub">{n.sub}</div>
+              </div>
+            ),
+          ])}
+        </div>
+        <p style={{ textAlign: 'center', color: 'var(--landing-muted)', fontSize: 13, marginTop: 18 }}>
+          No manual form-filling. No missed deadlines. Watch this space.
+        </p>
       </section>
 
       <section className="landing-section landing-alt" id="how">
