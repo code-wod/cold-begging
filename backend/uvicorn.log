@@ -1,0 +1,130 @@
+/Users/gauravkrrr/Documents/gaurav/cold-begging/backend/.venv/lib/python3.9/site-packages/google/oauth2/__init__.py:40: FutureWarning: You are using a Python version 3.9 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+  warnings.warn(eol_message.format("3.9"), FutureWarning)
+/Users/gauravkrrr/Documents/gaurav/cold-begging/backend/.venv/lib/python3.9/site-packages/google/auth/__init__.py:54: FutureWarning: You are using a Python version 3.9 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+  warnings.warn(eol_message.format("3.9"), FutureWarning)
+/Users/gauravkrrr/Documents/gaurav/cold-begging/backend/.venv/lib/python3.9/site-packages/google/api_core/_python_version_support.py:242: FutureWarning: You are using a non-supported Python version (3.9.6). Google will not post any further updates to google.api_core supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.10, and then update google.api_core.
+  warnings.warn(message, FutureWarning)
+/Users/gauravkrrr/Documents/gaurav/cold-begging/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [58503]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50324 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50325 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50332 - "GET /api/ai-models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50335 - "POST /api/ai-models/1/test HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50457 - "OPTIONS /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50459 - "OPTIONS /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50461 - "OPTIONS /api/campaigns/5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50464 - "OPTIONS /api/campaigns/5/emails HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50465 - "OPTIONS /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50459 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50461 - "GET /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50457 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50465 - "GET /api/campaigns/5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50464 - "GET /api/campaigns/5/emails HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50474 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50474 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50480 - "GET /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50478 - "GET /api/campaigns/5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50479 - "GET /api/campaigns/5/emails HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50482 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50491 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50495 - "GET /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50482 - "GET /api/campaigns/5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50494 - "GET /api/campaigns/5/emails HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50499 - "OPTIONS /api/analytics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50501 - "OPTIONS /api/campaigns HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50499 - "OPTIONS /api/emails/history?status=scheduled&limit=6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50502 - "OPTIONS /api/recipients/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50501 - "OPTIONS /api/ai-models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50499 - "OPTIONS /api/analytics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50502 - "OPTIONS /api/campaigns HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50506 - "OPTIONS /api/billing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50501 - "OPTIONS /api/recipients/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50507 - "OPTIONS /api/emails/history?limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50499 - "OPTIONS /api/billing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50502 - "OPTIONS /api/emails/history?limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50506 - "OPTIONS /api/emails/history?status=scheduled&limit=6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50501 - "OPTIONS /api/ai-models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50504 - "GET /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50506 - "GET /api/recipients/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50501 - "GET /api/ai-models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50502 - "GET /api/emails/history?status=scheduled&limit=6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50504 - "GET /api/billing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50507 - "GET /api/analytics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50499 - "GET /api/campaigns HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50501 - "GET /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50502 - "GET /api/recipients/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50506 - "GET /api/emails/history?limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50504 - "GET /api/ai-models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50499 - "GET /api/billing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50507 - "GET /api/emails/history?status=scheduled&limit=6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50506 - "GET /api/emails/history?limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50501 - "GET /api/analytics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50502 - "GET /api/campaigns HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50510 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50510 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50512 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50512 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51401 - "OPTIONS /api/analytics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51403 - "OPTIONS /api/campaigns HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51406 - "OPTIONS /api/recipients/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51408 - "OPTIONS /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51410 - "OPTIONS /api/billing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51401 - "OPTIONS /api/emails/history?status=scheduled&limit=6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51411 - "OPTIONS /api/emails/history?limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51403 - "OPTIONS /api/ai-models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51406 - "OPTIONS /api/analytics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51408 - "OPTIONS /api/campaigns HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51410 - "OPTIONS /api/recipients/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51401 - "OPTIONS /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51411 - "OPTIONS /api/billing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51403 - "OPTIONS /api/emails/history?limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51406 - "OPTIONS /api/emails/history?status=scheduled&limit=6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51408 - "OPTIONS /api/ai-models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51411 - "GET /api/recipients/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51403 - "GET /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51406 - "GET /api/billing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51403 - "GET /api/ai-models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51406 - "GET /api/recipients/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51408 - "GET /api/emails/history?status=scheduled&limit=6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51410 - "GET /api/analytics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51401 - "GET /api/campaigns HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51403 - "GET /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51411 - "GET /api/emails/history?limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51408 - "GET /api/ai-models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51406 - "GET /api/billing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51410 - "GET /api/emails/history?status=scheduled&limit=6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51411 - "GET /api/emails/history?limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51401 - "GET /api/analytics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51403 - "GET /api/campaigns HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51403 - "OPTIONS /api/campaigns/5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51401 - "OPTIONS /api/campaigns/5/emails HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51411 - "OPTIONS /api/campaigns/5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51410 - "OPTIONS /api/campaigns/5/emails HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51403 - "GET /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51401 - "GET /api/campaigns/5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51410 - "GET /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51406 - "GET /api/campaigns/5/emails HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51403 - "GET /api/campaigns/5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51410 - "GET /api/campaigns/5/emails HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51419 - "GET /api/campaigns HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51419 - "GET /api/campaigns HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51423 - "GET /api/recipients/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51425 - "GET /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51427 - "GET /api/billing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51423 - "GET /api/emails/history?status=scheduled&limit=6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51427 - "GET /api/recipients/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51419 - "GET /api/analytics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51429 - "GET /api/emails/history?limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51425 - "GET /api/ai-models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51421 - "GET /api/campaigns HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51423 - "GET /api/email-accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51427 - "GET /api/billing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51429 - "GET /api/emails/history?limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51419 - "GET /api/emails/history?status=scheduled&limit=6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51421 - "GET /api/ai-models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51425 - "GET /api/analytics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51423 - "GET /api/campaigns HTTP/1.1" 200 OK

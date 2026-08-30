@@ -94,20 +94,30 @@ def run():
                         SET group_id = (
                             SELECT g.id FROM recipient_groups g
                             WHERE g.user_id = recipients.user_id
-                            ORDER BY g.id LIMIT 1
+                            ORDER BY CASE WHEN g.name = :name THEN 0 ELSE 1 END, g.id
+                            LIMIT 1
                         )
                         WHERE group_id IS NULL
                         """
-                    )
+                    ),
+                    {'name': DEFAULT_GROUP_NAME},
                 )
             else:
                 print('  No recipients table — skipping backfill')
 
-            print('5. Enforcing NOT NULL on PostgreSQL')
+            print('5. Enforcing NOT NULL and FK on PostgreSQL')
             if is_postgres and _column_exists('recipients', 'group_id'):
                 conn.exec_driver_sql(
                     'ALTER TABLE recipients ALTER COLUMN group_id SET NOT NULL'
                 )
+                fks = inspect(engine).get_foreign_keys('recipients')
+                if not any(fk.get('referred_table') == 'recipient_groups' for fk in fks):
+                    conn.exec_driver_sql(
+                        'ALTER TABLE recipients ADD CONSTRAINT '
+                        'fk_recipients_group_id_recipient_groups '
+                        'FOREIGN KEY (group_id) REFERENCES recipient_groups (id)'
+                    )
+                    print('  Added foreign key recipients.group_id -> recipient_groups.id')
 
             print('6. Creating indexes')
             statements = [

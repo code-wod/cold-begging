@@ -88,13 +88,29 @@ class CampaignWorker(threading.Thread):
         except Exception:
             return dt.datetime.now(dt.timezone.utc)
 
+    def _as_utc(self, value, campaign):
+        """Interpret a stored start/end timestamp in the campaign's timezone and normalize to naive UTC.
+
+        Naive values are assumed to be the campaign-local wall-clock (what the wizard's
+        datetime-local inputs send); aware values are normalized as-is.
+        """
+        if value is None:
+            return None
+        if value.tzinfo is not None:
+            value = value.astimezone(dt.timezone.utc).replace(tzinfo=None)
+            return value
+        zone = self._zone_for(campaign.timezone)
+        return value.replace(tzinfo=zone).astimezone(dt.timezone.utc).replace(tzinfo=None)
+
     def _process_campaign(self, db, campaign):
         now_utc = dt.datetime.now(dt.timezone.utc)
         now_naive_utc = now_utc.replace(tzinfo=None)  # SQLite returns naive datetimes for all tz columns
         local = self._local_now(campaign)
-        if campaign.start_at and self._naive_utc(campaign.start_at) > now_naive_utc:
+        start_at = self._as_utc(campaign.start_at, campaign)
+        if start_at and start_at > now_naive_utc:
             return
-        if campaign.end_at and self._naive_utc(campaign.end_at) < now_naive_utc:
+        end_at = self._as_utc(campaign.end_at, campaign)
+        if end_at and end_at < now_naive_utc:
             campaign.status = 'completed'
             return
         if not self._in_schedule(campaign, local):
