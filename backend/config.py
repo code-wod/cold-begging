@@ -70,8 +70,15 @@ MIN_RATE_PER_HOUR = int(os.getenv('MIN_RATE_PER_HOUR', '4'))
 FREE_RESUME_LIMIT = int(os.getenv('FREE_RESUME_LIMIT', '5'))
 PRO_RESUME_LIMIT = int(os.getenv('PRO_RESUME_LIMIT', '100'))
 
+# Job hunting limits
+FREE_JOB_MATCHES_PER_DAY = int(os.getenv('FREE_JOB_MATCHES_PER_DAY', '20'))
+PRO_JOB_MATCHES_PER_DAY = int(os.getenv('PRO_JOB_MATCHES_PER_DAY', '200'))
+AUTO_PREPARE_THRESHOLD = int(os.getenv('AUTO_PREPARE_THRESHOLD', '80'))
+REVIEW_THRESHOLD = int(os.getenv('REVIEW_THRESHOLD', '70'))
+
 # Storage for uploaded resume PDFs (gitignored).
 UPLOAD_DIR = os.getenv('UPLOAD_DIR', os.path.join(BASE_DIR, 'uploads'))
+RESUME_UPLOAD_DIR = os.getenv('RESUME_UPLOAD_DIR', os.path.join(UPLOAD_DIR, 'resumes'))
 
 # Email verification settings (override via env: SMTP_SENDER_EMAIL, SMTP_SENDER_PASSWORD)
 SMTP_SENDER_EMAIL = os.getenv('SMTP_SENDER_EMAIL', 'gk022135@gmail.com')

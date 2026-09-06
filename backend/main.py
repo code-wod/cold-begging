@@ -10,12 +10,14 @@ from .routers import (
     admin,
     agents,
     analytics,
+    applications,
     auth,
     billing,
     campaigns,
     chat,
     email_accounts,
     emails,
+    jobs,
     profile_assets,
     recipient_groups,
     recipients,
@@ -45,7 +47,7 @@ app.add_middleware(
     allow_credentials=True,
 )
 
-for router in (auth, recipients, recipient_groups, email_accounts, agents, campaigns, emails, analytics, billing, chat, admin, profile_assets):
+for router in (auth, recipients, recipient_groups, email_accounts, agents, campaigns, emails, analytics, billing, chat, admin, profile_assets, jobs, applications):
     app.include_router(router.router)
 
 
