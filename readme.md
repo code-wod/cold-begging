@@ -141,12 +141,12 @@ Transform **Cold Begging** from a cold-email outreach tool into an **AI-Powered 
 - [x] **Application Detail Page** - Full package view, status actions
 - [x] **Duplicate Prevention** - One application per job per user
 
-### Phase 4: n8n Orchestration 🔄 *Planned*
+### Phase 4: n8n Orchestration ✅ **COMPLETE**
 
-- [ ] **Scheduled Discovery** - Cron → Job Sources → Import → Match → Queue
-- [ ] **Webhook Endpoints** - Secure internal endpoints for n8n
-- [ ] **Notification Workflows** - Telegram/Email on strong matches
-- [ ] **Follow-up Reminders** - Application status nudges
+- [x] **Scheduled Discovery** - Cron → Job Sources → Import → Match → Queue
+- [x] **Webhook Endpoints** - Secure internal endpoints for n8n
+- [x] **Notification Workflows** - Email on strong matches
+- [x] **Follow-up Reminders** - Application status nudges
 
 ### Phase 5: Source Adapters ✅ **COMPLETE**
 
@@ -336,7 +336,7 @@ python app.py
 ### Overall Progress
 
 ```
-████████████████████████░░░░  75% Complete
+████████████████████████████████  95% Complete
 ```
 
 ### Phase Breakdown
@@ -346,7 +346,7 @@ python app.py
 | **Phase 1: Foundation** | ✅ Complete | ████████████ 100% | 10/10 |
 | **Phase 2: AI Matching** | ✅ Complete | ████████████ 100% | 7/7 |
 | **Phase 3: App Queue** | ✅ Complete | ████████████ 100% | 8/8 |
-| **Phase 4: n8n** | ⏳ Pending | ░░░░░░░░░░░░ 0% | 0/5 |
+| **Phase 4: n8n** | ✅ Complete | ████████████ 100% | 5/5 |
 | **Phase 5: Sources** | ✅ Complete | ████████████ 100% | 6/6 |
 
 ### Completed Tasks ✅
@@ -370,12 +370,15 @@ python app.py
 - [x] Frontend Job Preferences page
 - [x] Greenhouse, Lever, Ashby, Generic, Manual source providers
 - [x] Navigation integration in Layout
+- [x] n8n webhook endpoints (`/api/n8n/webhook/*`)
+- [x] n8n workflow definitions (daily discovery, follow-ups, manual import)
+- [x] Notification service (Email)
+- [x] Automated scheduled job discovery via n8n
 
 ### In Progress 🔄
 
-- [ ] n8n workflow definitions and webhook endpoints
-- [ ] Notification system (Telegram/Email)
-- [ ] Automated scheduled job discovery
+- [ ] Telegram/Slack notification channels
+- [ ] Browser extension for manual job capture
 
 ---
 
@@ -536,6 +539,16 @@ npm test
 | POST | `/api/applications/{id}/mark-applied` | Mark as applied |
 | POST | `/api/applications/{id}/reject` | Reject application |
 | POST | `/api/applications/{id}/withdraw` | Withdraw application |
+
+### n8n Webhooks
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/n8n/users/active` | Get users with job preferences |
+| POST | `/api/n8n/webhook/job-discovery` | Trigger job discovery for users |
+| POST | `/api/n8n/webhook/match-and-prepare` | Match specific job/user |
+| POST | `/api/n8n/webhook/notify` | Send notification email |
+| GET | `/api/n8n/jobs/pending-match` | Get unmatched recent jobs |
+| POST | `/api/n8n/webhook/followup-check` | Check and send follow-ups |
 
 ---
 

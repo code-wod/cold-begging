@@ -1,0 +1,125 @@
+{
+  "name": "Cold Begging - Daily Job Discovery",
+  "nodes": [
+    {
+      "parameters": {
+        "cronExpression": "0 6 * * *",
+        "timezone": "Asia/Kolkata"
+      },
+      "name": "Daily Trigger (6 AM IST)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/api/n8n/users/active",
+        "method": "GET",
+        "options": {},
+        "headerParametersJson": "{\n  \"X-N8N-Secret\": \"{{$env.N8N_WEBHOOK_SECRET}}\"\n}"
+      },
+      "name": "Get Active Users",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const users = items[0].json;\nreturn users.map(user => ({\n  json: {\n    user_id: user.id,\n    email: user.email\n  }\n}));"
+      },
+      "name": "Split Users",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/api/n8n/webhook/job-discovery",
+        "method": "POST",
+        "options": {},
+        "headerParametersJson": "{\n  \"X-N8N-Secret\": \"{{$env.N8N_WEBHOOK_SECRET}}\",\n  \"Content-Type\": \"application/json\"\n}",
+        "bodyParametersJson": "={{JSON.stringify($json)}}"
+      },
+      "name": "Trigger Job Discovery",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const results = items.map(item => item.json);\nconst total = results.reduce((acc, r) => acc + r.jobs_found, 0);\nconst newJobs = results.reduce((acc, r) => acc + r.jobs_new, 0);\nconst matches = results.reduce((acc, r) => acc + r.matches_triggered, 0);\nconst apps = results.reduce((acc, r) => acc + r.applications_created, 0);\n\nreturn [{\n  json: {\n    summary: `Daily job discovery complete: ${total} jobs found, ${newJobs} new, ${matches} matches, ${apps} applications`\n  }\n}];"
+      },
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/api/n8n/webhook/notify",
+        "method": "POST",
+        "options": {},
+        "headerParametersJson": "{\n  \"X-N8N-Secret\": \"{{$env.N8N_WEBHOOK_SECRET}}\",\n  \"Content-Type\": \"application/json\"\n}",
+        "bodyParametersJson": "={\n  \"user_id\": {{ $json[0].user_id }},\n  \"type\": \"job_match\",\n  \"data\": {\n    \"job_count\": {{ $json[0].jobs_found }},\n    \"strong_matches\": {{ $json[0].matches_triggered }},\n    \"applications_ready\": {{ $json[0].applications_created }}\n  }\n}"
+      },
+      "name": "Send Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1000, 500]
+    }
+  ],
+  "connections": {
+    "Daily Trigger (6 AM IST)": {
+      "main": [
+        [
+          {
+            "node": "Get Active Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Users": {
+      "main": [
+        [
+          {
+            "node": "Split Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Users": {
+      "main": [
+        [
+          {
+            "node": "Trigger Job Discovery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Job Discovery": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "1"
+}

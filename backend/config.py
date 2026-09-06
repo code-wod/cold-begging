@@ -76,6 +76,9 @@ PRO_JOB_MATCHES_PER_DAY = int(os.getenv('PRO_JOB_MATCHES_PER_DAY', '200'))
 AUTO_PREPARE_THRESHOLD = int(os.getenv('AUTO_PREPARE_THRESHOLD', '80'))
 REVIEW_THRESHOLD = int(os.getenv('REVIEW_THRESHOLD', '70'))
 
+# n8n integration
+N8N_WEBHOOK_SECRET = os.getenv('N8N_WEBHOOK_SECRET', '')
+
 # Storage for uploaded resume PDFs (gitignored).
 UPLOAD_DIR = os.getenv('UPLOAD_DIR', os.path.join(BASE_DIR, 'uploads'))
 RESUME_UPLOAD_DIR = os.getenv('RESUME_UPLOAD_DIR', os.path.join(UPLOAD_DIR, 'resumes'))
