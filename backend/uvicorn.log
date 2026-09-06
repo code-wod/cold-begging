@@ -317,3 +317,7 @@ INFO:     127.0.0.1:52065 - "GET /api/campaigns/5 HTTP/1.1" 200 OK
 INFO:     127.0.0.1:52062 - "GET /api/campaigns/5/emails HTTP/1.1" 200 OK
 INFO:     127.0.0.1:52063 - "GET /api/campaigns/5 HTTP/1.1" 200 OK
 INFO:     127.0.0.1:52065 - "GET /api/campaigns/5/emails HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [58503]

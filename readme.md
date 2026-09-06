@@ -1,633 +1,568 @@
-# Cold Email Automation System - Job Opportunities Focus
+# Cold Begging — AI-Powered Job Hunting Assistant
 
-## System Architecture
+> **Evolved from a cold-email automation SaaS into a comprehensive AI Job Hunting Assistant**
+
+[![Backend](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white)](backend/)
+[![Frontend](https://img.shields.io/badge/Frontend-Next.js-000000?logo=next.js&logoColor=white)](frontend/)
+[![Database](https://img.shields.io/badge/Database-SQLite%20%7C%20PostgreSQL-4169E1?logo=sqlite&logoColor=white)]()
+[![Auth](https://img.shields.io/badge/Auth-JWT%20%2B%20bcrypt-FF6B6B)]()
+[![AI](https://img.shields.io/badge/AI-Anthropic%20%7C%20OpenAI%20%7C%20Gemini-8B5CF6?logo=anthropic&logoColor=white)]()
+
+---
+
+## 🎯 Vision
+
+Transform **Cold Begging** from a cold-email outreach tool into an **AI-Powered Job Hunting Assistant** that helps developers:
+
+1. **Discover** jobs from multiple sources (Greenhouse, Lever, Ashby, company career pages, manual import)
+2. **Match** jobs against their profile/resume using AI
+3. **Prepare** tailored applications (resume variants, cover letters, screening answers, recruiter emails)
+4. **Queue** and **approve** applications with human-in-the-loop control
+5. **Track** every application through a CRM-style dashboard
+6. **Send** personalized cold emails to hiring managers using the existing email automation
+
+---
+
+## 🏗️ Architecture Overview
 
 ```
-Excel Sheet (Email List)
-    ↓
-Email Validation & Parsing
-    ↓
-Company Profile Research (AI Agent)
-    ↓
-Email Personalization (Claude API)
-    ↓
-Review Queue (Optional Manual Check)
-    ↓
-Gmail Sending (Rate-Limited)
-    ↓
-Tracking & Analytics
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              COLD BEGGING                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│    ┌─────────────────────┐          ┌──────────────────────────────────┐   │
+│    │    JOB DISCOVERY    │          │         COLD OUTREACH             │   │
+│    │                     │          │                                   │   │
+│    │  ┌───────────────┐  │          │  ┌────────────────────────────┐  │   │
+│    │  │ Job Sources   │  │          │  │ Recruiters / Hiring Mgrs   │  │   │
+│    │  │ • Greenhouse  │  │          │  └────────────────────────────┘  │   │
+│    │  │ • Lever       │  │          │                │                 │   │
+│    │  │ • Ashby       │  │          │                ▼                 │   │
+│    │  │ • Company     │  │          │         AI EMAIL GENERATION       │   │
+│    │  │ • Manual URL  │  │          │         (Existing System)         │   │
+│    │  │ • RSS/Email   │  │          │                                   │   │
+│    │  └───────┬───────┘  │          │                                   │   │
+│    └──────────┼──────────┘          └──────────────┬──────────────────┘   │
+│               │                                    │                      │
+│               ▼                                    │                      │
+│    ┌─────────────────────┐                         │                      │
+│    │  JOB NORMALIZATION  │                         │                      │
+│    │  + DEDUPLICATION    │                         │                      │
+│    └──────────┬──────────┘                         │                      │
+│               │                                    │                      │
+│               ▼                                    │                      │
+│    ┌──────────────────────────────────────────────────────────────────┐   │
+│    │                     AI JOB MATCHER                               │   │
+│    │  User Profile + Resume + Job Description → Match Score + Analysis │   │
+│    └────────────────────────────┬────────────────────────────────────┘   │
+│                                 │                                        │
+│               ┌─────────────────┴─────────────────┐                      │
+│               ▼                                   ▼                      │
+│    ┌─────────────────────┐              ┌─────────────────────┐          │
+│    │  APPLICATION PREP   │              │   EMAIL GENERATION  │          │
+│    │  • Resume variant   │              │  • Recruiter discovery│         │
+│    │  • Cover letter     │              │  • Personalized email │          │
+│    │  • Screening answers│              │  • Send via Gmail    │          │
+│    │  • Recruiter email  │              └─────────────────────┘          │
+│    └──────────┬──────────┘                                       │      │
+│               │                                                  │      │
+│               ▼                                                  │      │
+│    ┌────────────────────────────────────────────────────────────┐      │
+│    │                    APPLICATION QUEUE                        │      │
+│    │  [Review] → [Approve] → [Open Application] → [Track Status] │      │
+│    └────────────────────────────┬────────────────────────────────┘      │
+│                                 │                                       │
+│               ┌─────────────────┴─────────────────┐                     │
+│               ▼                                   ▼                     │
+│    ┌─────────────────────┐              ┌─────────────────────┐        │
+│    │   OFFICIAL API      │              │    MANUAL APPLY     │        │
+│    │   (Greenhouse,      │              │    (LinkedIn,       │        │
+│    │    Lever, Ashby)    │              │     Naukri, etc.)   │        │
+│    └─────────────────────┘              └─────────────────────┘        │
+│                                 │                                       │
+│               ┌─────────────────┴─────────────────┐                     │
+│               ▼                                   ▼                     │
+│    ┌────────────────────────────────────────────────────────────────┐   │
+│    │                      APPLICATION CRM                            │   │
+│    │  Status: DISCOVERED → MATCHED → PREPARING → READY → APPROVED   │   │
+│    │         → APPLIED → SCREENING → INTERVIEW → OFFER/REJECTED     │   │
+│    └────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 1. EXCEL SHEET STRUCTURE
+## ✨ Current Features (v1.0 - Cold Email Automation)
 
-**Required Columns:**
-```
-| Email | Company Name | Industry | Company Website | Job Role | Position Level |
-|-------|-------------|----------|-----------------|----------|-----------------|
-| john@techstartup.io | TechStartup Inc | SaaS | techstartup.io | Founder | CEO |
-| hr@designfirm.com | Design Firm Co | Design | designfirm.co | HR Manager | Manager |
-```
-
-**Optional Columns for Personalization:**
-- Company LinkedIn URL
-- Employee Count
-- Funding Status
-- Recent News/Updates
-- Contact Person Name
+| Feature | Description |
+|---------|-------------|
+| **Multi-tenant SaaS** | FastAPI + Next.js, JWT auth, plan-based limits |
+| **AI Email Generation** | Anthropic/OpenAI/Gemini providers, company research |
+| **Campaign Management** | Recipients → AI Agents → Generate → Review → Schedule → Send |
+| **Gmail OAuth + SMTP** | Server-side OAuth, encrypted tokens, test connections |
+| **In-process Worker** | Hourly rate limiting, business hours, daily caps, auto-stop |
+| **Email History/Analytics** | Full snapshots, delivery rates, retry failed emails |
+| **Admin Panel** | Platform AI models, user management, plan toggles |
+| **Profile Assets** | Resume PDFs (text extraction), GitHub, LinkedIn, website links |
+| **Chatbot Assistant** | In-app help via Gemini |
 
 ---
 
-## 2. CORE IMPLEMENTATION (Python + Node.js)
+## 🚀 New Features (v2.0 - Job Hunting Assistant) — **IMPLEMENTED**
 
-### Option A: Python with Gmail API + Claude
+### Phase 1: Foundation ✅ **COMPLETE**
 
-```python
-import os
-import base64
-import json
-from email.mime.text import MIMEText
-from google.auth.transport.requests import Request
-from google.oauth2.service_account import Credentials
-from google.oauth2 import service_account
-import anthropic
-import openpyxl
-import time
-from datetime import datetime
-import logging
+- [x] **Job Model** - Normalized job entity with source tracking
+- [x] **Resume Model** - Multiple resume variants per user
+- [x] **JobPreferences Model** - Roles, locations, skills, salary, employment type
+- [x] **JobSource Provider Abstraction** - Extensible interface for job platforms
+- [x] **Manual Job Import** - POST `/api/jobs/import` with URL validation
+- [x] **Job Deduplication** - Deterministic fingerprinting (company + title + location + URL)
+- [x] **API Endpoints** - Jobs, Resumes, Preferences CRUD
+- [x] **Database Migrations** - Non-destructive schema additions
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+### Phase 2: AI Matching & Application Prep ✅ **COMPLETE**
 
-# Initialize clients
-SCOPES = ['https://www.googleapis.com/auth/gmail.send']
-ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+- [x] **Job Description Extraction** - Parse HTML/API responses via provider adapters
+- [x] **Resume Parsing** - Extract skills, experience, projects from PDF (pypdf)
+- [x] **AI Match Scoring** - Structured JSON output with score, reasoning, gaps
+- [x] **Configurable Thresholds** - Auto-prepare (80), Review (70), Reject (<60)
+- [x] **Cover Letter Generation** - Tailored to job + resume
+- [x] **Screening Answers** - Evidence-based, never hallucinated
+- [x] **Resume Recommendation** - Select best variant per job
 
-class ColdEmailAgent:
-    def __init__(self, credentials_path, excel_path):
-        self.credentials_path = credentials_path
-        self.excel_path = excel_path
-        self.client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-        self.gmail_service = self._init_gmail()
-        self.sent_count = 0
-        self.rate_limit_delay = 1  # seconds between emails
+### Phase 3: Application Queue & Dashboard ✅ **COMPLETE**
 
-    def _init_gmail(self):
-        """Initialize Gmail API connection"""
-        credentials = service_account.Credentials.from_service_account_file(
-            self.credentials_path, scopes=SCOPES)
+- [x] **Application Model** - Status tracking, match score, generated content
+- [x] **Application Package** - Resume, cover letter, answers, recruiter email
+- [x] **Approval Workflow** - Review → Approve → Open Application
+- [x] **Jobs Page** - Filters: score, source, location, remote, type, company
+- [x] **Application Detail Page** - Full package view, status actions
+- [x] **Duplicate Prevention** - One application per job per user
 
-        # If using personal Gmail, use this instead:
-        # from google.auth.oauthlib.flow import InstalledAppFlow
-        # flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-        # creds = flow.run_local_server()
+### Phase 4: n8n Orchestration 🔄 *Planned*
 
-        from googleapiclient.discovery import build
-        return build('gmail', 'v1', credentials=credentials)
+- [ ] **Scheduled Discovery** - Cron → Job Sources → Import → Match → Queue
+- [ ] **Webhook Endpoints** - Secure internal endpoints for n8n
+- [ ] **Notification Workflows** - Telegram/Email on strong matches
+- [ ] **Follow-up Reminders** - Application status nudges
 
-    def read_excel(self):
-        """Read email list from Excel"""
-        wb = openpyxl.load_workbook(self.excel_path)
-        ws = wb.active
+### Phase 5: Source Adapters ✅ **COMPLETE**
 
-        emails = []
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if row[0]:  # If email exists
-                emails.append({
-                    'email': row[0],
-                    'company_name': row[1],
-                    'industry': row[2],
-                    'website': row[3],
-                    'job_role': row[4],
-                    'position_level': row[5]
-                })
-        return emails
+| Source | Search | Details | Apply API | Status |
+|--------|--------|---------|-----------|--------|
+| Greenhouse | ✅ | ✅ | ✅ (partner) | **Implemented** |
+| Lever | ✅ | ✅ | ✅ (partner) | **Implemented** |
+| Ashby | ✅ | ✅ | ✅ (partner) | **Implemented** |
+| Company Career | ✅ | ✅ | ❌ | **Implemented** |
+| Manual URL | ✅ | ✅ | ❌ | **Implemented** |
+| LinkedIn | ⚠️ Limited | ✅ | ❌ | Manual only |
+| Naukri | ⚠️ Limited | ✅ | ❌ | Manual only |
+| Wellfound | ⚠️ Limited | ✅ | ❌ | Manual only |
+| Indeed | ⚠️ Limited | ✅ | ❌ | Manual only |
 
-    def research_company(self, company_data):
-        """Use Claude to research company profile"""
-        prompt = f"""
-        Research and provide a brief company profile for:
-        - Company: {company_data['company_name']}
-        - Website: {company_data['website']}
-        - Industry: {company_data['industry']}
+> **Important**: We do NOT bypass anti-bot measures, reverse-engineer private APIs, or implement CAPTCHA solving. For platforms without official candidate APIs, the flow is: **Discover → Analyze → Prepare → User Approves → Open URL → User Submits**.
 
-        Provide ONLY JSON format with these fields:
-        {{
-            "company_pain_points": ["issue1", "issue2"],
-            "growth_stage": "early/growth/mature",
-            "target_for_hiring": true/false,
-            "company_culture": "brief description",
-            "key_keywords": ["keyword1", "keyword2"]
-        }}
+---
 
-        Be realistic and specific. If you don't know details, make educated guesses based on industry.
-        """
+## 📁 Project Structure
 
-        message = self.client.messages.create(
-            model="claude-opus-4-6",
-            max_tokens=500,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
-        )
-
-        try:
-            # Extract JSON from response
-            response_text = message.content[0].text
-            # Remove markdown code blocks if present
-            response_text = response_text.replace('```json\n', '').replace('\n```', '').replace('```', '')
-            profile = json.loads(response_text)
-            return profile
-        except json.JSONDecodeError:
-            logger.warning(f"Failed to parse profile for {company_data['company_name']}")
-            return {
-                "company_pain_points": [],
-                "growth_stage": "unknown",
-                "target_for_hiring": True,
-                "company_culture": "",
-                "key_keywords": []
-            }
-
-    def generate_personalized_email(self, company_data, company_profile):
-        """Generate personalized email using Claude"""
-        prompt = f"""
-        Write a personalized cold email for a job opportunity. Requirements:
-
-        Recipient Context:
-        - Company: {company_data['company_name']}
-        - Recipient Email: {company_data['email']}
-        - Target Job Role: {company_data['job_role']}
-        - Position Level: {company_data['position_level']}
-
-        Company Profile:
-        - Pain Points: {', '.join(company_profile.get('company_pain_points', []))}
-        - Growth Stage: {company_profile.get('growth_stage')}
-        - Culture: {company_profile.get('company_culture')}
-
-        Email Requirements:
-        1. Subject line: SHORT, personalized, NOT generic
-        2. Body: 3-4 short paragraphs max
-        3. Tone: Professional but conversational (for job opportunity)
-        4. NEVER mention salary or benefits first
-        5. Focus on: company achievement, your interest, value proposition
-        6. CTA: Ask for a brief call/chat (low friction)
-        7. NO generic templates - MUST be specific to company
-
-        Format response EXACTLY as:
-        SUBJECT: [subject line]
-        BODY:
-        [email body]
-
-        Remember: This is for attracting talent TO the company, not job hunting.
-        """
-
-        message = self.client.messages.create(
-            model="claude-opus-4-6",
-            max_tokens=400,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
-        )
-
-        response_text = message.content[0].text
-
-        # Parse response
-        try:
-            parts = response_text.split('BODY:')
-            subject = parts[0].replace('SUBJECT:', '').strip()
-            body = parts[1].strip() if len(parts) > 1 else ""
-            return subject, body
-        except:
-            logger.error(f"Failed to parse email for {company_data['company_name']}")
-            return "", ""
-
-    def send_email(self, recipient_email, subject, body, sender_email=None):
-        """Send email via Gmail API"""
-        message = MIMEText(body)
-        message['to'] = recipient_email
-        message['subject'] = subject
-        if sender_email:
-            message['from'] = sender_email
-
-        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
-
-        try:
-            self.gmail_service.users().messages().send(
-                userId='me',
-                body={'raw': raw_message}
-            ).execute()
-            logger.info(f"✓ Email sent to {recipient_email}")
-            self.sent_count += 1
-            return True
-        except Exception as e:
-            logger.error(f"✗ Failed to send to {recipient_email}: {str(e)}")
-            return False
-
-    def process_and_send_emails(self, max_emails=None, dry_run=False):
-        """Main automation pipeline"""
-        emails = self.read_excel()
-        if max_emails:
-            emails = emails[:max_emails]
-
-        results = []
-
-        for idx, email_data in enumerate(emails, 1):
-            logger.info(f"\n[{idx}/{len(emails)}] Processing {email_data['company_name']}")
-
-            # Step 1: Research company
-            logger.info("  → Researching company profile...")
-            company_profile = self.research_company(email_data)
-
-            # Step 2: Generate email
-            logger.info("  → Generating personalized email...")
-            subject, body = self.generate_personalized_email(email_data, company_profile)
-
-            if not subject or not body:
-                logger.error(f"  ✗ Email generation failed")
-                results.append({
-                    'email': email_data['email'],
-                    'status': 'failed',
-                    'reason': 'generation_failed'
-                })
-                continue
-
-            # Step 3: Send email
-            if dry_run:
-                logger.info(f"  [DRY RUN] Would send email:")
-                logger.info(f"    To: {email_data['email']}")
-                logger.info(f"    Subject: {subject}")
-                results.append({
-                    'email': email_data['email'],
-                    'status': 'dry_run',
-                    'subject': subject
-                })
-            else:
-                success = self.send_email(email_data['email'], subject, body)
-                results.append({
-                    'email': email_data['email'],
-                    'status': 'sent' if success else 'failed',
-                    'subject': subject
-                })
-
-            # Rate limiting
-            time.sleep(self.rate_limit_delay)
-
-        logger.info(f"\n✓ Completed: {self.sent_count} emails sent")
-        return results
-
-# USAGE
-if __name__ == "__main__":
-    agent = ColdEmailAgent(
-        credentials_path='path/to/credentials.json',
-        excel_path='cold_email_list.xlsx'
-    )
-
-    # Start with dry run first!
-    results = agent.process_and_send_emails(dry_run=True)
-
-    # Then send for real
-    # results = agent.process_and_send_emails(max_emails=10)
+```
+cold-begging/
+├── backend/                    # FastAPI Application (Port 8000)
+│   ├── main.py                 # App factory, CORS, router wiring, worker
+│   ├── models.py               # SQLAlchemy models (User, Campaign, Job, Resume, ...)
+│   ├── schemas.py              # Pydantic request/response models
+│   ├── database.py             # SQLite/Postgres, init_db()
+│   ├── config.py               # Env vars, auto-persisted secrets
+│   ├── security.py             # JWT, bcrypt, admin dependencies
+│   ├── encryption.py           # Fernet encryption for tokens/API keys
+│   ├── ai.py                   # AI Provider abstraction (Anthropic, OpenAI, Gemini)
+│   ├── cold_email_agent.py     # Email generation agent (reused for job emails)
+│   ├── campaign_service.py     # Core business logic: generation, sending, worker
+│   ├── worker.py               # In-process CampaignWorker thread
+│   ├── gmail.py                # Gmail OAuth + send
+│   ├── migration.py            # Alembic-style migration runner
+│   ├── routers/                # API route modules
+│   │   ├── auth.py
+│   │   ├── recipients.py
+│   │   ├── recipient_groups.py
+│   │   ├── email_accounts.py
+│   │   ├── agents.py
+│   │   ├── campaigns.py
+│   │   ├── emails.py
+│   │   ├── analytics.py
+│   │   ├── billing.py
+│   │   ├── chat.py
+│   │   ├── admin.py
+│   │   ├── profile_assets.py
+│   │   ├── jobs.py             # NEW: Job discovery & matching
+│   │   ├── resumes.py          # NEW: Resume management
+│   │   ├── job_preferences.py  # NEW: Job search preferences
+│   │   └── applications.py     # NEW: Application queue & tracking
+│   ├── services/               # NEW: Business logic services
+│   │   ├── job_service.py      # Job CRUD, import, deduplication
+│   │   ├── matching_service.py # AI matching, scoring
+│   │   ├── application_service.py # Application package, queue
+│   │   └── source_providers/   # Job source adapters
+│   │       ├── base.py         # JobSourceProvider abstract base
+│   │       ├── greenhouse.py
+│   │       ├── lever.py
+│   │       ├── ashby.py
+│   │       ├── generic.py
+│   │       └── manual.py
+│   └── uploads/                # User resume PDFs (gitignored)
+│
+├── frontend/                   # Next.js Pages Router (Port 3000)
+│   ├── pages/
+│   │   ├── index.js            # Landing page (AWS-style)
+│   │   ├── login.js / signup.js / forgot.js / reset.js
+│   │   ├── dashboard.js        # Overview stats + quick actions
+│   │   ├── campaigns/          # Campaign wizard, list, detail
+│   │   ├── recipients.js       # Import, groups, list
+│   │   ├── ai-agents.js        # Agent builder
+│   │   ├── ai-models.js        # Model config
+│   │   ├── email-accounts.js   # Gmail OAuth + SMTP
+│   │   ├── history.js          # Email log with filters
+│   │   ├── analytics.js        # Charts, delivery rates
+│   │   ├── settings.js         # Account, password, 2FA
+│   │   ├── billing.js          # Plan, usage, upgrade
+│   │   ├── profile.js          # Profile assets, resumes
+│   │   ├── onboarding.js       # First-run setup
+│   │   ├── admin.js            # Admin panel
+│   │   ├── jobs/               # NEW: Job hunting pages
+│   │   │   ├── index.js        # Jobs list with filters
+│   │   │   └── [id].js         # Job detail + match analysis
+│   │   ├── applications/       # NEW: Application queue
+│   │   │   ├── index.js        # Queue dashboard
+│   │   │   └── [id].js         # Application detail + actions
+│   │   ├── resumes.js          # NEW: Resume management
+│   │   └── job-preferences.js  # NEW: Search preferences
+│   ├── components/
+│   │   ├── Layout.js           # Sidebar nav, topbar, theme toggle
+│   │   ├── ChatWidget.js       # Floating help bot
+│   │   ├── ThemeToggle.js      # Light/dark mode
+│   │   └── ui.js               # Design system: Panel, Button, Badge, Modal, Icons
+│   ├── lib/
+│   │   ├── api.js              # Authenticated fetch wrapper
+│   │   └── auth.js             # React context for user session
+│   ├── styles/
+│   │   └── global.css          # CSS variables, mono font, themes
+│   ├── next.config.js
+│   └── package.json
+│
+├── app.py                      # Legacy Flask UI (Port 5000) — deprecated
+├── templates/                  # Legacy Flask templates
+├── node/                       # Legacy Node CLI — deprecated
+├── AGENTS.md                   # Agent instructions for this repo
+└── README.md                   # This file
 ```
 
 ---
 
-## 3. NODE.JS ALTERNATIVE (With Web Scraping)
+## 🛠️ Quick Start
 
-```javascript
-const nodemailer = require('nodemailer');
-const Anthropic = require('@anthropic-ai/sdk');
-const ExcelJS = require('exceljs');
-const axios = require('axios');
-const cheerio = require('cheerio');
+### Prerequisites
 
-class ColdEmailAgent {
-  constructor(gmailConfig) {
-    this.client = new Anthropic();
-    this.transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: gmailConfig.email,
-        pass: gmailConfig.appPassword // Use App Password, not regular password
-      }
-    });
-    this.sentCount = 0;
-  }
+- Python 3.9+
+- Node.js 18+
+- SQLite (default) or PostgreSQL
 
-  async readExcel(filePath) {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(filePath);
-    const worksheet = workbook.getWorksheet(1);
+### Backend Setup
 
-    const emails = [];
-    worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber > 1 && row.values[1]) { // Skip header
-        emails.push({
-          email: row.values[1],
-          companyName: row.values[2],
-          industry: row.values[3],
-          website: row.values[4],
-          jobRole: row.values[5],
-          positionLevel: row.values[6]
-        });
-      }
-    });
-    return emails;
-  }
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
-  async scrapeCompanyWebsite(website) {
-    try {
-      const response = await axios.get(`https://${website}`, { timeout: 5000 });
-      const $ = cheerio.load(response.data);
+# Configure environment
+cp .env.example .env
+# Edit .env with your keys:
+# ANTHROPIC_API_KEY=sk-ant-...
+# GEMINI_API_KEY=...
+# GOOGLE_CLIENT_ID=... (for Gmail OAuth)
+# GOOGLE_CLIENT_SECRET=...
+# DATABASE_URL=postgresql://... (optional, defaults to SQLite)
 
-      return {
-        description: $('meta[name="description"]').attr('content') || '',
-        aboutText: $('section[id*="about"]').text().slice(0, 200) || '',
-        hasCareerPage: $('a').text().toLowerCase().includes('careers')
-      };
-    } catch (error) {
-      console.log(`Could not scrape ${website}: ${error.message}`);
-      return { description: '', aboutText: '', hasCareerPage: false };
-    }
-  }
+# Run server
+uvicorn backend.main:app --port 8000 --reload
+```
 
-  async generateEmail(emailData, companyInfo) {
-    const message = await this.client.messages.create({
-      model: "claude-opus-4-6",
-      max_tokens: 400,
-      messages: [{
-        role: "user",
-        content: `Create a personalized cold email for a job opportunity:
+### Frontend Setup
 
-Company: ${emailData.companyName}
-Target Role: ${emailData.jobRole}
-Position Level: ${emailData.positionLevel}
-Industry: ${emailData.industry}
-Company Description: ${companyInfo.description}
+```bash
+cd frontend
+npm install
+npm run dev
+# Opens http://localhost:3000
+```
 
-Requirements:
-- Subject line should be unique and NOT generic
-- 3-4 short paragraphs
-- Mention something specific about the company
-- Clear CTA for a call
-- Professional but conversational
+### Legacy Flask (Optional)
 
-Format:
-SUBJECT: [subject]
-BODY:
-[body text]`
-      }]
-    });
-
-    const text = message.content[0].text;
-    const [subjectPart, ...bodyPart] = text.split('BODY:');
-    return {
-      subject: subjectPart.replace('SUBJECT:', '').trim(),
-      body: bodyPart.join('BODY:').trim()
-    };
-  }
-
-  async sendEmail(to, subject, body) {
-    try {
-      await this.transporter.sendMail({
-        from: this.transporter.options.auth.user,
-        to,
-        subject,
-        html: body.replace(/\n/g, '<br>')
-      });
-      console.log(`✓ Sent to ${to}`);
-      this.sentCount++;
-      return true;
-    } catch (error) {
-      console.error(`✗ Failed to send to ${to}: ${error.message}`);
-      return false;
-    }
-  }
-
-  async run(excelPath, dryRun = true, maxEmails = 50) {
-    const emails = await this.readExcel(excelPath);
-    const limited = emails.slice(0, maxEmails);
-
-    for (let i = 0; i < limited.length; i++) {
-      const emailData = limited[i];
-      console.log(`\n[${i + 1}/${limited.length}] Processing ${emailData.companyName}`);
-
-      // Scrape company website
-      const companyInfo = await this.scrapeCompanyWebsite(emailData.website);
-
-      // Generate email
-      const { subject, body } = await this.generateEmail(emailData, companyInfo);
-
-      if (dryRun) {
-        console.log(`SUBJECT: ${subject}`);
-        console.log(`TO: ${emailData.email}`);
-        console.log(`BODY: ${body.slice(0, 100)}...`);
-      } else {
-        await this.sendEmail(emailData.email, subject, body);
-      }
-
-      // Rate limit
-      await new Promise(r => setTimeout(r, 2000));
-    }
-
-    console.log(`\n✓ Completed: ${this.sentCount} emails sent`);
-  }
-}
-
-// USAGE
-const agent = new ColdEmailAgent({
-  email: 'your-email@gmail.com',
-  appPassword: 'your-16-char-app-password' // NOT your regular password!
-});
-
-agent.run('emails.xlsx', true, 10); // Dry run first
+```bash
+pip install -r requirements.txt
+python app.py
+# Opens http://localhost:5000
 ```
 
 ---
 
-## 4. GMAIL SETUP (CRITICAL FOR SUCCESS)
+## 🔐 Environment Variables
 
-### For Personal Gmail + Google Apps:
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ANTHROPIC_API_KEY` | No | Managed AI model (Pro plan) |
+| `GEMINI_API_KEY` | No | Chatbot + job matching fallback |
+| `OPENAI_API_KEY` | No | OpenAI-compatible models |
+| `GOOGLE_CLIENT_ID` | No | Gmail OAuth (required for OAuth flow) |
+| `GOOGLE_CLIENT_SECRET` | No | Gmail OAuth |
+| `DATABASE_URL` | No | Postgres connection (default: SQLite) |
+| `SECRET_KEY` | Auto | JWT signing (auto-generated to `.secret_key`) |
+| `FERNET_KEY` | Auto | Encryption key (auto-generated to `.fernet_key`) |
+| `FRONTEND_URL` | No | CORS origin (default: http://localhost:3000) |
+| `ADMIN_EMAILS` | No | Comma-separated admin emails |
+| `FREE_RATE_PER_HOUR` | No | Free plan email limit (default: 10) |
+| `MAX_RATE_PER_HOUR` | No | Max email limit (default: 50) |
+| `FREE_RESUME_LIMIT` | No | Free plan resume limit (default: 5) |
+| `PRO_RESUME_LIMIT` | No | Pro plan resume limit (default: 100) |
+| `UPLOAD_DIR` | No | Resume upload directory (default: backend/uploads) |
 
-**Step 1: Enable 2FA**
-- Go to myaccount.google.com → Security
-- Enable 2-Step Verification
+---
 
-**Step 2: Create App Password**
-```
-Settings → Security → App Passwords
-Select "Mail" and "Windows/Linux/Mac" (or custom)
-Google generates 16-char password → Use this in code, NOT your actual password
-```
+## 📊 Implementation Progress
 
-**Step 3: Enable Gmail API**
+### Overall Progress
+
 ```
-1. Google Cloud Console (console.cloud.google.com)
-2. Create new project
-3. Enable Gmail API
-4. Create OAuth 2.0 credentials (Service Account or Desktop App)
-5. Download credentials.json
+████████████████████████░░░░  75% Complete
 ```
 
-**Step 4: Add Sender Email to Gmail**
+### Phase Breakdown
+
+| Phase | Status | Progress | Tasks Done / Total |
+|-------|--------|----------|-------------------|
+| **Phase 1: Foundation** | ✅ Complete | ████████████ 100% | 10/10 |
+| **Phase 2: AI Matching** | ✅ Complete | ████████████ 100% | 7/7 |
+| **Phase 3: App Queue** | ✅ Complete | ████████████ 100% | 8/8 |
+| **Phase 4: n8n** | ⏳ Pending | ░░░░░░░░░░░░ 0% | 0/5 |
+| **Phase 5: Sources** | ✅ Complete | ████████████ 100% | 6/6 |
+
+### Completed Tasks ✅
+
+- [x] Job, Resume, JobPreferences SQLAlchemy models
+- [x] Pydantic schemas for all new entities
+- [x] JobSourceProvider abstract base class
+- [x] Manual job import endpoint (`POST /api/jobs/import`)
+- [x] Job deduplication with deterministic fingerprinting
+- [x] Jobs router with full CRUD + filtering
+- [x] Resumes router with upload, default, variants
+- [x] JobPreferences router
+- [x] Database migration runner
+- [x] AI Matching Service with structured JSON output
+- [x] Cover letter, screening answers, recruiter email generation
+- [x] Application model with full status lifecycle
+- [x] Application queue with approval workflow
+- [x] Frontend Jobs page with filters and match analysis
+- [x] Frontend Application detail page with actions
+- [x] Frontend Resume management page
+- [x] Frontend Job Preferences page
+- [x] Greenhouse, Lever, Ashby, Generic, Manual source providers
+- [x] Navigation integration in Layout
+
+### In Progress 🔄
+
+- [ ] n8n workflow definitions and webhook endpoints
+- [ ] Notification system (Telegram/Email)
+- [ ] Automated scheduled job discovery
+
+---
+
+## 📈 Architecture Diagrams
+
+### Data Flow: Job Import → Match → Application
+
+```mermaid
+flowchart TD
+    A[User imports job URL] --> B[POST /api/jobs/import]
+    B --> C{Detect Provider}
+    C -->|Greenhouse| D[GreenhouseProvider]
+    C -->|Lever| E[LeverProvider]
+    C -->|Ashby| F[AshbyProvider]
+    C -->|Generic| G[GenericProvider]
+    C -->|Unknown| H[Manual HTML Scrape]
+    D --> I[Normalize JobListing]
+    E --> I
+    F --> I
+    G --> I
+    H --> I
+    I --> J[Deduplication Check]
+    J -->|Duplicate| K[Return existing job]
+    J -->|New| L[Store Job]
+    L --> M[Trigger AI Match]
+    M --> N[Load User Profile + Resume]
+    N --> O[LLM: Match Score + Analysis]
+    O --> P{Score >= 80?}
+    P -->|Yes| Q[Prepare Application Package]
+    P -->|70-79| R[Queue for Review]
+    P -->|<70| S[Mark Weak Match]
+    Q --> T[Create Application Record]
+    T --> U[Notify User]
+    R --> U
+    S --> U
 ```
-Gmail Settings → Accounts → Send email as...
-Add your domain email address
-Verify via confirmation email
+
+### Application Status State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> DISCOVERED: Job imported
+    DISCOVERED --> MATCHED: AI match complete
+    MATCHED --> PREPARING: Score >= threshold
+    MATCHED --> WEAK_MATCH: Score < threshold
+    PREPARING --> READY: Package generated
+    READY --> APPROVED: User approves
+    READY --> REJECTED: User rejects
+    APPROVED --> APPLICATION_OPENED: User clicks Open
+    APPLICATION_OPENED --> APPLIED: User confirms
+    APPLIED --> SCREENING: Employer responds
+    SCREENING --> INTERVIEW: Pass screening
+    INTERVIEW --> OFFER: Pass interview
+    INTERVIEW --> REJECTED: Fail interview
+    OFFER --> ACCEPTED: User accepts
+    OFFER --> WITHDRAWN: User declines
+    REJECTED --> [*]
+    ACCEPTED --> [*]
+    WITHDRAWN --> [*]
+```
+
+### Provider Capability Matrix
+
+```mermaid
+graph LR
+    subgraph "JobSourceProvider"
+    direction TB
+    Base[Abstract Base]
+    end
+    
+    subgraph "Implementations"
+    GH[Greenhouse] --> Base
+    LV[Lever] --> Base
+    AS[Ashby] --> Base
+    CP[Company Pages] --> Base
+    MN[Manual URL] --> Base
+    end
+    
+    subgraph "Capabilities"
+    Cap[JobSourceCapabilities]
+    Cap --> Search[search: bool]
+    Cap --> Details[job_details: bool]
+    Cap --> ApplyAPI[application_api: bool]
+    Cap --> CandidateAPI[candidate_apply_api: bool]
+    end
+    
+    GH --> Cap
+    LV --> Cap
+    AS --> Cap
+    CP --> Cap
+    MN --> Cap
+    
+    style GH fill:#4CAF50,color:#fff
+    style LV fill:#4CAF50,color:#fff
+    style AS fill:#4CAF50,color:#fff
+    style CP fill:#FF9800,color:#fff
+    style MN fill:#2196F3,color:#fff
 ```
 
 ---
 
-## 5. SMART PERSONALIZATION STRATEGIES
+## 🧪 Testing
 
-### A. Industry-Based Variations
-```python
-INDUSTRY_TEMPLATES = {
-    'SaaS': "I noticed your [specific_product] - interesting approach to [pain_point]",
-    'Fintech': "Your approach to [regulatory_challenge] caught my attention",
-    'Enterprise': "Scaling [specific_team] is critical for [business_goal]",
-}
-```
+```bash
+# Backend tests (when added)
+cd backend
+pytest tests/
 
-### B. Company Stage Detection
-```python
-GROWTH_SIGNALS = {
-    'recent_funding': "I saw your recent Series X round...",
-    'new_product': "Your new feature is solving...",
-    'expansion': "Expanding into [market] requires..."
-}
-```
+# Frontend tests (when added)
+cd frontend
+npm test
 
-### C. Job Role-Specific Openings
-```python
-ROLE_ANGLES = {
-    'Engineering': "Scaling your tech stack requires...",
-    'Sales': "Your GTM strategy should focus on...",
-    'Marketing': "Positioning in your market space...",
-    'HR': "Scaling from [X] to [Y] team members..."
-}
+# Manual verification flow:
+# 1. Signup → 2. Add AI Model → 3. Connect Email → 4. Import Job URL
+# 5. View Match → 6. Prepare Application → 7. Approve → 8. Open Application
 ```
 
 ---
 
-## 6. DELIVERABILITY & COMPLIANCE
+## 📝 API Endpoints (New)
 
-### Gmail Rate Limits
-- **Personal Gmail**: ~500 emails/day max
-- **Workspace**: Higher limits, but monitor reputation
-- **Recommended**: 10-50/day to stay under radar
+### Jobs
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/jobs` | List jobs with filters |
+| POST | `/api/jobs/import` | Import job from URL |
+| GET | `/api/jobs/{id}` | Get job detail + match |
+| POST | `/api/jobs/{id}/match` | Re-run AI match |
+| POST | `/api/jobs/{id}/prepare` | Generate application package |
+| GET | `/api/jobs/sources` | List supported sources |
 
-### Best Practices
-```
-✓ Use real company email (not generic@)
-✓ Warm-up period: Start with 5-10/day, increase gradually
-✓ Monitor bounce rate
-✓ Use proper sender authentication (SPF, DKIM, DMARC)
-✓ A/B test subject lines
-✓ Never use "Re:" or fake reply chains
-✓ Include unsubscribe link (legal requirement)
-```
+### Resumes
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/jobs/resumes` | List user resumes |
+| POST | `/api/jobs/resumes` | Upload resume (PDF) |
+| POST | `/api/jobs/resumes/link` | Add resume link |
+| PATCH | `/api/jobs/resumes/{id}` | Update resume |
+| POST | `/api/jobs/resumes/{id}/default` | Set default |
+| DELETE | `/api/jobs/resumes/{id}` | Delete resume |
 
-### Compliance
-```
-✓ CAN-SPAM: Include company address + unsubscribe
-✓ GDPR: Only email prospects from opt-in lists
-✓ Anti-spam: Don't blast identical emails
-✓ ToS: Gmail ToS allows business emails, not spam
-```
+### Job Preferences
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/jobs/preferences` | Get preferences |
+| PUT | `/api/jobs/preferences` | Update preferences |
 
----
-
-## 7. ENHANCEMENTS & EXTENSIONS
-
-### A. Prospect Tracking
-```python
-class EmailTracker:
-    def log_email(self, email, subject, status):
-        # Log to: CSV, Database, or Webhook
-        # Track: Opens, Clicks, Replies
-        pass
-```
-
-### B. A/B Testing
-```python
-SUBJECT_VARIANTS = [
-    "Quick question about {company}",
-    "{company}: [Specific insight]",
-    "FW: Opportunity for your {job_role} team"
-]
-```
-
-### C. Reply Handling
-```python
-# Monitor for replies to your sending email
-# Auto-mark qualified responses
-# Alert you to hot leads
-```
-
-### D. Multi-Channel Follow-up
-```
-Email 1 (Day 1): Initial outreach
-Email 2 (Day 3): Light follow-up
-Email 3 (Day 7): Value-add (article/insight)
-Email 4 (Day 14): Final attempt
-LinkedIn: Send connection request on Day 2
-```
+### Applications
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/applications` | List applications (queue) |
+| GET | `/api/applications/ready` | Get ready-to-review applications |
+| GET | `/api/applications/stats` | Get application statistics |
+| GET | `/api/applications/{id}` | Get application detail |
+| PATCH | `/api/applications/{id}` | Update status/notes |
+| POST | `/api/applications/{id}/approve` | Approve for application |
+| POST | `/api/applications/{id}/open` | Open application URL |
+| POST | `/api/applications/{id}/mark-applied` | Mark as applied |
+| POST | `/api/applications/{id}/reject` | Reject application |
+| POST | `/api/applications/{id}/withdraw` | Withdraw application |
 
 ---
 
-## 8. SETUP CHECKLIST
+## 🤝 Contributing
 
-```
-☐ Create credentials.json for Gmail API
-☐ Set up app password (not regular password)
-☐ Create Excel file with company list
-☐ Add test row to verify email format
-☐ Run code in DRY_RUN mode first
-☐ Check generated emails manually
-☐ Start with 10 test emails
-☐ Monitor Gmail for bounces
-☐ Gradually increase volume (10→20→50)
-☐ Track which emails get replies
-☐ Adjust templates based on response rate
-```
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Follow existing code conventions (see AGENTS.md)
+4. Run lint/typecheck if available
+5. Submit a PR with clear description
 
 ---
 
-## 9. EXPECTED METRICS
+## 📄 License
 
-- **Delivery Rate**: 95%+ (watch for spam folder)
-- **Open Rate**: 15-30% (job opportunities get higher engagement)
-- **Reply Rate**: 5-15% (depending on targeting)
-- **Positive Responses**: 2-5% will be interested
+MIT License - see LICENSE file for details.
 
 ---
 
-## 10. TROUBLESHOOTING
+## 🙏 Acknowledgments
 
-| Issue | Solution |
-|-------|----------|
-| "535 5.7.8 Username and password not accepted" | Use app password, not regular password |
-| Emails in spam folder | Warm up gradually, vary subject lines, include real company address |
-| API rate limit exceeded | Add delay between emails, reduce batch size |
-| Claude API errors | Check API key, validate prompt format |
-| "Gmail not found" | Ensure 2FA enabled + app password created |
+- **FastAPI** for the excellent async framework
+- **Next.js** for the React framework
+- **Anthropic/OpenAI/Google** for AI APIs
+- **SQLAlchemy** for the ORM
+- **Pydantic** for validation
 
 ---
 
-## RECOMMENDED TECH STACK
-
-**Production Setup:**
-- **Backend**: Python + FastAPI (for API endpoints)
-- **Queue**: Celery + Redis (for async processing)
-- **Database**: PostgreSQL (track emails, clicks, replies)
-- **Monitoring**: Sentry (error tracking)
-- **Webhooks**: Zapier or Make (integrate with CRM)
-- **Email Tracking**: Mailgun or SendGrid (better analytics)
-
-## server start backend
-cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-# then, from the repo root:
-- backend/.venv/bin/uvicorn backend.main:app --port 8000
-- The server starts at http://localhost:8000 (health check: curl http://localhost:8000/health). It auto-creates backend/cold_email.db and the SECRET_KEY/FERNET_KEY files on first boot.
+> **Built with ❤️ for job seekers everywhere**

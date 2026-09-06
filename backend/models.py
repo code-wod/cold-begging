@@ -324,3 +324,132 @@ class EmailVerification(Base):
     expires_at = Column(DateTime(timezone=True), nullable=False)
     used = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
+
+
+class JobPreferences(Base):
+    """User's job search preferences."""
+    __tablename__ = 'job_preferences'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), unique=True, index=True, nullable=False)
+    preferred_roles = Column(Text, default='[]')  # JSON list
+    preferred_locations = Column(Text, default='[]')
+    employment_types = Column(Text, default='[]')  # full_time, part_time, contract, internship
+    experience_levels = Column(Text, default='[]')  # entry, junior, mid, senior, lead, principal
+    skills = Column(Text, default='[]')
+    minimum_salary = Column(Integer)
+    currency = Column(String(8), default='USD')
+    remote_preference = Column(String(32), default='any')  # any, remote_only, hybrid_or_remote, onsite_only
+    visa_sponsorship = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class Resume(Base):
+    """User's resume variants."""
+    __tablename__ = 'resumes'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=False)
+    name = Column(String(255), nullable=False)  # e.g., "Backend Go", "Full Stack"
+    filename = Column(String(255))
+    stored_path = Column(String(1024))
+    text_content = Column(Text, default='')  # Extracted text for AI
+    skills = Column(Text, default='[]')  # JSON list of extracted skills
+    experience_years = Column(Integer)
+    is_default = Column(Boolean, default=False)
+    resume_type = Column(String(64), default='general')  # general, backend, frontend, fullstack, etc.
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    __table_args__ = (UniqueConstraint('user_id', 'name', name='uq_resume_user_name'),)
+
+
+class Job(Base):
+    """Normalized job listing from any source."""
+    __tablename__ = 'jobs'
+
+    id = Column(Integer, primary_key=True)
+    source = Column(String(64), nullable=False, index=True)  # linkedin, naukri, wellfound, greenhouse, lever, ashby, company, manual
+    external_id = Column(String(255), index=True)  # Source-specific ID
+    title = Column(String(512), nullable=False)
+    company_name = Column(String(255), nullable=False, index=True)
+    company_url = Column(String(1024))
+    location = Column(String(255), index=True)
+    remote_type = Column(String(32))  # remote, hybrid, onsite
+    employment_type = Column(String(32))  # full_time, part_time, contract, internship
+    experience_level = Column(String(32))  # entry, junior, mid, senior, lead, principal
+    salary_min = Column(Integer)
+    salary_max = Column(Integer)
+    currency = Column(String(8), default='USD')
+    description = Column(Text, default='')
+    requirements = Column(Text, default='')
+    skills = Column(Text, default='')  # JSON list
+    application_url = Column(String(2048))
+    posted_at = Column(DateTime(timezone=True))
+    discovered_at = Column(DateTime(timezone=True), default=utcnow)
+    job_hash = Column(String(64), unique=True, index=True)  # Deduplication fingerprint
+    source_data = Column(Text, default='{}')  # Raw source data JSON
+    status = Column(String(32), default='active')  # active, expired, filled, archived
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    __table_args__ = (
+        Index('ix_job_source_external', 'source', 'external_id'),
+        Index('ix_job_company_title_location', 'company_name', 'title', 'location'),
+    )
+
+
+class ApplicationStatus:
+    DISCOVERED = 'discovered'
+    MATCHED = 'matched'
+    PREPARING = 'preparing'
+    READY = 'ready'
+    APPROVED = 'approved'
+    APPLICATION_OPENED = 'application_opened'
+    APPLIED = 'applied'
+    SCREENING = 'screening'
+    INTERVIEW = 'interview'
+    OFFER = 'offer'
+    REJECTED = 'rejected'
+    WITHDRAWN = 'withdrawn'
+    ALL = [DISCOVERED, MATCHED, PREPARING, READY, APPROVED, APPLICATION_OPENED, APPLIED,
+           SCREENING, INTERVIEW, OFFER, REJECTED, WITHDRAWN]
+
+
+class Application(Base):
+    """User's application to a job."""
+    __tablename__ = 'applications'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=False)
+    job_id = Column(Integer, ForeignKey('jobs.id'), index=True, nullable=False)
+    resume_id = Column(Integer, ForeignKey('resumes.id'))
+    status = Column(String(32), default=ApplicationStatus.DISCOVERED, index=True)
+    match_score = Column(Integer)  # 0-100
+    match_analysis = Column(Text, default='{}')  # JSON with matched/missing skills, reasoning
+    cover_letter = Column(Text, default='')
+    screening_answers = Column(Text, default='{}')  # JSON: question -> answer
+    recruiter_email = Column(Text, default='')
+    application_url = Column(String(2048))
+    notes = Column(Text, default='')
+    applied_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    __table_args__ = (UniqueConstraint('user_id', 'job_id', name='uq_application_user_job'),)
+
+
+class JobSourceLog(Base):
+    """Audit log for job discovery runs."""
+    __tablename__ = 'job_source_logs'
+
+    id = Column(Integer, primary_key=True)
+    source = Column(String(64), nullable=False, index=True)
+    status = Column(String(32), nullable=False)  # started, completed, failed
+    jobs_found = Column(Integer, default=0)
+    jobs_new = Column(Integer, default=0)
+    jobs_duplicate = Column(Integer, default=0)
+    error = Column(Text)
+    started_at = Column(DateTime(timezone=True), default=utcnow)
+    completed_at = Column(DateTime(timezone=True))

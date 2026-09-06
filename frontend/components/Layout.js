@@ -8,6 +8,11 @@ import { Icons, Spinner } from './ui';
 const NAV = [
   { section: 'Overview' },
   { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { section: 'Job Hunting' },
+  { href: '/jobs', label: 'Jobs', icon: 'search' },
+  { href: '/applications', label: 'Applications', icon: 'send' },
+  { href: '/resumes', label: 'Resumes', icon: 'profile' },
+  { href: '/job-preferences', label: 'Job Preferences', icon: 'settings' },
   { section: 'Automation' },
   { href: '/campaigns', label: 'Campaigns', icon: 'campaigns' },
   { href: '/recipients', label: 'Recipients', icon: 'recipients' },

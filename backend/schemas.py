@@ -429,3 +429,164 @@ class AnalyticsOut(BaseModel):
     campaigns: int
     recipients: int
     daily: List[dict]
+
+
+# ---------- Job Preferences ----------
+class JobPreferencesIn(BaseModel):
+    preferred_roles: List[str] = []
+    preferred_locations: List[str] = []
+    employment_types: List[str] = []
+    experience_levels: List[str] = []
+    skills: List[str] = []
+    minimum_salary: Optional[int] = None
+    currency: str = 'USD'
+    remote_preference: str = 'any'
+    visa_sponsorship: bool = False
+
+
+class JobPreferencesOut(BaseModel):
+    preferred_roles: List[str] = []
+    preferred_locations: List[str] = []
+    employment_types: List[str] = []
+    experience_levels: List[str] = []
+    skills: List[str] = []
+    minimum_salary: Optional[int] = None
+    currency: str = 'USD'
+    remote_preference: str = 'any'
+    visa_sponsorship: bool = False
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+# ---------- Resumes ----------
+class ResumeIn(BaseModel):
+    name: str
+    filename: Optional[str] = None
+    resume_type: str = 'general'
+    is_default: bool = False
+
+
+class ResumeLinkIn(BaseModel):
+    name: str
+    url: str
+    resume_type: str = 'general'
+    is_default: bool = False
+
+
+class ResumeOut(BaseModel):
+    id: int
+    name: str
+    filename: str = ''
+    resume_type: str
+    is_default: bool
+    skills: List[str] = []
+    experience_years: Optional[int] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+# ---------- Jobs ----------
+class JobSourceCapabilities(BaseModel):
+    search: bool = False
+    job_details: bool = False
+    application_api: bool = False
+    candidate_apply_api: bool = False
+
+
+class JobOut(BaseModel):
+    id: int
+    source: str
+    external_id: Optional[str] = None
+    title: str
+    company_name: str
+    company_url: Optional[str] = None
+    location: Optional[str] = None
+    remote_type: Optional[str] = None
+    employment_type: Optional[str] = None
+    experience_level: Optional[str] = None
+    salary_min: Optional[int] = None
+    salary_max: Optional[int] = None
+    currency: str = 'USD'
+    description: str = ''
+    requirements: str = ''
+    skills: List[str] = []
+    application_url: Optional[str] = None
+    posted_at: Optional[str] = None
+    discovered_at: Optional[str] = None
+    status: str
+    created_at: Optional[str] = None
+
+
+class JobListOut(BaseModel):
+    items: List[JobOut]
+    total: int
+    page: int
+    page_size: int
+
+
+class JobImportIn(BaseModel):
+    url: str
+
+
+class JobImportOut(BaseModel):
+    job_id: int
+    is_new: bool
+    match_score: Optional[int] = None
+    message: str
+
+
+class JobMatchOut(BaseModel):
+    match_score: int
+    recommendation: str
+    matched_skills: List[str] = []
+    missing_skills: List[str] = []
+    experience_match: bool
+    location_match: bool
+    reasoning_summary: str
+    risk_factors: List[str] = []
+    recommended_resume: Optional[str] = None
+
+
+class JobPrepareOut(BaseModel):
+    application_id: int
+    cover_letter: str
+    screening_answers: dict
+    recruiter_email: str
+    recommended_resume_id: Optional[int] = None
+    match_analysis: dict
+
+
+# ---------- Applications ----------
+class ApplicationOut(BaseModel):
+    id: int
+    job_id: int
+    job: Optional[JobOut] = None
+    resume_id: Optional[int] = None
+    status: str
+    match_score: Optional[int] = None
+    cover_letter: str = ''
+    screening_answers: dict = {}
+    recruiter_email: str = ''
+    application_url: Optional[str] = None
+    notes: str = ''
+    applied_at: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class ApplicationUpdate(BaseModel):
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ApplicationListOut(BaseModel):
+    items: List[ApplicationOut]
+    total: int
+    page: int
+    page_size: int
+
+
+# ---------- Job Sources ----------
+class JobSourceOut(BaseModel):
+    name: str
+    capabilities: JobSourceCapabilities
