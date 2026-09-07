@@ -89,3 +89,14 @@ SMTP_SENDER_APP_PASSWORD = os.getenv('SMTP_SENDER_APP_PASSWORD', 'aipq ucst eval
 SMTP_HOST = os.getenv('SMTP_HOST', 'smtp.gmail.com')
 SMTP_PORT = int(os.getenv('SMTP_PORT', '465'))
 SMTP_FROM_NAME = os.getenv('SMTP_FROM_NAME', 'Cold Begging')
+
+# Browser Agent Configuration
+PLAYWRIGHT_HEADLESS = os.getenv('PLAYWRIGHT_HEADLESS', 'false').lower() == 'true'
+BROWSER_DATA_DIR = os.getenv('BROWSER_DATA_DIR', os.path.join(BASE_DIR, 'browser-data'))
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+JOB_AGENT_ENABLED = os.getenv('JOB_AGENT_ENABLED', 'false').lower() == 'true'
+DEFAULT_DAILY_APPLICATION_LIMIT = int(os.getenv('DEFAULT_DAILY_APPLICATION_LIMIT', '15'))
+DEFAULT_MIN_MATCH_SCORE = int(os.getenv('DEFAULT_MIN_MATCH_SCORE', '80'))
+DRY_RUN = os.getenv('DRY_RUN', 'true').lower() == 'true'
+MAX_BROWSER_WORKERS = int(os.getenv('MAX_BROWSER_WORKERS', '3'))
+MAX_USER_CONCURRENT_SESSIONS = int(os.getenv('MAX_USER_CONCURRENT_SESSIONS', '1'))

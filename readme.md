@@ -328,6 +328,19 @@ python app.py
 | `FREE_RESUME_LIMIT` | No | Free plan resume limit (default: 5) |
 | `PRO_RESUME_LIMIT` | No | Pro plan resume limit (default: 100) |
 | `UPLOAD_DIR` | No | Resume upload directory (default: backend/uploads) |
+| `N8N_WEBHOOK_SECRET` | No | Shared secret for n8n webhook auth (generate with `openssl rand -hex 32`) |
+
+---
+
+## 📖 Usage Guide
+
+See [AUTOMATED_JOB_APPLY_GUIDE.md](AUTOMATED_JOB_APPLY_GUIDE.md) for complete walkthrough of:
+- Manual job import flow
+- AI matching & application preparation
+- Application queue workflow
+- Automated discovery with n8n
+- Source adapters & email integration
+- Troubleshooting common issues
 
 ---
 

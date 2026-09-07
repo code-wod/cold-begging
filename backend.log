@@ -1,0 +1,26 @@
+/Users/gauravkrrr/Documents/gaurav/cold-begging/backend/.venv/lib/python3.9/site-packages/google/oauth2/__init__.py:40: FutureWarning: You are using a Python version 3.9 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+  warnings.warn(eol_message.format("3.9"), FutureWarning)
+/Users/gauravkrrr/Documents/gaurav/cold-begging/backend/.venv/lib/python3.9/site-packages/google/auth/__init__.py:54: FutureWarning: You are using a Python version 3.9 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+  warnings.warn(eol_message.format("3.9"), FutureWarning)
+/Users/gauravkrrr/Documents/gaurav/cold-begging/backend/.venv/lib/python3.9/site-packages/google/api_core/_python_version_support.py:242: FutureWarning: You are using a non-supported Python version (3.9.6). Google will not post any further updates to google.api_core supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.10, and then update google.api_core.
+  warnings.warn(message, FutureWarning)
+/Users/gauravkrrr/Documents/gaurav/cold-begging/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [33522]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:64982 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64984 - "POST /api/n8n/webhook/agent/run HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64987 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64989 - "GET /api/jobs/sources HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64991 - "GET /api/jobs/preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64993 - "GET /api/applications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64995 - "GET /api/agent/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65009 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65011 - "POST /api/jobs/import HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65018 - "POST /api/jobs/3/match HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65021 - "POST /api/jobs/3/prepare HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65027 - "GET /api/applications/ready HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65029 - "POST /api/agent/search HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:65031 - "POST /api/n8n/webhook/agent/run HTTP/1.1" 200 OK

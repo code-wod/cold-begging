@@ -8,6 +8,7 @@ from .config import FRONTEND_URL
 from .database import init_db
 from .routers import (
     admin,
+    agent,
     agents,
     analytics,
     applications,
@@ -17,6 +18,7 @@ from .routers import (
     chat,
     email_accounts,
     emails,
+    job_portals,
     jobs,
     n8n,
     profile_assets,
@@ -42,13 +44,13 @@ app = FastAPI(title='Cold Email AI', version='1.0.0', lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL, 'http://localhost:3001', 'http://127.0.0.1:3001', 'http://10.12.25.237:3000', 'http://localhost:3000', 'http://localhost:3000/', 'https://cold-begging.vercel.app', 'https://cold-begging-c4rm2olv2-gk022135s-projects.vercel.app'],
+    allow_origins=[FRONTEND_URL, 'http://localhost:3001', 'http://127.0.0.1:3001', 'http://10.12.25.237:3000', 'http://localhost:3000', 'http://localhost:3000/', 'http://127.0.0.1:3000', 'https://cold-begging.vercel.app', 'https://cold-begging-c4rm2olv2-gk022135s-projects.vercel.app'],
     allow_methods=['*'],
     allow_headers=['*'],
     allow_credentials=True,
 )
 
-for router in (auth, recipients, recipient_groups, email_accounts, agents, campaigns, emails, analytics, billing, chat, admin, profile_assets, jobs, applications, n8n):
+for router in (auth, recipients, recipient_groups, email_accounts, agents, campaigns, emails, analytics, billing, chat, admin, profile_assets, jobs, applications, n8n, job_portals, agent):
     app.include_router(router.router)
 
 

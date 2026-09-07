@@ -5,7 +5,7 @@ from sqlalchemy import desc
 
 from backend.database import SessionLocal
 from backend.models import Application, Job, User, Resume, ApplicationStatus
-from backend.schemas import ApplicationOut, ApplicationUpdate, ApplicationListOut
+from backend.schemas import ApplicationOut, ApplicationUpdate, ApplicationListOut, JobOut
 from backend.security import get_current_user
 from backend.services import get_application_service, get_job_service
 import json
@@ -42,7 +42,7 @@ def list_applications(
                 skills = json.loads(job.skills) if job.skills else []
             except json.JSONDecodeError:
                 skills = []
-            job_out = ApplicationOut.JobOut(
+            job_out = JobOut(
                 id=job.id,
                 source=job.source,
                 external_id=job.external_id,
@@ -119,7 +119,7 @@ def get_ready_applications(
                 skills = json.loads(job.skills) if job.skills else []
             except json.JSONDecodeError:
                 skills = []
-            job_out = ApplicationOut.JobOut(
+            job_out = JobOut(
                 id=job.id,
                 source=job.source,
                 external_id=job.external_id,
@@ -202,7 +202,7 @@ def get_application(
             skills = json.loads(job.skills) if job.skills else []
         except json.JSONDecodeError:
             skills = []
-        job_out = ApplicationOut.JobOut(
+        job_out = JobOut(
             id=job.id,
             source=job.source,
             external_id=job.external_id,
@@ -286,7 +286,7 @@ def update_application(
             skills = json.loads(job.skills) if job.skills else []
         except json.JSONDecodeError:
             skills = []
-        job_out = ApplicationOut.JobOut(
+        job_out = JobOut(
             id=job.id,
             source=job.source,
             external_id=job.external_id,
@@ -425,7 +425,7 @@ def _format_application_response(app: Application, db: Session):
             skills = json.loads(job.skills) if job.skills else []
         except json.JSONDecodeError:
             skills = []
-        job_out = ApplicationOut.JobOut(
+        job_out = JobOut(
             id=job.id,
             source=job.source,
             external_id=job.external_id,

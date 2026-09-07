@@ -304,6 +304,39 @@ class UsageRecord(Base):
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
 
+class JobSourceLog(Base):
+    """Audit log for job discovery runs."""
+    __tablename__ = 'job_source_logs'
+
+    id = Column(Integer, primary_key=True)
+    source = Column(String(64), nullable=False, index=True)
+    status = Column(String(32), nullable=False)  # started, completed, failed
+    jobs_found = Column(Integer, default=0)
+    jobs_new = Column(Integer, default=0)
+    jobs_duplicate = Column(Integer, default=0)
+    error = Column(Text)
+    started_at = Column(DateTime(timezone=True), default=utcnow)
+    completed_at = Column(DateTime(timezone=True))
+
+
+class JobPortalSession(Base):
+    """User's browser session for a job portal."""
+    __tablename__ = 'job_portal_sessions'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=False)
+    platform = Column(String(64), nullable=False, index=True)  # linkedin, naukri, wellfound, hirist, instahyre
+    status = Column(String(32), default='unknown')  # unknown, connected, expired, login_required, error
+    last_verified = Column(DateTime(timezone=True))
+    login_url = Column(String(1024))
+    home_url = Column(String(1024))
+    session_metadata = Column(Text, default='{}')  # JSON for additional data
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    __table_args__ = (UniqueConstraint('user_id', 'platform', name='uq_job_portal_session'),)
+
+
 class PasswordReset(Base):
     __tablename__ = 'password_resets'
 
@@ -438,18 +471,3 @@ class Application(Base):
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     __table_args__ = (UniqueConstraint('user_id', 'job_id', name='uq_application_user_job'),)
-
-
-class JobSourceLog(Base):
-    """Audit log for job discovery runs."""
-    __tablename__ = 'job_source_logs'
-
-    id = Column(Integer, primary_key=True)
-    source = Column(String(64), nullable=False, index=True)
-    status = Column(String(32), nullable=False)  # started, completed, failed
-    jobs_found = Column(Integer, default=0)
-    jobs_new = Column(Integer, default=0)
-    jobs_duplicate = Column(Integer, default=0)
-    error = Column(Text)
-    started_at = Column(DateTime(timezone=True), default=utcnow)
-    completed_at = Column(DateTime(timezone=True))

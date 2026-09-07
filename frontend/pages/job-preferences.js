@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { Spinner, useToast, Icons, Button, Field, Input, TextArea, Panel } from '../components/ui';
+import { Spinner, useToast, Icons, Button, Field, Input, TextArea, Panel, Select } from '../components/ui';
 
 export default function JobPreferences() {
   const { user } = useAuth();

@@ -285,3 +285,209 @@ async def webhook_followup_check(
         count += 1
     
     return {'followups_sent': count}
+
+
+# ==================== AGENT WEBHOOKS ====================
+
+class AgentRunRequest(BaseModel):
+    user_id: Optional[int] = None
+    platforms: Optional[List[str]] = None
+    search_config: Optional[dict] = None
+    dry_run: bool = True
+
+
+class AgentRunResponse(BaseModel):
+    users_processed: int
+    jobs_found: int
+    matches_triggered: int
+    applications_created: int
+    errors: List[str] = []
+
+
+@router.post('/webhook/agent/run', response_model=AgentRunResponse)
+async def webhook_agent_run(
+    request: AgentRunRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_n8n_secret)
+):
+    """
+    n8n webhook to trigger the browser-based job application agent.
+    Runs job search, matching, and application preparation for users.
+    """
+    from backend.browser.session import get_session_manager
+    from backend.providers import provider_registry
+    from backend.providers.base import SearchConfig
+    from backend.services import get_job_service, get_matching_service, get_application_service
+    
+    job_service = get_job_service()
+    matching_service = get_matching_service()
+    application_service = get_application_service()
+    session_manager = get_session_manager()
+    
+    # Get users to process
+    if request.user_id:
+        users = db.query(User).filter(User.id == request.user_id).all()
+    else:
+        # Get all users with connected portals
+        users = db.query(User).join(JobPreferences).filter(
+            JobPreferences.preferred_roles != '[]'
+        ).all()
+    
+    total_users = 0
+    total_jobs = 0
+    total_matches = 0
+    total_apps = 0
+    errors = []
+    
+    for user in users:
+        try:
+            # Check daily match limit
+            if not job_service.check_match_limit(user.id):
+                logger.info('User %d exceeded daily match limit', user.id)
+                continue
+            
+            # Get user preferences
+            prefs = job_service.get_job_preferences(user.id)
+            if not prefs:
+                continue
+            
+            # Parse preferences
+            try:
+                preferred_roles = eval(prefs.preferred_roles) if prefs.preferred_roles else []
+                preferred_locations = eval(prefs.preferred_locations) if prefs.preferred_locations else []
+                employment_types = eval(prefs.employment_types) if prefs.employment_types else []
+                experience_levels = eval(prefs.experience_levels) if prefs.experience_levels else []
+                skills = eval(prefs.skills) if prefs.skills else []
+            except Exception:
+                preferred_roles = []
+                preferred_locations = []
+                employment_types = []
+                experience_levels = []
+                skills = []
+            
+            # Use request config or user preferences
+            platforms = request.platforms or ['linkedin', 'naukri', 'wellfound', 'hirist', 'instahyre']
+            search_cfg = request.search_config or {}
+            search_config = SearchConfig(
+                keywords=search_cfg.get('keywords') if search_cfg else preferred_roles[:5],
+                locations=search_cfg.get('locations') if search_cfg else preferred_locations[:5],
+                remote=search_cfg.get('remote', prefs.remote_preference in ['remote_only', 'hybrid_or_remote']) if search_cfg else prefs.remote_preference in ['remote_only', 'hybrid_or_remote'],
+                job_types=search_cfg.get('job_types') if search_cfg else employment_types,
+            )
+            
+            # Process each connected platform
+            for platform in platforms:
+                provider = provider_registry.get(platform)
+                if not provider or not provider.capabilities.job_search:
+                    continue
+                
+                # Check session
+                session = await session_manager.get_session_info(user.id, platform)
+                if session.status != 'connected':
+                    logger.info('User %d not connected to %s', user.id, platform)
+                    continue
+                
+                # Create browser context and search
+                try:
+                    async with session_manager._browser_manager.persistent_context(user.id, platform) as context:
+                        page = await context.new_page()
+                        
+                        # Search jobs on this platform
+                        listings = await provider.search_jobs(page, search_config)
+                        total_jobs += len(listings)
+                        
+                        for listing in listings:
+                            job = job_service.create_job(listing, platform)
+                            
+                            # Check for duplicate application
+                            existing_app = db.query(Application).filter(
+                                Application.user_id == user.id,
+                                Application.job_id == job.id
+                            ).first()
+                            if existing_app:
+                                continue
+                            
+                            # Run AI matching
+                            match_result = matching_service.match_job(user, job)
+                            total_matches += 1
+                            
+                            # Only proceed if match score meets threshold
+                            min_score = 70
+                            if match_result.get('match_score', 0) >= min_score:
+                                app = application_service.process_job_match(user, job)
+                                if app:
+                                    total_apps += 1
+                        
+                        await page.close()
+                        
+                except Exception as e:
+                    logger.error('Error searching %s for user %d: %s', platform, user.id, e)
+                    errors.append(f'{platform}: {str(e)}')
+                    continue
+            
+            total_users += 1
+            
+        except Exception as e:
+            logger.error('Error processing user %d: %s', user.id, e)
+            errors.append(f'user_{user.id}: {str(e)}')
+            continue
+    
+    return AgentRunResponse(
+        users_processed=total_users,
+        jobs_found=total_jobs,
+        matches_triggered=total_matches,
+        applications_created=total_apps,
+        errors=errors
+    )
+
+
+@router.post('/webhook/agent/notify')
+async def webhook_agent_notify(
+    request: NotificationRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_n8n_secret)
+):
+    """Send agent-specific notifications (applications ready, errors, etc.)."""
+    from backend.services.notification_service import NotificationService
+    notification_service = NotificationService(db)
+    
+    user = db.query(User).filter(User.id == request.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail='User not found')
+    
+    if request.type == 'applications_ready':
+        await notification_service.send_applications_ready_notification(user, request.data)
+    elif request.type == 'agent_error':
+        await notification_service.send_agent_error_notification(user, request.data)
+    elif request.type == 'agent_completed':
+        await notification_service.send_agent_completed_notification(user, request.data)
+    
+    return {'status': 'sent'}
+
+
+@router.get('/agent/users-with-portals')
+def get_users_with_connected_portals(
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_n8n_secret)
+):
+    """Get users who have at least one connected job portal."""
+    from backend.models import JobPortalSession
+    
+    users = db.query(User).join(JobPortalSession).filter(
+        JobPortalSession.status == 'connected'
+    ).distinct().all()
+    
+    return [
+        {
+            'id': u.id,
+            'email': u.email,
+            'plan': u.subscription.plan if u.subscription else 'free',
+            'connected_platforms': [
+                s.platform for s in u.job_portal_sessions 
+                if s.status == 'connected'
+            ]
+        }
+        for u in users
+    ]

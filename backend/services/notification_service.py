@@ -248,6 +248,146 @@ class NotificationService:
         # Placeholder for Telegram integration
         # Would require storing user's chat_id and bot token
         pass
+    
+    async def send_applications_ready_notification(self, user: User, data: Dict[str, Any]):
+        """Notify user when agent has prepared applications ready for review."""
+        app_count = data.get('application_count', 0)
+        top_apps = data.get('top_applications', [])
+        
+        if app_count == 0:
+            return
+        
+        subject = f"🤖 Agent found {app_count} applications ready for review"
+        
+        html = f"""
+        <html>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%); padding: 30px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">🤖 Agent Completed</h1>
+            </div>
+            <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 12px 12px; border: 1px solid #e9ecef;">
+                <p style="font-size: 16px;">Hi {user.full_name or 'there'},</p>
+                <p>Your job application agent has finished running and prepared <strong>{app_count}</strong> applications for your review.</p>
+                
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                        <span style="color: #6c757d;">Applications ready</span>
+                        <strong style="font-size: 18px; color: #6f42c1;">{app_count}</strong>
+                    </div>
+                </div>
+                
+                {self._format_top_applications(top_apps)}
+                
+                <div style="text-align: center; margin-top: 30px;">
+                    <a href="{self._get_frontend_url()}/applications" 
+                       style="background: #6f42c1; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">
+                        Review Applications →
+                    </a>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        await self._send_email(user, subject, html)
+    
+    def _format_top_applications(self, apps: list) -> str:
+        if not apps:
+            return '<p style="color: #6c757d;">No applications to show.</p>'
+        
+        items = []
+        for a in apps[:5]:
+            items.append(f"""
+            <div style="background: white; padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #6f42c1;">
+                <strong>{a.get('title', 'Unknown')}</strong> at {a.get('company', 'Unknown')} — 
+                <span style="color: #28a745; font-weight: 600;">{a.get('match_score', 0)}%</span>
+                <br><small style="color: #6c757d;">{a.get('platform', 'Unknown')} · {a.get('location', 'Remote')}</small>
+            </div>
+            """)
+        return f'<div style="margin-top: 20px;"><strong>Top applications:</strong><br>{"".join(items)}</div>'
+    
+    async def send_agent_error_notification(self, user: User, data: Dict[str, Any]):
+        """Notify user of agent errors."""
+        error_msg = data.get('error', 'Unknown error')
+        platform = data.get('platform', 'unknown')
+        
+        subject = f"⚠️ Agent error on {platform}"
+        
+        html = f"""
+        <html>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); padding: 30px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">⚠️ Agent Error</h1>
+            </div>
+            <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 12px 12px; border: 1px solid #e9ecef;">
+                <p style="font-size: 16px;">Hi {user.full_name or 'there'},</p>
+                <p>Your job application agent encountered an error on <strong>{platform}</strong>:</p>
+                
+                <div style="background: #fff5f5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;">
+                    <code style="color: #dc3545;">{error_msg}</code>
+                </div>
+                
+                <p>The agent has been paused. Please check the <a href="{self._get_frontend_url()}/agent">Agent Control</a> page for details.</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        await self._send_email(user, subject, html)
+    
+    async def send_agent_completed_notification(self, user: User, data: Dict[str, Any]):
+        """Notify user when agent run completes."""
+        users_processed = data.get('users_processed', 0)
+        jobs_found = data.get('jobs_found', 0)
+        matches = data.get('matches_triggered', 0)
+        apps = data.get('applications_created', 0)
+        errors = data.get('errors', [])
+        
+        subject = f"✅ Agent run completed: {jobs_found} jobs, {apps} applications"
+        
+        html = f"""
+        <html>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 30px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">✅ Agent Run Completed</h1>
+            </div>
+            <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 12px 12px; border: 1px solid #e9ecef;">
+                <p style="font-size: 16px;">Hi {user.full_name or 'there'},</p>
+                <p>Your scheduled agent run has completed.</p>
+                
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                        <span style="color: #6c757d;">Jobs found</span>
+                        <strong style="font-size: 18px;">{jobs_found}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                        <span style="color: #6c757d;">Matches triggered</span>
+                        <strong style="font-size: 18px; color: #007bff;">{matches}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                        <span style="color: #6c757d;">Applications created</span>
+                        <strong style="font-size: 18px; color: #28a745;">{apps}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #6c757d;">Users processed</span>
+                        <strong style="font-size: 18px;">{users_processed}</strong>
+                    </div>
+                </div>
+                
+                {f'<div style="background: #fff5f5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;"><strong>Errors ({len(errors)}):</strong><br>{"<br>".join(errors[:5])}{"..." if len(errors) > 5 else ""}</div>' if errors else ''}
+                
+                <div style="text-align: center; margin-top: 30px;">
+                    <a href="{self._get_frontend_url()}/agent" 
+                       style="background: #28a745; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">
+                        View Agent Dashboard →
+                    </a>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        await self._send_email(user, subject, html)
 
 
 def get_notification_service(db: Session) -> NotificationService:
