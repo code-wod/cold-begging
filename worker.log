@@ -1,4 +1,11 @@
 /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/runpy.py:127: RuntimeWarning: 'backend.browser.worker' found in sys.modules after import of package 'backend.browser', but prior to execution of 'backend.browser.worker'; this may result in unpredictable behaviour
   warn(RuntimeWarning(msg))
-2026-09-07 08:54:55,919 - task_queue - INFO - TaskQueue connected to Redis at redis://localhost:6379/0
-2026-09-07 08:54:55,920 - browser_worker - INFO - BrowserWorker worker-1 started
+2026-09-09 09:17:10,580 - task_queue - INFO - TaskQueue connected to Redis at redis://localhost:6379/0
+2026-09-09 09:17:10,580 - browser_worker - INFO - BrowserWorker worker-5e54d6fc started
+2026-09-09 09:19:45,693 - browser_worker - INFO - Worker worker-5e54d6fc executing task 9922e841c83f4d82921bc13334031236 (ensure_login)
+2026-09-09 09:19:47,509 - browser_manager - INFO - BrowserManager initialized (headless=False)
+2026-09-09 09:19:47,511 - session_manager - ERROR - Error verifying session for 1:hirist: new_context() got an unexpected keyword argument 'user_data_dir'
+2026-09-09 09:19:47,512 - session_manager - INFO - Login required for 1:hirist, opening browser (headless=False)
+2026-09-09 09:19:50,603 - session_manager - INFO - Auto-filling login credentials for 1:hirist
+2026-09-09 09:25:26,371 - session_manager - WARNING - Login timeout for 1:hirist
+2026-09-09 09:25:27,335 - browser_worker - INFO - Worker worker-5e54d6fc completed task 9922e841c83f4d82921bc13334031236

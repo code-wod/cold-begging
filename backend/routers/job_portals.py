@@ -33,6 +33,8 @@ class PortalStatusResponse(BaseModel):
 
 class ConnectRequest(BaseModel):
     headless: bool = False
+    email: Optional[str] = None
+    password: Optional[str] = None
 
 
 class TaskResponse(BaseModel):
@@ -126,11 +128,16 @@ async def connect_portal(
     
     task_queue = get_task_queue()
     
+    # Prepare credentials if provided
+    credentials = None
+    if request.email and request.password:
+        credentials = {'email': request.email, 'password': request.password}
+    
     task = Task(
         type=TaskType.ENSURE_LOGIN.value,
         user_id=current_user.id,
         platform=platform,
-        payload={'headless': request.headless}
+        payload={'headless': request.headless, 'credentials': credentials}
     )
     
     await task_queue.enqueue(task)

@@ -2,10 +2,22 @@
 > cold-email-frontend@1.0.0 dev
 > next dev
 
- ⚠ Port 3000 is in use, trying 3001 instead.
   ▲ Next.js 14.2.35
-  - Local:        http://localhost:3001
+  - Local:        http://localhost:3000
   - Environments: .env.local
 
  ✓ Starting...
- ✓ Ready in 1655ms
+ ✓ Ready in 1256ms
+ ✓ Compiled /job-portals in 382ms (357 modules)
+ GET /_next/static/webpack/7877312537ba9aa4.webpack.hot-update.json 404 in 448ms
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /job-portals 200 in 392ms
+ GET /job-portals 200 in 3ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 5ms
+ ✓ Compiled / in 98ms (361 modules)
+ GET / 200 in 122ms
+ ✓ Compiled /job-portals in 237ms (359 modules)
+ GET /agent 200 in 270ms
+ GET /job-portals 200 in 113ms
+ ✓ Compiled /_error in 44ms (361 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 57ms

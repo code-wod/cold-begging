@@ -17,3 +17,8 @@ frontend/.next/
 frontend/.next/*
 frontend/.next/
 .next/
+backend/.pytest_cache/
+backend/browsermob-proxy-2.1.4-bin/
+backend/browsermob-proxy-2.1.4-bin/*
+backend/browser-data/
+backend/browser-data/*

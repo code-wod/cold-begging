@@ -55,6 +55,10 @@ class SessionManager:
                 'input#username',
                 'input[name="session_key"]',
             ],
+            'password_selectors': [
+                'input#password',
+                'input[name="session_password"]',
+            ],
             'logged_in_selectors': [
                 '.global-nav',
                 '[data-test-global-nav]',
@@ -67,6 +71,11 @@ class SessionManager:
             'login_selectors': [
                 'input#usernameField',
                 'input[placeholder="Email ID / Username"]',
+            ],
+            'password_selectors': [
+                'input#passwordField',
+                'input[placeholder="Password"]',
+                'input[type="password"]',
             ],
             'logged_in_selectors': [
                 '.mnj-header',
@@ -81,6 +90,10 @@ class SessionManager:
                 'input[name="email"]',
                 'input[type="email"]',
             ],
+            'password_selectors': [
+                'input[name="password"]',
+                'input[type="password"]',
+            ],
             'logged_in_selectors': [
                 '[data-test="user-menu"]',
                 '.user-avatar',
@@ -93,6 +106,10 @@ class SessionManager:
                 'input[name="email"]',
                 'input[type="email"]',
             ],
+            'password_selectors': [
+                'input[name="password"]',
+                'input[type="password"]',
+            ],
             'logged_in_selectors': [
                 '.user-profile',
                 '.candidate-dashboard',
@@ -104,6 +121,10 @@ class SessionManager:
             'login_selectors': [
                 'input[name="email"]',
                 'input[type="email"]',
+            ],
+            'password_selectors': [
+                'input[name="password"]',
+                'input[type="password"]',
             ],
             'logged_in_selectors': [
                 '.user-menu',
@@ -247,12 +268,17 @@ class SessionManager:
             )
             await self.save_session_info(info)
             return SessionStatus.ERROR
-    
-    async def ensure_login(self, user_id: int, platform: str, headless: bool = False) -> bool:
+    async def ensure_login(self, user_id: int, platform: str, headless: bool = False, credentials: Optional[Dict[str, str]] = None) -> bool:
         """
         Ensure user is logged in. Opens browser for manual login if needed.
         
         Returns True if login successful (or already logged in), False otherwise.
+        
+        Args:
+            user_id: User ID
+            platform: Platform name (linkedin, naukri, etc.)
+            headless: Whether to run browser in headless mode
+            credentials: Optional dict with 'email' and 'password' for auto-login
         """
         status = await self.verify_session(user_id, platform)
         
@@ -266,17 +292,96 @@ class SessionManager:
             logger.error('No login_url configured for platform: %s', platform)
             return False
         
-        logger.info('Login required for %s:%s, opening browser', user_id, platform)
+        logger.info('Login required for %s:%s, opening browser (headless=%s)', user_id, platform, headless)
         
         try:
-            # Use non-headless mode for login so user can interact
-            async with self._browser_manager.persistent_context(user_id, platform) as context:
+            # Launch a separate browser for login (non-headless for manual login)
+            from playwright.async_api import async_playwright
+            
+            async with async_playwright() as playwright:
+                # Create persistent context for this user/platform (uses launch_persistent_context for persistent storage)
+                user_data_dir = Path(BROWSER_DATA_DIR) / str(user_id) / platform
+                user_data_dir.mkdir(parents=True, exist_ok=True)
+                
+                context = await playwright.chromium.launch_persistent_context(
+                    user_data_dir=str(user_data_dir / 'playwright'),
+                    headless=headless,
+                    args=[
+                        '--disable-blink-features=AutomationControlled',
+                        '--disable-dev-shm-usage',
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                    ],
+                    viewport={'width': 1366, 'height': 768},
+                    user_agent=(
+                        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+                        'AppleWebKit/537.36 (KHTML, like Gecko) '
+                        'Chrome/120.0.0.0 Safari/537.36'
+                    ),
+                    locale='en-US',
+                    timezone_id='Asia/Kolkata',
+                )
+                
+                # Add stealth scripts
+                await context.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {
+                        get: () => undefined
+                    });
+                """)
+                
                 page = await context.new_page()
                 
                 await page.goto(login_url, wait_until='domcontentloaded', timeout=30000)
                 
+                # Auto-fill credentials if provided
+                if credentials and credentials.get('email') and credentials.get('password'):
+                    logger.info('Auto-filling login credentials for %s:%s', user_id, platform)
+                    try:
+                        # Fill email
+                        login_selectors = config.get('login_selectors', [])
+                        for selector in login_selectors:
+                            try:
+                                await page.fill(selector, credentials['email'], timeout=5000)
+                                logger.info('Filled email using selector: %s', selector)
+                                break
+                            except Exception:
+                                continue
+                        
+                        # Fill password
+                        password_selectors = config.get('password_selectors', [])
+                        for selector in password_selectors:
+                            try:
+                                await page.fill(selector, credentials['password'], timeout=5000)
+                                logger.info('Filled password using selector: %s', selector)
+                                break
+                            except Exception:
+                                continue
+                        
+                        # Submit login form
+                        try:
+                            # Try to find and click submit button
+                            submit_selectors = [
+                                'button[type="submit"]',
+                                'input[type="submit"]',
+                                'button:has-text("Sign in")',
+                                'button:has-text("Login")',
+                                'button:has-text("Sign In")',
+                            ]
+                            for selector in submit_selectors:
+                                try:
+                                    await page.click(selector, timeout=3000)
+                                    logger.info('Clicked submit button: %s', selector)
+                                    break
+                                except Exception:
+                                    continue
+                        except Exception as e:
+                            logger.warning('Error submitting login form: %s', e)
+                            # Fall through to manual login
+                    except Exception as e:
+                        logger.warning('Error auto-filling credentials: %s', e)
+                        # Fall through to manual login
+                
                 # Wait for user to complete login (including CAPTCHA/2FA)
-                # We'll wait for either logged-in indicators or timeout
                 logged_in_selectors = config.get('logged_in_selectors', [])
                 home_url = config.get('home_url', '')
                 
@@ -293,43 +398,48 @@ class SessionManager:
                     for selector in logged_in_selectors:
                         try:
                             element = await page.query_selector(selector)
-                            if element:
+                            if element and await element.is_visible():
                                 logger.info('Login successful for %s:%s', user_id, platform)
                                 info = SessionInfo(
                                     user_id=user_id,
                                     platform=platform,
                                     status=SessionStatus.CONNECTED.value,
                                     last_verified=datetime.now(timezone.utc).isoformat(),
-                                    login_url=login_url,
-                                    home_url=home_url,
+                                    login_url=config.get('login_url'),
+                                    home_url=config.get('home_url'),
                                 )
                                 await self.save_session_info(info)
+                                await context.close()
                                 return True
                         except Exception:
                             continue
+                        
+                        # Check if redirected to home page
+                        if home_url and page.url.startswith(home_url):
+                            logger.info('Login successful (redirected to home) for %s:%s', user_id, platform)
+                            info = SessionInfo(
+                                user_id=user_id,
+                                platform=platform,
+                                status=SessionStatus.CONNECTED.value,
+                                last_verified=datetime.now(timezone.utc).isoformat(),
+                                login_url=config.get('login_url'),
+                                home_url=config.get('home_url'),
+                            )
+                            await self.save_session_info(info)
+                            await context.close()
+                            return True
                     
-                    # Check if redirected to home page
-                    if home_url and page.url.startswith(home_url):
-                        logger.info('Login successful (redirected to home) for %s:%s', user_id, platform)
-                        info = SessionInfo(
-                            user_id=user_id,
-                            platform=platform,
-                            status=SessionStatus.CONNECTED.value,
-                            last_verified=datetime.now(timezone.utc).isoformat(),
-                            login_url=login_url,
-                            home_url=home_url,
-                        )
-                        await self.save_session_info(info)
-                        return True
+                    await page.wait_for_timeout(poll_interval)
+                    elapsed += poll_interval
                 
                 logger.warning('Login timeout for %s:%s', user_id, platform)
+                await context.close()
                 return False
-                
+        
         except Exception as e:
             logger.error('Error during login for %s:%s: %s', user_id, platform, e)
             return False
-    
-    async def disconnect(self, user_id: int, platform: str) -> bool:
+
         """Disconnect and clear session for a platform."""
         # Close browser context
         await self._browser_manager.close_context(user_id, platform)
@@ -350,16 +460,15 @@ class SessionManager:
         
         logger.info('Disconnected %s:%s', user_id, platform)
         return True
-    
-    async def get_all_sessions(self, user_id: int) -> List[SessionInfo]:
-        """Get all session info for a user."""
+
+        async def get_all_sessions(self, user_id: int) -> List[SessionInfo]:
+            """Get all session info for a user."""
         sessions = []
         for platform in self.PLATFORM_CONFIG.keys():
             info = await self.get_session_info(user_id, platform)
             sessions.append(info)
         return sessions
-    
-    async def open_managed_browser(self, user_id: int, platform: str, url: Optional[str] = None) -> Page:
+
         """
         Open a managed browser page for user interaction.
         Returns the page for the caller to use.

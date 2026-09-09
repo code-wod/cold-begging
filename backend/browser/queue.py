@@ -35,11 +35,11 @@ class TaskStatus(Enum):
 
 @dataclass
 class Task:
-    id: str
     type: str
     user_id: int
     platform: str
     payload: Dict[str, Any]
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
     status: str = TaskStatus.PENDING.value
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
@@ -106,7 +106,10 @@ class TaskQueue:
         await self._redis.set(task_key, json.dumps(task.to_dict()))
         
         # Add to queue (sorted by creation time for FIFO)
-        await self._redis.zadd(self.QUEUE_KEY, {task.id: task.created_at})
+        # Convert ISO datetime string to timestamp float
+        from datetime import datetime
+        score = datetime.fromisoformat(task.created_at.replace('Z', '+00:00')).timestamp()
+        await self._redis.zadd(self.QUEUE_KEY, {task.id: score})
         
         logger.debug('Enqueued task %s (%s)', task.id, task.type)
         return task.id
@@ -135,10 +138,13 @@ class TaskQueue:
             return nil
             """
             
+            # Use timestamp for ZADD score in PROCESSING_KEY
+            import time
+            now_timestamp = time.time()
             script = self._redis.register_script(lua_script)
             task_data = await script(
                 keys=[self.QUEUE_KEY, self.TASK_PREFIX, self.PROCESSING_KEY],
-                args=[datetime.now(timezone.utc).isoformat()]
+                args=[str(now_timestamp)]
             )
             
             if task_data:
@@ -182,7 +188,9 @@ class TaskQueue:
         
         # Move from processing to results
         await self._redis.zrem(self.PROCESSING_KEY, task_id)
-        await self._redis.zadd(self.RESULTS_KEY, {task_id: task.completed_at})
+        # Use timestamp for ZADD score
+        import time
+        await self._redis.zadd(self.RESULTS_KEY, {task_id: time.time()})
         await self._redis.set(task_key, json.dumps(task.to_dict()))
         
         # Set TTL on result (7 days)
