@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Layout from '../components/Layout';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { Empty, Panel, Spinner, StatusBadge, useToast, Icons, Button, Modal, Field, Input } from '../components/ui';
+import { Empty, Panel, Spinner, StatusBadge, useToast, Icons, Button, Field, Input } from '../components/ui';
 
 export default function JobPortals() {
   const { user } = useAuth();
@@ -11,7 +11,7 @@ export default function JobPortals() {
   const [portals, setPortals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState({});
-  const [modal, setModal] = useState(null);
+  const [searching, setSearching] = useState({});
 
   useEffect(() => {
     fetchPortals();
@@ -36,8 +36,12 @@ export default function JobPortals() {
         method: 'POST',
         body: { headless: false }
       });
-      toast(`Connecting to ${platform}...`, 'info');
-      setModal({ platform, taskId: result.id, type: 'connect' });
+      if (result.status === 'connected') {
+        toast(`Connected to ${platform}! Auto-search started.`, 'success');
+      } else {
+        toast(result.message || `Login required for ${platform}`, 'info');
+      }
+      fetchPortals();
     } catch (e) {
       toast(e.message, 'error');
     } finally {
@@ -45,11 +49,23 @@ export default function JobPortals() {
     }
   };
 
+  const handleSearch = async (platform) => {
+    setSearching(prev => ({ ...prev, [platform]: true }));
+    try {
+      const data = await api('/api/agent/search-auto', { method: 'POST' });
+      toast(data.message || `Search started on ${platform}`, 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setSearching(prev => ({ ...prev, [platform]: false }));
+    }
+  };
+
   const handleVerify = async (platform) => {
     try {
       const result = await api(`/api/job-portals/${platform}/verify`, { method: 'POST' });
-      toast('Verifying session...', 'info');
-      setModal({ platform, taskId: result.id, type: 'verify' });
+      toast(result.message || `Session ${result.status}`, result.status === 'valid' ? 'success' : 'info');
+      fetchPortals();
     } catch (e) {
       toast(e.message, 'error');
     }
@@ -59,50 +75,12 @@ export default function JobPortals() {
     if (!confirm(`Disconnect from ${platform}? This will clear your browser session.`)) return;
     try {
       const result = await api(`/api/job-portals/${platform}/disconnect`, { method: 'POST' });
-      toast(`Disconnecting from ${platform}...`, 'info');
-      setModal({ platform, taskId: result.id, type: 'disconnect' });
+      toast(result.message || `Disconnected from ${platform}`, 'success');
+      fetchPortals();
     } catch (e) {
       toast(e.message, 'error');
     }
   };
-
-  const handleOpen = async (platform) => {
-    try {
-      const result = await api(`/api/job-portals/${platform}/open`, { method: 'GET' });
-      window.open(result.url, '_blank', 'noopener,noreferrer');
-    } catch (e) {
-      toast(e.message, 'error');
-    }
-  };
-
-  const checkTaskStatus = async (taskId) => {
-    try {
-      const result = await api(`/api/agent/tasks/${taskId}`);
-      return result;
-    } catch (e) {
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    if (!modal) return;
-    
-    const interval = setInterval(async () => {
-      const status = await checkTaskStatus(modal.taskId);
-      if (status && status.status !== 'pending' && status.status !== 'running') {
-        if (status.status === 'completed') {
-          toast(`${modal.platform}: ${modal.type} completed`, 'success');
-          fetchPortals();
-        } else if (status.status === 'failed') {
-          toast(`${modal.platform}: ${modal.type} failed - ${status.error}`, 'error');
-        }
-        setModal(null);
-        clearInterval(interval);
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [modal, toast]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -158,11 +136,11 @@ export default function JobPortals() {
             <div className="flex justify-between mt-16" style={{ paddingTop: 12, borderTop: '1px solid var(--border)' }}>
               {portal.status === 'connected' ? (
                 <>
+                  <Button size="sm" onClick={() => handleSearch(portal.platform)} disabled={searching[portal.platform]}>
+                    {searching[portal.platform] ? <Spinner /> : Icons.search} Search & Apply
+                  </Button>
                   <Button size="sm" variant="secondary" onClick={() => handleVerify(portal.platform)}>
                     {Icons.refresh} Verify
-                  </Button>
-                  <Button size="sm" onClick={() => handleOpen(portal.platform)}>
-                    {Icons.send} Open Browser
                   </Button>
                   <Button size="sm" variant="danger" onClick={() => handleDisconnect(portal.platform)}>
                     {Icons.unlink} Disconnect
@@ -181,21 +159,6 @@ export default function JobPortals() {
           </div>
         ))}
       </Panel>
-
-      {/* Task Progress Modal */}
-      {modal && (
-        <Modal open={true} title={`${modal.type} ${modal.platform}`} onClose={() => setModal(null)}>
-          <div className="flex flex-col items-center" style={{ padding: 24 }}>
-            <Spinner style={{ width: 32, height: 32 }} />
-            <div className="muted mt-16" style={{ textAlign: 'center' }}>
-              {modal.type} in progress...
-            </div>
-            <div className="mt-8" style={{ fontSize: 12, color: 'var(--muted)' }}>
-              Task ID: {modal.taskId}
-            </div>
-          </div>
-        </Modal>
-      )}
     </Layout>
   );
 }

@@ -17,6 +17,7 @@ from .naukri import NaukriProvider
 from .wellfound import WellfoundProvider
 from .hirist import HiristProvider
 from .instahyre import InstahyreProvider
+from .indeed import IndeedProvider
 
 __all__ = [
     'JobPortalProvider',
@@ -34,4 +35,5 @@ __all__ = [
     'WellfoundProvider',
     'HiristProvider',
     'InstahyreProvider',
+    'IndeedProvider',
 ]

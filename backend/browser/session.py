@@ -100,8 +100,8 @@ class SessionManager:
             ],
         },
         'hirist': {
-            'login_url': 'https://www.hirist.com/login',
-            'home_url': 'https://www.hirist.com/candidate/dashboard',
+            'login_url': 'https://www.hirist.tech/login',
+            'home_url': 'https://www.hirist.tech/myprofile',
             'login_selectors': [
                 'input[name="email"]',
                 'input[type="email"]',
@@ -112,12 +112,12 @@ class SessionManager:
             ],
             'logged_in_selectors': [
                 '.user-profile',
-                '.candidate-dashboard',
+                '.my-profile',
             ],
         },
         'instahyre': {
-            'login_url': 'https://instahyre.com/login',
-            'home_url': 'https://instahyre.com/candidate/dashboard',
+            'login_url': 'https://www.instahyre.com/login',
+            'home_url': 'https://www.instahyre.com/candidate/profile',
             'login_selectors': [
                 'input[name="email"]',
                 'input[type="email"]',
@@ -127,8 +127,28 @@ class SessionManager:
                 'input[type="password"]',
             ],
             'logged_in_selectors': [
-                '.user-menu',
-                '.candidate-dashboard',
+                '[class*="user-menu"]',
+                '[class*="profile"]',
+                '[class*="sidebar"]',
+            ],
+        },
+        'indeed': {
+            'login_url': 'https://secure.indeed.com/auth',
+            'home_url': 'https://www.indeed.com',
+            'login_selectors': [
+                'input#ij-login-email',
+                'input[name="__email"]',
+                'input[type="email"]',
+            ],
+            'password_selectors': [
+                'input#ij-login-password',
+                'input[name="__password"]',
+                'input[type="password"]',
+            ],
+            'logged_in_selectors': [
+                '#gnav-user-link',
+                '[data-testid="user-menu"]',
+                'a[href*="logout"]',
             ],
         },
     }
@@ -200,7 +220,8 @@ class SessionManager:
         
         try:
             async with self._browser_manager.persistent_context(user_id, platform) as context:
-                page = await context.new_page()
+                pages = context.pages
+                page = pages[0] if pages else await context.new_page()
                 
                 # Navigate to home page to check login status
                 home_url = config.get('home_url')
@@ -304,7 +325,7 @@ class SessionManager:
                 user_data_dir.mkdir(parents=True, exist_ok=True)
                 
                 context = await playwright.chromium.launch_persistent_context(
-                    user_data_dir=str(user_data_dir / 'playwright'),
+                    user_data_dir=str(user_data_dir),
                     headless=headless,
                     args=[
                         '--disable-blink-features=AutomationControlled',
@@ -394,12 +415,29 @@ class SessionManager:
                     await page.wait_for_timeout(poll_interval)
                     elapsed += poll_interval
                     
-                    # Check for logged-in indicators
+                    current_url = page.url
+                    
+                    # Check if redirected to home page (fastest detection)
+                    if home_url and current_url.startswith(home_url) and '/login' not in current_url:
+                        logger.info('Login successful (redirected to home) for %s:%s', user_id, platform)
+                        info = SessionInfo(
+                            user_id=user_id,
+                            platform=platform,
+                            status=SessionStatus.CONNECTED.value,
+                            last_verified=datetime.now(timezone.utc).isoformat(),
+                            login_url=config.get('login_url'),
+                            home_url=config.get('home_url'),
+                        )
+                        await self.save_session_info(info)
+                        await context.close()
+                        return True
+                    
+                    # Check for logged-in indicators in DOM
                     for selector in logged_in_selectors:
                         try:
                             element = await page.query_selector(selector)
                             if element and await element.is_visible():
-                                logger.info('Login successful for %s:%s', user_id, platform)
+                                logger.info('Login successful for %s:%s (selector: %s)', user_id, platform, selector)
                                 info = SessionInfo(
                                     user_id=user_id,
                                     platform=platform,
@@ -413,26 +451,23 @@ class SessionManager:
                                 return True
                         except Exception:
                             continue
-                        
-                        # Check if redirected to home page
-                        if home_url and page.url.startswith(home_url):
-                            logger.info('Login successful (redirected to home) for %s:%s', user_id, platform)
-                            info = SessionInfo(
-                                user_id=user_id,
-                                platform=platform,
-                                status=SessionStatus.CONNECTED.value,
-                                last_verified=datetime.now(timezone.utc).isoformat(),
-                                login_url=config.get('login_url'),
-                                home_url=config.get('home_url'),
-                            )
-                            await self.save_session_info(info)
-                            await context.close()
-                            return True
                     
-                    await page.wait_for_timeout(poll_interval)
-                    elapsed += poll_interval
+                    # Also check if we're no longer on the login page
+                    if '/login' not in current_url and '/auth' not in current_url:
+                        logger.info('Login successful (left login page) for %s:%s at %s', user_id, platform, current_url)
+                        info = SessionInfo(
+                            user_id=user_id,
+                            platform=platform,
+                            status=SessionStatus.CONNECTED.value,
+                            last_verified=datetime.now(timezone.utc).isoformat(),
+                            login_url=config.get('login_url'),
+                            home_url=config.get('home_url'),
+                        )
+                        await self.save_session_info(info)
+                        await context.close()
+                        return True
                 
-                logger.warning('Login timeout for %s:%s', user_id, platform)
+                logger.warning('Login timeout for %s:%s after %ds', user_id, platform, elapsed // 1000)
                 await context.close()
                 return False
         
@@ -440,6 +475,7 @@ class SessionManager:
             logger.error('Error during login for %s:%s: %s', user_id, platform, e)
             return False
 
+    async def disconnect(self, user_id: int, platform: str) -> bool:
         """Disconnect and clear session for a platform."""
         # Close browser context
         await self._browser_manager.close_context(user_id, platform)
@@ -461,16 +497,16 @@ class SessionManager:
         logger.info('Disconnected %s:%s', user_id, platform)
         return True
 
-        async def get_all_sessions(self, user_id: int) -> List[SessionInfo]:
-            """Get all session info for a user."""
+    async def get_all_sessions(self, user_id: int) -> List[SessionInfo]:
+        """Get all session info for a user."""
         sessions = []
         for platform in self.PLATFORM_CONFIG.keys():
             info = await self.get_session_info(user_id, platform)
             sessions.append(info)
         return sessions
 
-        """
-        Open a managed browser page for user interaction.
+    async def open_managed_browser(self, user_id: int, platform: str, url: str = None):
+        """Open a managed browser page for user interaction.
         Returns the page for the caller to use.
         Caller is responsible for using the page within the context manager.
         """

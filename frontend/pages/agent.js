@@ -24,6 +24,8 @@ export default function AgentDashboard() {
   });
   const [searchResults, setSearchResults] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [autoSearchLoading, setAutoSearchLoading] = useState(false);
+  const [autoSearchResult, setAutoSearchResult] = useState(null);
 
   useEffect(() => {
     fetchStatus();
@@ -63,11 +65,25 @@ export default function AgentDashboard() {
     try {
       const data = await api('/api/agent/search', { method: 'POST', body: searchParams });
       setSearchResults(data);
-      toast('Search queued for connected platforms', 'success');
+      toast('Search completed', 'success');
     } catch (e) {
       toast(e.message, 'error');
     } finally {
       setSearchLoading(false);
+    }
+  };
+
+  const handleAutoSearch = async () => {
+    setAutoSearchLoading(true);
+    setAutoSearchResult(null);
+    try {
+      const data = await api('/api/agent/search-auto', { method: 'POST' });
+      setAutoSearchResult(data);
+      toast(data.message || 'Auto-search started!', 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setAutoSearchLoading(false);
     }
   };
 
@@ -136,6 +152,33 @@ export default function AgentDashboard() {
           <div className="stat-value">{status?.workers || 0}</div>
         </div>
       </div>
+
+      {/* Auto-Search */}
+      <Panel title="Quick Auto-Search" actions={
+        <Button onClick={handleAutoSearch} disabled={autoSearchLoading}>
+          {autoSearchLoading ? <Spinner /> : Icons.search} Search & Apply
+        </Button>
+      }>
+        <div className="muted" style={{ marginBottom: 12 }}>
+          Automatically searches all connected platforms using your job preferences, matches against your profile, and prepares applications. If mode is Live, auto-applies to strong matches.
+        </div>
+        {autoSearchResult && (
+          <div className="flex" style={{ gap: 16, flexWrap: 'wrap' }}>
+            <div className="panel stat-card">
+              <div className="stat-label">Platforms</div>
+              <div className="stat-value">{autoSearchResult.platforms?.length || 0}</div>
+            </div>
+            <div className="panel stat-card">
+              <div className="stat-label">Keywords</div>
+              <div className="stat-value">{autoSearchResult.keywords?.length || 0}</div>
+            </div>
+            <div className="panel stat-card">
+              <div className="stat-label">Status</div>
+              <div className="stat-value" style={{ fontSize: 14 }}>{autoSearchResult.status}</div>
+            </div>
+          </div>
+        )}
+      </Panel>
 
       {/* Control Panel */}
       <Panel title="Agent Control" actions={

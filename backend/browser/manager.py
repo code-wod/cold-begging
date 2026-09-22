@@ -124,9 +124,10 @@ class BrowserManager:
         user_data_dir = Path(BROWSER_DATA_DIR) / str(user_id) / platform
         user_data_dir.mkdir(parents=True, exist_ok=True)
         
-        # Launch persistent context
-        context = await self._browser.new_context(
+        # Launch persistent context using launch_persistent_context
+        context = await self._playwright.chromium.launch_persistent_context(
             user_data_dir=str(user_data_dir),
+            headless=PLAYWRIGHT_HEADLESS,
             viewport={'width': 1366, 'height': 768},
             user_agent=(
                 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
@@ -135,6 +136,12 @@ class BrowserManager:
             ),
             locale='en-US',
             timezone_id='Asia/Kolkata',
+            args=[
+                '--disable-blink-features=AutomationControlled',
+                '--disable-dev-shm-usage',
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+            ],
             **context_options
         )
         

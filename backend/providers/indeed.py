@@ -17,48 +17,51 @@ from .base import (
 logger = logging.getLogger(__name__)
 
 
-class NaukriProvider(JobPortalProvider):
-    """Naukri.com provider with job search and One Click Apply."""
+class IndeedProvider(JobPortalProvider):
+    """Indeed provider with job search and Easy Apply."""
 
-    name = 'naukri'
-    platform_name = 'naukri'
+    name = 'indeed'
+    platform_name = 'indeed'
 
-    BASE_URL = 'https://www.naukri.com'
-    LOGIN_URL = 'https://www.naukri.com/nlogin/login'
-    HOME_URL = 'https://www.naukri.com/mnjuser/homepage'
-    SEARCH_URL = 'https://www.naukri.com/jobs'
+    BASE_URL = 'https://www.indeed.com'
+    LOGIN_URL = 'https://secure.indeed.com/auth'
+    HOME_URL = 'https://www.indeed.com'
+    SEARCH_URL = 'https://www.indeed.com/jobs'
 
     capabilities = PortalCapabilities(
         job_search=True,
-        one_click_apply=True,
         easy_apply=True,
         resume_upload=True,
+        cover_letter=True,
+        screening_questions=True,
     )
 
     SELECTORS = {
         'logged_in_indicators': [
-            '.mnj-header',
-            '.user-name',
-            '#usernameField[disabled]',
-            '.naukri-clone',
-            'nav[data-trk-id="header"]',
+            '#gnav-user-link',
+            '[data-testid="user-menu"]',
+            '.gnav-LoggedOut',
+            'a[href*="logout"]',
         ],
-        'search_keywords': 'input[placeholder*="Skills"], input[name="qp"], input#keywordSearchBox',
-        'search_location': 'input[placeholder*="Location"], input[name="ql"], input#locationSearchBox',
-        'search_button': 'button[type="submit"], button[data-trk-id="search-button"]',
-        'job_cards': '.jobTuple, .srp-jobtuple-wrapper, .jobTupleWrapper',
-        'job_title': '.title a, .jobTupleHeader a, a.title',
-        'job_company': '.subTitle, .companyInfo a, .company-name',
-        'job_location': '.location, .locWdth, .job-location',
-        'job_link': '.title a, .jobTupleHeader a, a.title',
-        'job_detail_title': 'h1, .job-header h1, .jd-header h1',
-        'job_detail_company': '.company-name, .jd-header .company-name',
-        'job_detail_location': '.job-location, .jd-header .location',
-        'job_detail_description': '.job-description, .jd-desc, #jobDescription',
-        'job_detail_apply': 'button:has-text("Apply"), a:has-text("Apply"), .apply-button, button[data-trk-id="apply-button"]',
-        'one_click_apply': 'button:has-text("One Click Apply"), button:has-text("Apply using Naukri")',
-        'resume_selector': '.resumeSelector, [name="resume"], select.resumeDropdown',
-        'apply_confirm': '.applyConfirmation, .successMessage, text=Your application has been submitted',
+        'search_keywords': 'input#text-input-what, input[name="q"], input[placeholder*="Job title"]',
+        'search_location': 'input#text-input-where, input[name="l"], input[placeholder*="Location"]',
+        'search_button': 'button[type="submit"], button:has-text("Find jobs"), button.primary',
+        'job_cards': '.job_seen_beacon, .jobsearch-ResultsList > li, [data-testid="jobCard"], .resultContent',
+        'job_title': 'h2.jobTitle a, h2 a, [data-testid="jobTitle"] a, .jobTitle > a',
+        'job_company': '[data-testid="company-name"], .companyName, .company',
+        'job_location': '[data-testid="text-location"], .companyLocation, .location',
+        'job_link': 'h2.jobTitle a, h2 a, [data-testid="jobTitle"] a, .jobTitle > a',
+        'job_detail_title': 'h1.jobsearch-JobInfoHeader-title, h1[data-testid="jobTitle"], h1',
+        'job_detail_company': '[data-testid="inlineHeader-companyName"] a, .jobsearch-InlineHeader-companyName a',
+        'job_detail_location': '[data-testid="inlineHeader-companyLocation"], .jobsearch-InlineHeader-companyLocation',
+        'job_detail_description': '#jobDescriptionText, .jobsearch-jobDescriptionText, [data-testid="jobDescription"]',
+        'apply_button': 'button:has-text("Apply now"), button:has-text("Apply"), a:has-text("Apply now"), #indeedApplyButton',
+        'easy_apply_button': 'button:has-text("Apply now"), button:has-text("Quick Apply"), #indeedApplyButton',
+        'resume_upload': 'input[type="file"][accept*="pdf"], input[name="resume"]',
+        'cover_letter_textarea': 'textarea[name="coverLetter"], textarea[aria-label*="cover letter"]',
+        'phone_input': 'input[name="phoneNumber"], input[autocomplete="tel"]',
+        'email_input': 'input[name="email"], input[autocomplete="email"]',
+        'submitted_confirmation': '.ia-continueButton, text=Application submitted, text=Your application has been submitted',
         'already_applied': 'text=You have already applied, .already-applied',
     }
 
@@ -67,18 +70,23 @@ class NaukriProvider(JobPortalProvider):
             from urllib.parse import urlencode
 
             params = {
-                'qp': ' '.join(config.keywords[:3]) if config.keywords else '',
-                'ql': config.locations[0] if config.locations else '',
+                'q': ' '.join(config.keywords[:3]) if config.keywords else '',
+                'l': config.locations[0] if config.locations else '',
             }
             if config.remote:
-                params['remote'] = '3'  # Naukri remote filter
+                params['remotejob'] = '032b3046-06a3-4876-8dfd-474eb5e7ed11'
+            if config.job_types:
+                type_map = {'full_time': 'fulltime', 'part_time': 'parttime', 'contract': 'contract', 'internship': 'internship'}
+                for jt in config.job_types:
+                    mapped = type_map.get(jt, jt)
+                    params[f'jt={mapped}'] = ''
             params = {k: v for k, v in params.items() if v}
 
             search_url = f'{self.SEARCH_URL}?{urlencode(params)}'
             await page.goto(search_url, wait_until='domcontentloaded', timeout=30000)
             await page.wait_for_timeout(3000)
 
-            # Scroll to load more jobs
+            # Scroll to load more
             for _ in range(3):
                 await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
                 await page.wait_for_timeout(1500)
@@ -92,12 +100,12 @@ class NaukriProvider(JobPortalProvider):
                     if job:
                         jobs.append(job)
                 except Exception as e:
-                    logger.debug('Failed to extract job card: %s', e)
+                    logger.debug('Failed to extract Indeed card: %s', e)
                     continue
 
             return jobs
         except Exception as e:
-            logger.error('Error searching Naukri: %s', e)
+            logger.error('Error searching Indeed: %s', e)
             return []
 
     async def extract_job_card(self, page: Page, card_element) -> Optional[JobCard]:
@@ -119,7 +127,7 @@ class NaukriProvider(JobPortalProvider):
 
             external_id = ''
             if link:
-                match = re.search(r'/job/(\d+)', link)
+                match = re.search(r'clk\?jk=([a-f0-9]+)', link) or re.search(r'/viewjob\?jk=([a-f0-9]+)', link)
                 if match:
                     external_id = match.group(1)
 
@@ -131,7 +139,7 @@ class NaukriProvider(JobPortalProvider):
                 url=link,
             )
         except Exception as e:
-            logger.debug('Failed to extract Naukri job card: %s', e)
+            logger.debug('Failed to extract Indeed card: %s', e)
             return None
 
     async def extract_job_detail(self, page: Page, job_url: str) -> JobDetail:
@@ -168,7 +176,6 @@ class NaukriProvider(JobPortalProvider):
                 description = await elem.inner_text()
                 break
 
-        # Extract skills from description
         if description:
             skill_keywords = [
                 'Python', 'Java', 'JavaScript', 'TypeScript', 'Go', 'Golang', 'React', 'Vue', 'Angular',
@@ -183,7 +190,7 @@ class NaukriProvider(JobPortalProvider):
                     skills.append(skill)
 
         external_id = ''
-        match = re.search(r'/job/(\d+)', job_url)
+        match = re.search(r'jk=([a-f0-9]+)', job_url)
         if match:
             external_id = match.group(1)
 
@@ -199,51 +206,56 @@ class NaukriProvider(JobPortalProvider):
 
     async def can_apply(self, page: Page, job: JobDetail) -> bool:
         try:
-            apply_btn = await page.query_selector(self.SELECTORS['job_detail_apply'])
-            if apply_btn and await apply_btn.is_visible():
-                return True
-            easy_apply = await page.query_selector(self.SELECTORS['one_click_apply'])
-            if easy_apply and await easy_apply.is_visible():
-                return True
+            for sel in ['apply_button', 'easy_apply_button']:
+                btn = await page.query_selector(self.SELECTORS[sel])
+                if btn and await btn.is_visible():
+                    return True
             return False
         except Exception:
             return False
 
     async def prepare_application(self, page: Page, job: JobDetail, candidate: CandidateProfile) -> bool:
         try:
-            # Try One Click Apply first
-            easy_apply = await page.query_selector(self.SELECTORS['one_click_apply'])
-            if easy_apply and await easy_apply.is_visible():
-                await easy_apply.click()
-                await page.wait_for_timeout(2000)
-                return True
+            for sel in ['easy_apply_button', 'apply_button']:
+                btn = await page.query_selector(self.SELECTORS[sel])
+                if btn and await btn.is_visible():
+                    await btn.click()
+                    await page.wait_for_timeout(2000)
+                    break
 
-            # Try regular apply button
-            apply_btn = await page.query_selector(self.SELECTORS['job_detail_apply'])
-            if apply_btn:
-                await apply_btn.click()
-                await page.wait_for_timeout(2000)
+            # Fill resume upload if present
+            resume_inputs = await page.query_selector_all(self.SELECTORS['resume_upload'])
+            for resume_input in resume_inputs:
+                if candidate.resume_files:
+                    resume_path = list(candidate.resume_files.values())[0]
+                    await resume_input.set_input_files(resume_path)
+                    await page.wait_for_timeout(1000)
 
-                # Handle resume selection if present
-                resume_select = await page.query_selector(self.SELECTORS['resume_selector'])
-                if resume_select:
-                    # Select first available resume option
-                    try:
-                        options = await resume_select.query_selector_all('option')
-                        if len(options) > 1:
-                            await resume_select.select_option(index=1)
-                            await page.wait_for_timeout(500)
-                    except Exception:
-                        pass
+            # Fill phone
+            phone_inputs = await page.query_selector_all(self.SELECTORS['phone_input'])
+            for inp in phone_inputs:
+                if await inp.is_visible() and candidate.phone:
+                    await inp.fill(candidate.phone)
 
-                return True
+            # Fill email
+            email_inputs = await page.query_selector_all(self.SELECTORS['email_input'])
+            for inp in email_inputs:
+                if await inp.is_visible() and candidate.email:
+                    await inp.fill(candidate.email)
 
-            return False
+            # Fill cover letter if present
+            cover_letter = await page.query_selector(self.SELECTORS['cover_letter_textarea'])
+            if cover_letter and await cover_letter.is_visible():
+                await cover_letter.fill('I am interested in this position and believe my skills are a strong match.')
+
+            return True
         except Exception as e:
-            logger.error('Error preparing Naukri application: %s', e)
+            logger.error('Error preparing Indeed application: %s', e)
             return False
 
     async def submit_application(self, page: Page) -> ApplicationResult:
+        from backend.config import DRY_RUN
+
         if DRY_RUN:
             return ApplicationResult(
                 success=True,
@@ -253,11 +265,11 @@ class NaukriProvider(JobPortalProvider):
 
         try:
             submit_selectors = [
-                'button:has-text("Apply")',
                 'button:has-text("Submit")',
-                'button:has-text("Send Application")',
+                'button:has-text("Submit application")',
+                'button:has-text("Apply now")',
+                '#form-submit-button',
                 'button[type="submit"]',
-                '.apply-button',
             ]
 
             for selector in submit_selectors:
@@ -270,8 +282,7 @@ class NaukriProvider(JobPortalProvider):
                     continue
 
             await page.wait_for_timeout(3000)
-            result = await self.detect_application_result(page)
-            return result
+            return await self.detect_application_result(page)
 
         except Exception as e:
             return ApplicationResult(
@@ -281,13 +292,12 @@ class NaukriProvider(JobPortalProvider):
             )
 
     async def detect_application_result(self, page: Page) -> ApplicationResult:
-        # Check for success
         success_selectors = [
-            '.applyConfirmation',
-            '.successMessage',
+            'text=Application submitted',
             'text=Your application has been submitted',
-            'text=Application submitted successfully',
-            'text=Applied successfully',
+            'text=Application complete',
+            '.ia-continueButton',
+            '.jobsearch-ApplyJobResultContent',
         ]
         for sel in success_selectors:
             try:
@@ -301,10 +311,9 @@ class NaukriProvider(JobPortalProvider):
             except Exception:
                 continue
 
-        # Check for already applied
         already_selectors = [
             'text=You have already applied',
-            '.already-applied',
+            'text=Already applied',
         ]
         for sel in already_selectors:
             try:
@@ -318,10 +327,9 @@ class NaukriProvider(JobPortalProvider):
             except Exception:
                 continue
 
-        # Check for errors
         error_selectors = [
-            '.error-message',
-            '.toast-error',
+            '.ia-ErrorDisplay',
+            '.error',
             '[class*="error"]',
         ]
         for sel in error_selectors:
@@ -344,7 +352,5 @@ class NaukriProvider(JobPortalProvider):
         )
 
 
-from backend.config import DRY_RUN
-
-naukri_provider = NaukriProvider()
-provider_registry.register(naukri_provider)
+indeed_provider = IndeedProvider()
+provider_registry.register(indeed_provider)

@@ -470,4 +470,8 @@ class Application(Base):
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
+    job = relationship('Job', lazy='joined')
+    user = relationship('User', lazy='joined')
+    resume = relationship('Resume', lazy='joined')
+
     __table_args__ = (UniqueConstraint('user_id', 'job_id', name='uq_application_user_job'),)
