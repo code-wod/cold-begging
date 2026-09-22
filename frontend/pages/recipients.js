@@ -8,6 +8,7 @@ import {
 const PAGE_SIZE = 50;
 const EMPTY_RECIPIENT = {
   email: '', company_name: '', industry: '', company_website: '', job_role: '', position_level: '',
+  category_id: null,
 };
 
 function GroupPicker({ groups, mode, setMode, value, setValue }) {
@@ -85,6 +86,7 @@ export default function Recipients() {
   const [renameValue, setRenameValue] = useState('');
 
   const [accounts, setAccounts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [compose, setCompose] = useState(null);
   const [composeForm, setComposeForm] = useState({ email_account_id: '', subject: '', body: '' });
   const [composeBusy, setComposeBusy] = useState(false);
@@ -98,6 +100,7 @@ export default function Recipients() {
   useEffect(() => {
     loadGroups();
     api('/api/email-accounts').then(setAccounts).catch(() => {});
+    api('/api/categories').then(setCategories).catch(() => {});
   }, []);
 
   const loadRecipients = (p, group) => {
@@ -238,6 +241,7 @@ export default function Recipients() {
     setEditForm({
       email: r.email, company_name: r.company_name || '', industry: r.industry || '',
       company_website: r.company_website || '', job_role: r.job_role || '', position_level: r.position_level || '',
+      category_id: r.category_id || null,
     });
   };
 
@@ -247,6 +251,7 @@ export default function Recipients() {
       const body = {
         email: editForm.email, company_name: editForm.company_name, industry: editForm.industry,
         company_website: editForm.company_website, job_role: editForm.job_role, position_level: editForm.position_level,
+        category_id: editForm.category_id,
       };
       await api(`/api/recipients/${editRecipient.id}`, { method: 'PATCH', body });
       toast('Recipient updated', 'success');
@@ -387,6 +392,7 @@ export default function Recipients() {
                     <th>Email</th>
                     <th>Company</th>
                     <th>Industry</th>
+                    <th>Category</th>
                     <th>Role</th>
                     <th>Added</th>
                     <th style={{ width: 92 }}></th>
@@ -398,6 +404,7 @@ export default function Recipients() {
                       <td><b>{r.email}</b></td>
                       <td>{r.company_name || '—'}</td>
                       <td>{r.industry || '—'}</td>
+                      <td>{_categoryName(categories, r.category_id) || '—'}</td>
                       <td>{r.job_role ? `${r.job_role}${r.position_level ? ` (${r.position_level})` : ''}` : '—'}</td>
                       <td className="muted">{fmtRel(r.created_at)}</td>
                       <td>
@@ -430,6 +437,16 @@ export default function Recipients() {
         }>
         <Field label="Email">
           <Input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@company.com" />
+        </Field>
+        <Field label="Category (optional)">
+          <select
+            className="select"
+            value={form.category_id || ''}
+            onChange={(e) => setForm({ ...form, category_id: e.target.value ? parseInt(e.target.value) : null })}
+          >
+            <option value="">Select a category…</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
         </Field>
         <Field label="Company name">
           <Input value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
@@ -515,6 +532,16 @@ export default function Recipients() {
         <Field label="Email">
           <Input type="email" required value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
         </Field>
+        <Field label="Category (optional)">
+          <select
+            className="select"
+            value={editForm.category_id || ''}
+            onChange={(e) => setEditForm({ ...editForm, category_id: e.target.value ? parseInt(e.target.value) : null })}
+          >
+            <option value="">Select a category…</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </Field>
         <Field label="Company name">
           <Input value={editForm.company_name} onChange={(e) => setEditForm({ ...editForm, company_name: e.target.value })} />
         </Field>
@@ -576,4 +603,10 @@ export default function Recipients() {
         confirmLabel="Delete" onCancel={() => setConfirmDeleteGroup(null)} onConfirm={doDeleteGroup} />
     </Layout>
   );
+}
+
+function _categoryName(categories, id) {
+  if (!id) return '';
+  const cat = categories.find((c) => c.id === id);
+  return cat ? cat.name : '';
 }

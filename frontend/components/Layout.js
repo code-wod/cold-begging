@@ -11,6 +11,7 @@ const NAV = [
   { section: 'Automation' },
   { href: '/campaigns', label: 'Campaigns', icon: 'campaigns' },
   { href: '/recipients', label: 'Recipients', icon: 'recipients' },
+  { href: '/recipient-catalog', label: 'Recipient Catalog', icon: 'recipients' },
   { href: '/ai-agents', label: 'AI Agents', icon: 'agents' },
   { href: '/email-accounts', label: 'Email Accounts', icon: 'email' },
   { href: '/history', label: 'History', icon: 'history' },
