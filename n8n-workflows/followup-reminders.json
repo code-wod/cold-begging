@@ -1,0 +1,63 @@
+{
+  "name": "Cold Begging - Follow-up Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "cronExpression": "0 9 * * 1",
+        "timezone": "Asia/Kolkata"
+      },
+      "name": "Weekly Trigger (Mon 9 AM IST)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/api/n8n/webhook/followup-check",
+        "method": "POST",
+        "options": {},
+        "headerParametersJson": "{\n  \"X-N8N-Secret\": \"{{$env.N8N_WEBHOOK_SECRET}}\",\n  \"Content-Type\": \"application/json\"\n}"
+      },
+      "name": "Check Follow-ups",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const result = items[0].json;\nreturn [{\n  json: {\n    message: `Follow-up check complete: ${result.followups_sent} reminders sent`\n  }\n}];"
+      },
+      "name": "Log Result",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "Weekly Trigger (Mon 9 AM IST)": {
+      "main": [
+        [
+          {
+            "node": "Check Follow-ups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Follow-ups": {
+      "main": [
+        [
+          {
+            "node": "Log Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "2"
+}

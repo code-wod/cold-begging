@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { Spinner, useToast, Icons, Button, Field, Input, TextArea, Panel } from '../components/ui';
+import { Spinner, useToast, Icons, Button, Field, Input, Panel, Select } from '../components/ui';
 
 export default function JobPreferences() {
   const { user } = useAuth();
@@ -84,6 +84,38 @@ export default function JobPreferences() {
     return <Layout title="Job Preferences" breadcrumb={<span>Job Preferences</span>}><Spinner /></Layout>;
   }
 
+  const renderTagInput = (field, input, setInput, placeholder, color) => (
+    <Panel title={field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} actions={
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addItem(field, input), setInput(''))}
+          placeholder={placeholder}
+          style={{ width: 200 }}
+        />
+        <Button size="sm" onClick={() => { addItem(field, input); setInput(''); }}>
+          {Icons.plus} Add
+        </Button>
+      </div>
+    }>
+      {prefs[field].length === 0 ? (
+        <div className="muted" style={{ padding: 16 }}>No items added.</div>
+      ) : (
+        <div className="flex flex-wrap gap-4">
+          {prefs[field].map((item) => (
+            <span key={item} className={`badge ${color}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              {item}
+              <button onClick={() => removeItem(field, item)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: 14, lineHeight: 1 }}>
+                {Icons.x}
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+
   return (
     <Layout title="Job Preferences" breadcrumb={<span>Job Preferences</span>}>
       <div className="page-head">
@@ -91,95 +123,11 @@ export default function JobPreferences() {
         <div className="muted">Configure your ideal job criteria for AI-powered matching.</div>
       </div>
 
-      <Panel title="Preferred Roles" actions={
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Input
-            value={roleInput}
-            onChange={(e) => setRoleInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addItem('preferred_roles', roleInput), setRoleInput(''))}
-            placeholder="e.g., Backend Engineer"
-            style={{ width: 200 }}
-          />
-          <Button size="sm" onClick={() => addItem('preferred_roles', roleInput), setRoleInput('')}>
-            {Icons.plus} Add
-          </Button>
-        </div>
-      }>
-        {prefs.preferred_roles.length === 0 ? (
-          <div className="muted" style={{ padding: 16 }}>No preferred roles added.</div>
-        ) : (
-          <div className="flex flex-wrap gap-4">
-            {prefs.preferred_roles.map((role) => (
-              <span key={role} className="badge blue" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                {role}
-                <button onClick={() => removeItem('preferred_roles', role)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: 14, lineHeight: 1 }}>
-                  {Icons.x}
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </Panel>
-
-      <Panel title="Preferred Locations" actions={
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Input
-            value={locationInput}
-            onChange={(e) => setLocationInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addItem('preferred_locations', locationInput), setLocationInput(''))}
-            placeholder="e.g., San Francisco, Remote, India"
-            style={{ width: 200 }}
-          />
-          <Button size="sm" onClick={() => addItem('preferred_locations', locationInput), setLocationInput('')}>
-            {Icons.plus} Add
-          </Button>
-        </div>
-      }>
-        {prefs.preferred_locations.length === 0 ? (
-          <div className="muted" style={{ padding: 16 }}>No preferred locations added.</div>
-        ) : (
-          <div className="flex flex-wrap gap-4">
-            {prefs.preferred_locations.map((loc) => (
-              <span key={loc} className="badge teal" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                {loc}
-                <button onClick={() => removeItem('preferred_locations', loc)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: 14, lineHeight: 1 }}>
-                  {Icons.x}
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </Panel>
-
-      <Panel title="Skills" actions={
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Input
-            value={skillInput}
-            onChange={(e) => setSkillInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addItem('skills', skillInput), setSkillInput(''))}
-            placeholder="e.g., Python, React, AWS"
-            style={{ width: 200 }}
-          />
-          <Button size="sm" onClick={() => addItem('skills', skillInput), setSkillInput('')}>
-            {Icons.plus} Add
-          </Button>
-        </div>
-      }>
-        {prefs.skills.length === 0 ? (
-          <div className="muted" style={{ padding: 16 }}>No skills added.</div>
-        ) : (
-          <div className="flex flex-wrap gap-4">
-            {prefs.skills.map((skill) => (
-              <span key={skill} className="badge green" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                {skill}
-                <button onClick={() => removeItem('skills', skill)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: 14, lineHeight: 1 }}>
-                  {Icons.x}
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </Panel>
+      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+        {renderTagInput('preferred_roles', roleInput, setRoleInput, 'e.g., Backend Engineer', 'blue')}
+        {renderTagInput('preferred_locations', locationInput, setLocationInput, 'e.g., San Francisco, Remote', 'teal')}
+        {renderTagInput('skills', skillInput, setSkillInput, 'e.g., Python, React, AWS', 'green')}
+      </div>
 
       <Panel title="Employment Preferences">
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>

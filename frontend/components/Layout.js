@@ -11,6 +11,8 @@ const NAV = [
   { section: 'Job Hunting' },
   { href: '/jobs', label: 'Jobs', icon: 'search' },
   { href: '/applications', label: 'Applications', icon: 'send' },
+  { href: '/job-portals', label: 'Job Portals', icon: 'link' },
+  { href: '/agent', label: 'Agent Control', icon: 'play' },
   { href: '/resumes', label: 'Resumes', icon: 'profile' },
   { href: '/job-preferences', label: 'Job Preferences', icon: 'settings' },
   { section: 'Automation' },

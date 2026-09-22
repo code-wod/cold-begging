@@ -28,6 +28,7 @@ export const Icons = {
   duplicate: <P d="M9 9h11v11H9zM5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" />,
   play: <P d="M6 4l14 8-14 8z" />,
   pause: <P d="M8 5v14M16 5v14" />,
+  stop: <P d="M6 4h16v16H6z" />,
   refresh: <P d="M20 12a8 8 0 11-2.34-5.66M20 4v6h-6" />,
   send: <P d="M22 2L11 13M22 2l-7 20-4-9-9-4z" />,
   edit: <P d="M4 20h4L18.5 9.5a2.1 2.1 0 00-3-3L5 17zM13.5 6.5l3 3" />,

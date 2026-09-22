@@ -9,7 +9,8 @@ from backend.schemas import (
     JobPreferencesIn, JobPreferencesOut,
     ResumeIn, ResumeLinkIn, ResumeOut,
     JobOut, JobListOut, JobImportIn, JobImportOut,
-    JobMatchOut, JobPrepareOut, JobSourceOut
+    JobMatchOut, JobPrepareOut, JobSourceOut,
+    JobSourceCapabilities
 )
 from backend.security import get_current_user
 from backend.services import get_job_service, get_matching_service, get_application_service, provider_registry
@@ -416,7 +417,16 @@ def list_sources():
     sources = []
     for name in provider_registry.get_provider_names():
         provider = provider_registry.get_provider(name)
-        caps = provider.get_capabilities() if provider else JobSourceCapabilities()
+        provider_caps = provider.get_capabilities() if provider else None
+        if provider_caps:
+            caps = JobSourceCapabilities(
+                search=provider_caps.search,
+                job_details=provider_caps.job_details,
+                application_api=provider_caps.application_api,
+                candidate_apply_api=provider_caps.candidate_apply_api,
+            )
+        else:
+            caps = JobSourceCapabilities()
         sources.append(JobSourceOut(name=name, capabilities=caps))
     return sources
 

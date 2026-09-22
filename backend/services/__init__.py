@@ -1,6 +1,7 @@
 from .job_service import JobService, get_job_service
 from .matching_service import MatchingService, get_matching_service
 from .application_service import ApplicationService, get_application_service
+from .notification_service import NotificationService, get_notification_service
 from .source_providers import provider_registry
 from .source_providers.base import JobSourceProvider, JobListing, JobSearchParams, JobSourceCapabilities
 
@@ -11,6 +12,8 @@ __all__ = [
     'get_matching_service',
     'ApplicationService',
     'get_application_service',
+    'NotificationService',
+    'get_notification_service',
     'provider_registry',
     'JobSourceProvider',
     'JobListing',
