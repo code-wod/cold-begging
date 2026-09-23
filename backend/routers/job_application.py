@@ -18,6 +18,32 @@ logger = logging.getLogger('job_application_router')
 router = APIRouter(prefix='/api/job-applications', tags=['job-applications'])
 
 
+def _app_out(app) -> AutofillApplicationOut:
+    """Convert model instance to schema, serializing datetimes to strings."""
+    d = {
+        'id': app.id,
+        'user_id': app.user_id,
+        'job_url': app.job_url,
+        'company_name': app.company_name or '',
+        'role_title': app.role_title or '',
+        'ats_platform': app.ats_platform or '',
+        'status': app.status or 'preparing',
+        'total_fields': app.total_fields or 0,
+        'auto_filled': app.auto_filled or 0,
+        'needs_review': app.needs_review or 0,
+        'unanswered': app.unanswered or 0,
+        'error_code': app.error_code or '',
+        'error_message': app.error_message or '',
+        'requires_user_action': app.requires_user_action or '',
+        'screenshot_path': app.screenshot_path or '',
+        'resume_id': app.resume_id,
+        'created_at': app.created_at.isoformat() if app.created_at else None,
+        'updated_at': app.updated_at.isoformat() if app.updated_at else None,
+        'submitted_at': app.submitted_at.isoformat() if app.submitted_at else None,
+    }
+    return AutofillApplicationOut(**d)
+
+
 # ── Job Profile ──────────────────────────────────────────────────────────────
 
 @router.get('/profile', response_model=JobProfileOut)
@@ -59,7 +85,7 @@ def create_application(
 
     svc = AutofillApplicationService(db)
     app = svc.create(user.id, url, data.resume_id)
-    return AutofillApplicationOut.model_validate(app)
+    return _app_out(app)
 
 
 @router.get('', response_model=dict)
@@ -73,7 +99,7 @@ def list_applications(
     svc = AutofillApplicationService(db)
     result = svc.list_user_applications(user.id, status=status, limit=limit, offset=offset)
     return {
-        'items': [AutofillApplicationOut.model_validate(a) for a in result['items']],
+        'items': [_app_out(a) for a in result['items']],
         'total': result['total'],
     }
 
@@ -88,7 +114,7 @@ def get_application(
     app = svc.get(application_id, user.id)
     if not app:
         raise HTTPException(status_code=404, detail='Application not found')
-    return AutofillApplicationOut.model_validate(app)
+    return _app_out(app)
 
 
 @router.get('/{application_id}/fields', response_model=list[AutofillFieldOut])
@@ -292,7 +318,7 @@ def get_application_history(
         q = q.filter(AutofillApplication.ats_platform == ats_platform)
 
     apps = q.order_by(AutofillApplication.created_at.desc()).offset(offset).limit(limit).all()
-    return [AutofillApplicationOut.model_validate(a) for a in apps]
+    return [_app_out(a) for a in apps]
 
 
 @router.post('/cleanup')
