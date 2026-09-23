@@ -137,6 +137,30 @@ def run():
             'SELECT COUNT(*) FROM recipients WHERE group_id IS NULL'
         )).scalar()
         print(f'  Done. {groups or 0} group(s); {recipients or 0} recipients still unassigned.')
+
+        print('7. Adding job hunting tables')
+        with engine.connect() as conn:
+            is_postgres = conn.dialect.name == 'postgresql'
+            Base.metadata.create_all(bind=engine, tables=[
+                models.JobPreferences.__table__,
+                models.Resume.__table__,
+                models.Job.__table__,
+                models.Application.__table__,
+                models.JobSourceLog.__table__,
+            ])
+            
+            # Add indexes for jobs table
+            index_statements = [
+                'CREATE INDEX IF NOT EXISTS ix_jobs_user_discovered ON jobs (discovered_at)',
+                'CREATE INDEX IF NOT EXISTS ix_jobs_status ON jobs (status)',
+                'CREATE INDEX IF NOT EXISTS ix_applications_user_status ON applications (user_id, status)',
+                'CREATE INDEX IF NOT EXISTS ix_resumes_user_default ON resumes (user_id, is_default)',
+            ]
+            for statement in index_statements:
+                conn.exec_driver_sql(statement)
+            conn.commit()
+
+        print('Migration completed successfully.')
     finally:
         db.close()
 

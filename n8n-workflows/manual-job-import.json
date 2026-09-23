@@ -1,0 +1,108 @@
+{
+  "name": "Cold Begging - Manual Job Import",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "job-import",
+        "responseMode": "onReceived"
+      },
+      "name": "Webhook - Manual Import",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "job-import"
+    },
+    {
+      "parameters": {
+        "functionCode": "const url = items[0].json.url;\nif (!url) {\n  throw new Error('URL is required');\n}\nreturn items;"
+      },
+      "name": "Validate URL",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/api/jobs/import",
+        "method": "POST",
+        "options": {},
+        "headerParametersJson": "{\n  \"Authorization\": \"Bearer {{ $json.token }}\",\n  \"Content-Type\": \"application/json\"\n}",
+        "bodyParametersJson": "={\n  \"url\": \"{{ $json.url }}\"\n}"
+      },
+      "name": "Import Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const result = items[0].json;\nreturn [{\n  json: {\n    success: true,\n    job_id: result.job_id,\n    match_score: result.match_score,\n    message: result.message\n  }\n}];"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "responseCode": 200,
+        "responseData": "{{$json}}"
+      },
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Manual Import": {
+      "main": [
+        [
+          {
+            "node": "Validate URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate URL": {
+      "main": [
+        [
+          {
+            "node": "Import Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Import Job": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "3"
+}

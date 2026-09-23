@@ -300,6 +300,18 @@ table.dense tr:hover td { background: var(--row-hover-bg); }
 .grid { display: grid; gap: 16px; }
 .grid.stats { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 
+@media (max-width: 1024px) {
+  .grid[style*="grid-template-columns: 1fr 1fr 1fr"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+@media (max-width: 768px) {
+  .grid[style*="grid-template-columns: 1fr 1fr 1fr"],
+  .grid[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 /* ---------- Landing (AWS-inspired) ---------- */
 .landing { min-height: 100vh; background: var(--landing-bg); color: var(--landing-text); }
 .landing-nav {

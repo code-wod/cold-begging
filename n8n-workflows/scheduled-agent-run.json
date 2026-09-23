@@ -1,0 +1,169 @@
+{
+  "name": "Cold Begging - Scheduled Agent Run",
+  "nodes": [
+    {
+      "parameters": {
+        "cronExpression": "0 7 * * *",
+        "timezone": "Asia/Kolkata"
+      },
+      "name": "Daily Trigger (7 AM IST)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/api/n8n/agent/users-with-portals",
+        "method": "GET",
+        "options": {},
+        "headerParametersJson": "{\n  \"X-N8N-Secret\": \"{{$env.N8N_WEBHOOK_SECRET}}\"\n}"
+      },
+      "name": "Get Users with Connected Portals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const users = items[0].json;\nreturn users.map(user => ({\n  json: {\n    user_id: user.id,\n    email: user.email,\n    connected_platforms: user.connected_platforms\n  }\n}));"
+      },
+      "name": "Split Users",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/api/n8n/webhook/agent/run",
+        "method": "POST",
+        "options": {},
+        "headerParametersJson": "{\n  \"X-N8N-Secret\": \"{{$env.N8N_WEBHOOK_SECRET}}\",\n  \"Content-Type\": \"application/json\"\n}",
+        "bodyParametersJson": "={\n  \"user_id\": {{ $json.user_id }},\n  \"platforms\": {{ JSON.stringify($json.connected_platforms) }},\n  \"dry_run\": true\n}"
+      },
+      "name": "Run Agent for User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const results = items.map(item => item.json);\nconst totalUsers = results.length;\nconst totalJobs = results.reduce((acc, r) => acc + r.jobs_found, 0);\nconst totalMatches = results.reduce((acc, r) => acc + r.matches_triggered, 0);\nconst totalApps = results.reduce((acc, r) => acc + r.applications_created, 0);\nconst allErrors = results.flatMap(r => r.errors || []);\n\nreturn [{\n  json: {\n    users_processed: totalUsers,\n    jobs_found: totalJobs,\n    matches_triggered: totalMatches,\n    applications_created: totalApps,\n    errors: allErrors\n  }\n}];"
+      },
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/api/n8n/webhook/agent/notify",
+        "method": "POST",
+        "options": {},
+        "headerParametersJson": "{\n  \"X-N8N-Secret\": \"{{$env.N8N_WEBHOOK_SECRET}}\",\n  \"Content-Type\": \"application/json\"\n}",
+        "bodyParametersJson": "={\n  \"user_id\": {{ $json.user_id }},\n  \"type\": \"agent_completed\",\n  \"data\": {{\n    \"users_processed\": {{ $json[0].users_processed }},\n    \"jobs_found\": {{ $json[0].jobs_found }},\n    \"matches_triggered\": {{ $json[0].matches_triggered }},\n    \"applications_created\": {{ $json[0].applications_created }},\n    \"errors\": {{ JSON.stringify($json[0].errors) }}\n  }}\n}"
+      },
+      "name": "Send Completion Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1000, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "const hasErrors = $json[0].errors && $json[0].errors.length > 0;\nreturn [{\n  json: { hasErrors }\n}];"
+      },
+      "name": "Check for Errors",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/api/n8n/webhook/agent/notify",
+        "method": "POST",
+        "options": {},
+        "headerParametersJson": "{\n  \"X-N8N-Secret\": \"{{$env.N8N_WEBHOOK_SECRET}}\",\n  \"Content-Type\": \"application/json\"\n}",
+        "bodyParametersJson": "={\n  \"user_id\": {{ $json[0].user_id }},\n  \"type\": \"agent_error\",\n  \"data\": {{\n    \"error\": {{ JSON.stringify($json[0].errors.join(', ')) }},\n    \"platform\": \"multiple\"\n  }}\n}"
+      },
+      "name": "Send Error Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1500, 600]
+    }
+  ],
+  "connections": {
+    "Daily Trigger (7 AM IST)": {
+      "main": [
+        [
+          {
+            "node": "Get Users with Connected Portals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Users with Connected Portals": {
+      "main": [
+        [
+          {
+            "node": "Split Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Users": {
+      "main": [
+        [
+          {
+            "node": "Run Agent for User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Agent for User": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Send Completion Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check for Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Errors": {
+      "main": [
+        [
+          {
+            "node": "Send Error Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "4"
+}
