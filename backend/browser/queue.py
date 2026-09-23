@@ -21,6 +21,8 @@ class TaskType(Enum):
     APPLY_JOB = 'apply_job'
     DISCONNECT = 'disconnect'
     OPEN_BROWSER = 'open_browser'
+    AUTOFILL_APPLICATION = 'autofill_application'
+    SUBMIT_APPLICATION = 'submit_application'
 
 
 class TaskStatus(Enum):

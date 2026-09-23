@@ -48,6 +48,7 @@ FERNET_KEY = _fernet_secret()
 
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 
@@ -100,3 +101,6 @@ DEFAULT_MIN_MATCH_SCORE = int(os.getenv('DEFAULT_MIN_MATCH_SCORE', '80'))
 DRY_RUN = os.getenv('DRY_RUN', 'true').lower() == 'true'
 MAX_BROWSER_WORKERS = int(os.getenv('MAX_BROWSER_WORKERS', '3'))
 MAX_USER_CONCURRENT_SESSIONS = int(os.getenv('MAX_USER_CONCURRENT_SESSIONS', '1'))
+
+# Job Application Autofill
+AUTOFILL_UPLOAD_DIR = os.getenv('AUTOFILL_UPLOAD_DIR', os.path.join(BASE_DIR, 'uploads', 'autofill'))

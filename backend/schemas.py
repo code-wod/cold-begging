@@ -590,3 +590,177 @@ class ApplicationListOut(BaseModel):
 class JobSourceOut(BaseModel):
     name: str
     capabilities: JobSourceCapabilities
+
+
+# ---------- Job Application Autofill ----------
+class JobProfileIn(BaseModel):
+    first_name: str = ''
+    middle_name: str = ''
+    last_name: str = ''
+    preferred_name: str = ''
+    email: str = ''
+    phone: str = ''
+    country: str = ''
+    state: str = ''
+    city: str = ''
+    address: str = ''
+    postal_code: str = ''
+    current_title: str = ''
+    current_company: str = ''
+    years_of_experience: Optional[int] = None
+    linkedin_url: str = ''
+    github_url: str = ''
+    portfolio_url: str = ''
+    personal_website: str = ''
+    degree: str = ''
+    field_of_study: str = ''
+    university: str = ''
+    graduation_year: Optional[int] = None
+    gpa: str = ''
+    education_history: list = []
+    authorized_to_work: Optional[bool] = None
+    requires_sponsorship: Optional[bool] = None
+    work_authorization_countries: list = []
+    preferred_locations: list = []
+    remote_preference: str = 'any'
+    employment_type: str = 'full_time'
+    notice_period: str = ''
+    expected_salary: str = ''
+    expected_salary_currency: str = 'USD'
+    willing_to_relocate: Optional[bool] = None
+    willing_to_travel: Optional[bool] = None
+    programming_languages: list = []
+    frameworks: list = []
+    databases: list = []
+    tools: list = []
+    other_skills: list = []
+    experience_history: list = []
+    projects: list = []
+    certifications: list = []
+    common_answers: dict = {}
+    eeoo_answers: dict = {}
+    custom_answers: dict = {}
+
+
+class JobProfileOut(BaseModel):
+    id: int
+    user_id: int
+    first_name: str = ''
+    middle_name: str = ''
+    last_name: str = ''
+    preferred_name: str = ''
+    email: str = ''
+    phone: str = ''
+    country: str = ''
+    state: str = ''
+    city: str = ''
+    address: str = ''
+    postal_code: str = ''
+    current_title: str = ''
+    current_company: str = ''
+    years_of_experience: Optional[int] = None
+    linkedin_url: str = ''
+    github_url: str = ''
+    portfolio_url: str = ''
+    personal_website: str = ''
+    degree: str = ''
+    field_of_study: str = ''
+    university: str = ''
+    graduation_year: Optional[int] = None
+    gpa: str = ''
+    education_history: list = []
+    authorized_to_work: Optional[bool] = None
+    requires_sponsorship: Optional[bool] = None
+    work_authorization_countries: list = []
+    preferred_locations: list = []
+    remote_preference: str = 'any'
+    employment_type: str = 'full_time'
+    notice_period: str = ''
+    expected_salary: str = ''
+    expected_salary_currency: str = 'USD'
+    willing_to_relocate: Optional[bool] = None
+    willing_to_travel: Optional[bool] = None
+    programming_languages: list = []
+    frameworks: list = []
+    databases: list = []
+    tools: list = []
+    other_skills: list = []
+    experience_history: list = []
+    projects: list = []
+    certifications: list = []
+    common_answers: dict = {}
+    eeoo_answers: dict = {}
+    custom_answers: dict = {}
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AutofillApplicationCreate(BaseModel):
+    job_url: str
+    resume_id: Optional[int] = None
+
+
+class AutofillApplicationOut(BaseModel):
+    id: int
+    user_id: int
+    job_url: str
+    company_name: str = ''
+    role_title: str = ''
+    ats_platform: str = ''
+    status: str = 'preparing'
+    total_fields: int = 0
+    auto_filled: int = 0
+    needs_review: int = 0
+    unanswered: int = 0
+    error_code: str = ''
+    error_message: str = ''
+    requires_user_action: str = ''
+    screenshot_path: str = ''
+    resume_id: Optional[int] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    submitted_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AutofillFieldOut(BaseModel):
+    id: int
+    application_id: int
+    field_label: str = ''
+    field_name: str = ''
+    field_id: str = ''
+    field_type: str = 'text'
+    field_selector: str = ''
+    placeholder: str = ''
+    aria_label: str = ''
+    section: str = ''
+    options: list = []
+    profile_field: str = ''
+    mapped_value: str = ''
+    confidence: float = 0.0
+    mapping_reasoning: str = ''
+    user_value: str = ''
+    requires_review: bool = False
+    user_edited: bool = False
+    skipped: bool = False
+    status: str = 'pending'
+    order: int = 0
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AutofillFieldUpdate(BaseModel):
+    user_value: str
+    skipped: bool = False
+
+
+class AutofillSubmitRequest(BaseModel):
+    confirmed: bool = False
