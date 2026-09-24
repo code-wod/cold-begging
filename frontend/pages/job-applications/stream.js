@@ -177,31 +177,37 @@ export default function BrowserStreamPage() {
                   src={`data:image/png;base64,${screenshot}`}
                   alt="Browser"
                   onLoad={handleImgLoad}
-                  onClick={handleImgClick}
-                  style={{ maxWidth: '100%', borderRadius: 4, cursor: 'crosshair', border: '1px solid var(--border)' }}
+                  style={{ maxWidth: '100%', borderRadius: 4, border: '1px solid var(--border)', display: 'block' }}
                 />
-                {/* Field overlay boxes */}
-                {imgRef.current && imgRef.current.naturalWidth > 0 && fields.map((f) => {
-                  const rect = imgRef.current.getBoundingClientRect();
-                  const sx = rect.width / imgRef.current.naturalWidth;
-                  const sy = rect.height / imgRef.current.naturalHeight;
-                  const r = f.rect;
-                  const isSel = selectedField && selectedField.index === f.index;
-                  return (
-                    <div key={f.index}
-                      onClick={(e) => { e.stopPropagation(); setSelectedField(f); setStatus('Selected: ' + f.label); }}
-                      style={{
-                        position: 'absolute',
-                        left: r.x * sx, top: r.y * sy,
-                        width: r.width * sx, height: r.height * sy,
-                        border: `2px solid ${isSel ? '#ff9900' : 'rgba(255,153,0,0.25)'}`,
-                        background: isSel ? 'rgba(255,153,0,0.12)' : 'transparent',
-                        cursor: 'pointer', borderRadius: 2, pointerEvents: 'auto',
-                      }}
-                      title={f.label}
-                    />
-                  );
-                })}
+                {/* Click catcher + field overlays */}
+                {imgRef.current && imgRef.current.naturalWidth > 0 && (
+                  <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', zIndex: 10 }}>
+                    {/* Transparent click layer for field detection */}
+                    <div onClick={handleImgClick} style={{ position: 'absolute', inset: 0, cursor: 'crosshair' }} />
+                    {/* Field overlay boxes */}
+                    {fields.map((f) => {
+                      const rect = imgRef.current.getBoundingClientRect();
+                      const sx = rect.width / imgRef.current.naturalWidth;
+                      const sy = rect.height / imgRef.current.naturalHeight;
+                      const r = f.rect;
+                      const isSel = selectedField && selectedField.index === f.index;
+                      return (
+                        <div key={f.index}
+                          onClick={(e) => { e.stopPropagation(); setSelectedField(f); setStatus('Selected: ' + f.label); }}
+                          style={{
+                            position: 'absolute',
+                            left: r.x * sx, top: r.y * sy,
+                            width: r.width * sx, height: r.height * sy,
+                            border: `2px solid ${isSel ? '#ff9900' : 'rgba(255,153,0,0.4)'}`,
+                            background: isSel ? 'rgba(255,153,0,0.15)' : 'rgba(255,153,0,0.05)',
+                            cursor: 'pointer', borderRadius: 2, zIndex: 11,
+                          }}
+                          title={f.label}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </Panel>
