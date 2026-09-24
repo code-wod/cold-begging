@@ -18,6 +18,7 @@ const NAV = [
   { section: 'Job Autofill' },
   { href: '/job-applications', label: 'Applications', icon: 'send' },
   { href: '/job-applications/apply', label: 'Apply', icon: 'play' },
+  { href: '/job-applications/stream', label: 'Browser Stream', icon: 'play' },
   { href: '/job-applications/history', label: 'History', icon: 'history' },
   { href: '/job-profile', label: 'Job Profile', icon: 'profile' },
   { section: 'Automation' },
