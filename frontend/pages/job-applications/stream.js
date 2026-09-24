@@ -31,8 +31,9 @@ export default function BrowserStreamPage() {
   const [selectedField, setSelectedField] = useState(null);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
   const wsRef = useRef(null);
-  const canvasRef = useRef(null);
+  const imgRef = useRef(null);
 
   useEffect(() => {
     api('/api/job-applications/profile').then((data) => setProfile(data)).catch(() => {});
@@ -65,7 +66,8 @@ export default function BrowserStreamPage() {
       } else if (data.type === 'fields') {
         setFields(data.fields || []);
       } else if (data.type === 'filled') {
-        setStatus(data.success ? `Field ${data.index} filled` : 'Fill failed');
+        if (data.success) setStatus('Field filled!');
+        else setStatus('Fill failed');
       } else if (data.type === 'error') {
         setStatus('Error: ' + data.message);
       }
@@ -80,33 +82,48 @@ export default function BrowserStreamPage() {
       wsRef.current.send(JSON.stringify({ action: 'close' }));
       wsRef.current.close();
     }
-    setConnected(false); setScreenshot(null); setFields([]); setStatus('');
+    setConnected(false); setScreenshot(null); setFields([]); setStatus(''); setSelectedField(null);
   };
 
-  const fillField = (fieldIndex, value) => {
-    if (wsRef.current && connected) {
-      wsRef.current.send(JSON.stringify({ action: 'fill', index: fieldIndex, value }));
+  const sendMsg = (msg) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(msg));
     }
   };
 
-  const handleScreenshotClick = (e) => {
-    if (!canvasRef.current || !fields.length) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const scaleX = canvasRef.current.naturalWidth / rect.width;
-    const scaleY = canvasRef.current.naturalHeight / rect.height;
-    const pageX = x * scaleX;
-    const pageY = y * scaleY;
+  const fillField = (fieldIndex, value) => {
+    sendMsg({ action: 'fill', index: fieldIndex, value });
+  };
 
+  const handleImgClick = (e) => {
+    if (!imgRef.current || !fields.length) return;
+    const rect = imgRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    // Scale from displayed size to natural screenshot size
+    const scaleX = imgRef.current.naturalWidth / rect.width;
+    const scaleY = imgRef.current.naturalHeight / rect.height;
+    const pageX = clickX * scaleX;
+    const pageY = clickY * scaleY;
+
+    // Find which field was clicked based on bounding box
     for (const f of fields) {
       const r = f.rect;
       if (pageX >= r.x && pageX <= r.x + r.width && pageY >= r.y && pageY <= r.y + r.height) {
         setSelectedField(f);
+        setStatus(`Selected: ${f.label}`);
         return;
       }
     }
+    // Clicked on empty area - deselect
     setSelectedField(null);
+  };
+
+  const handleImgLoad = () => {
+    if (imgRef.current) {
+      setImgSize({ w: imgRef.current.naturalWidth, h: imgRef.current.naturalHeight });
+    }
   };
 
   const filteredProfile = PROFILE_FIELDS.filter((pf) => {
@@ -122,82 +139,130 @@ export default function BrowserStreamPage() {
 
   return (
     <Layout title="Browser Stream" breadcrumb={<><Link href="/job-applications">Applications</Link> / <span>Browser Stream</span></>}>
+      {/* URL bar */}
       <Panel bodyClassName="p-16" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Paste job application URL..."
-            style={{ flex: 1 }} onKeyDown={(e) => e.key === 'Enter' && !connected && connect()} disabled={connected} />
+          <Input value={url} onChange={(e) => setUrl(e.target.value)}
+            placeholder="Paste job application URL and press Open..."
+            style={{ flex: 1 }}
+            onKeyDown={(e) => e.key === 'Enter' && !connected && connect()}
+            disabled={connected} />
           {!connected ? (
-            <Button onClick={connect} disabled={!url.trim()}>Open Page</Button>
+            <Button onClick={connect} disabled={!url.trim()}>Open</Button>
           ) : (
             <Button variant="outline" onClick={disconnect}>Close</Button>
           )}
-          {status && <span className="muted" style={{ fontSize: 12 }}>{status}</span>}
+          {status && <span className="muted" style={{ fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{status}</span>}
         </div>
       </Panel>
 
-      <div style={{ display: 'grid', gridTemplateColumns: connected ? '1fr 280px' : '1fr', gap: 16, alignItems: 'start' }}>
-        <Panel title="Browser" style={{ minHeight: 400 }}>
-          {!connected && !screenshot && (
-            <div style={{ textAlign: 'center', padding: 60 }}>
-              <h3 style={{ marginBottom: 8 }}>Paste a job URL and click Open</h3>
-              <p className="muted" style={{ fontSize: 14 }}>The page opens in a streamed browser. Click any form field to see profile suggestions.</p>
-            </div>
-          )}
-          {screenshot && (
-            <div style={{ position: 'relative', textAlign: 'center' }}>
-              <img ref={canvasRef} src={`data:image/png;base64,${screenshot}`} alt="Browser stream"
-                onClick={handleScreenshotClick}
-                style={{ maxWidth: '100%', borderRadius: 4, cursor: 'crosshair', border: '1px solid var(--border)' }} />
-              {canvasRef.current && fields.map((f) => {
-                const rect = canvasRef.current.getBoundingClientRect();
-                const scaleX = rect.width / (canvasRef.current.naturalWidth || 1);
-                const scaleY = rect.height / (canvasRef.current.naturalHeight || 1);
-                const r = f.rect;
-                const isSelected = selectedField?.index === f.index;
-                return (
-                  <div key={f.index} onClick={(e) => { e.stopPropagation(); setSelectedField(f); }}
-                    style={{ position: 'absolute', left: r.x * scaleX, top: r.y * scaleY, width: r.width * scaleX, height: r.height * scaleY,
-                      border: `1px solid ${isSelected ? 'var(--accent)' : 'rgba(255,153,0,0.3)'}`,
-                      background: isSelected ? 'rgba(255,153,0,0.1)' : 'transparent',
-                      cursor: 'pointer', borderRadius: 2 }} title={f.label} />
-                );
-              })}
-            </div>
-          )}
-          {connected && !screenshot && <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>}
-        </Panel>
+      {!connected && !screenshot && (
+        <div style={{ textAlign: 'center', padding: 80 }}>
+          <h3 style={{ marginBottom: 8 }}>Paste a job URL above and click Open</h3>
+          <p className="muted" style={{ fontSize: 14 }}>The page will stream here. Click on form fields to fill them from your profile.</p>
+        </div>
+      )}
 
-        {connected && (
-          <Panel title="Profile Values" style={{ position: 'sticky', top: 80 }}>
-            {selectedField && (
-              <div style={{ padding: 8, borderRadius: 4, background: 'var(--bg-secondary)', marginBottom: 12, fontSize: 12 }}>
-                <div className="muted" style={{ marginBottom: 4 }}>Selected:</div>
-                <div style={{ fontWeight: 600 }}>{selectedField.label}</div>
-                <div className="muted" style={{ fontSize: 11 }}>{selectedField.type} | {selectedField.name || selectedField.id || '---'}</div>
+      {/* Main: browser + profile sidebar */}
+      {connected && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16, alignItems: 'start' }}>
+          {/* Browser */}
+          <Panel title="Browser" style={{ minHeight: 400 }}>
+            {!screenshot ? (
+              <div style={{ textAlign: 'center', padding: 60 }}><Spinner /><div className="muted" style={{ marginTop: 12 }}>Loading page...</div></div>
+            ) : (
+              <div style={{ position: 'relative', display: 'inline-block', width: '100%', textAlign: 'center' }}>
+                <img
+                  ref={imgRef}
+                  src={`data:image/png;base64,${screenshot}`}
+                  alt="Browser"
+                  onLoad={handleImgLoad}
+                  onClick={handleImgClick}
+                  style={{ maxWidth: '100%', borderRadius: 4, cursor: 'crosshair', border: '1px solid var(--border)' }}
+                />
+                {/* Field overlay boxes */}
+                {imgRef.current && imgRef.current.naturalWidth > 0 && fields.map((f) => {
+                  const rect = imgRef.current.getBoundingClientRect();
+                  const sx = rect.width / imgRef.current.naturalWidth;
+                  const sy = rect.height / imgRef.current.naturalHeight;
+                  const r = f.rect;
+                  const isSel = selectedField && selectedField.index === f.index;
+                  return (
+                    <div key={f.index}
+                      onClick={(e) => { e.stopPropagation(); setSelectedField(f); setStatus('Selected: ' + f.label); }}
+                      style={{
+                        position: 'absolute',
+                        left: r.x * sx, top: r.y * sy,
+                        width: r.width * sx, height: r.height * sy,
+                        border: `2px solid ${isSel ? '#ff9900' : 'rgba(255,153,0,0.25)'}`,
+                        background: isSel ? 'rgba(255,153,0,0.12)' : 'transparent',
+                        cursor: 'pointer', borderRadius: 2, pointerEvents: 'auto',
+                      }}
+                      title={f.label}
+                    />
+                  );
+                })}
               </div>
             )}
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search profile..." style={{ marginBottom: 8, fontSize: 12 }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 400, overflowY: 'auto' }}>
+          </Panel>
+
+          {/* Profile sidebar */}
+          <Panel title={selectedField ? `Fill: ${selectedField.label}` : 'Your Profile'} style={{ position: 'sticky', top: 80 }}>
+            {selectedField && (
+              <div style={{ padding: 10, borderRadius: 6, background: 'var(--bg-secondary)', marginBottom: 12, border: '1px solid var(--accent)' }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{selectedField.label}</div>
+                <div className="muted" style={{ fontSize: 11 }}>
+                  Type: {selectedField.type}{selectedField.name ? ` | Name: ${selectedField.name}` : ''}
+                </div>
+                {selectedField.value && (
+                  <div style={{ fontSize: 12, marginTop: 4, padding: '4px 6px', borderRadius: 3, background: 'var(--card)', border: '1px solid var(--border)' }}>
+                    Current: {selectedField.value}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <Input value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search profile values..." style={{ marginBottom: 8, fontSize: 12 }} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 450, overflowY: 'auto' }}>
               {!profile ? <Spinner /> : filteredProfile.length === 0 ? (
-                <div className="muted" style={{ fontSize: 12, textAlign: 'center', padding: 12 }}>No matching values</div>
+                <div className="muted" style={{ fontSize: 12, textAlign: 'center', padding: 16 }}>No matching values</div>
               ) : filteredProfile.map((pf) => {
                 const val = String(profile[pf.key]);
+                const clickable = !!selectedField;
                 return (
-                  <div key={pf.key} onClick={() => selectedField && fillField(selectedField.index, val)}
-                    style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid var(--border)',
-                      cursor: selectedField ? 'pointer' : 'default', background: selectedField ? 'var(--bg-secondary)' : 'transparent', transition: 'all 0.15s' }}
-                    onMouseEnter={(e) => { if (selectedField) e.currentTarget.style.borderColor = 'var(--accent)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}>
+                  <div key={pf.key}
+                    onClick={() => {
+                      if (!clickable) return;
+                      fillField(selectedField.index, val);
+                      setStatus(`Filled "${pf.label}" -> ${selectedField.label}`);
+                    }}
+                    style={{
+                      padding: '8px 10px', borderRadius: 4,
+                      border: `1px solid ${clickable ? 'var(--border)' : 'var(--border)'}`,
+                      cursor: clickable ? 'pointer' : 'default',
+                      background: clickable ? 'var(--bg-secondary)' : 'transparent',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => { if (clickable) { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.background = 'rgba(255,153,0,0.05)'; } }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = clickable ? 'var(--bg-secondary)' : 'transparent'; }}
+                  >
                     <div className="muted" style={{ fontSize: 10, marginBottom: 2 }}>{pf.label}</div>
                     <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</div>
                   </div>
                 );
               })}
             </div>
-            {!selectedField && <div className="muted" style={{ fontSize: 11, textAlign: 'center', marginTop: 12 }}>Click a field on the page, then click a value to fill</div>}
+
+            <div style={{ marginTop: 12, padding: '8px 10px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: 11, color: 'var(--muted)', textAlign: 'center' }}>
+              {selectedField
+                ? 'Click a profile value above to fill this field'
+                : 'Click a field on the page (orange boxes) to select it, then pick a value'}
+            </div>
           </Panel>
-        )}
-      </div>
+        </div>
+      )}
     </Layout>
   );
 }
