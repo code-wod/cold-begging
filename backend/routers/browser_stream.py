@@ -217,81 +217,96 @@ async def browser_stream_ws(websocket: WebSocket):
                         await page.close()
                     except Exception:
                         pass
+                if context:
+                    try:
+                        await context.close()
+                    except Exception:
+                        pass
 
                 try:
-                    ctx = await browser_mgr.ephemeral_context()
-                    context = ctx
-                    page = await context.new_page()
-                    await page.goto(url, wait_until='domcontentloaded', timeout=30000)
-                    await page.wait_for_timeout(3000)
+                    async with browser_mgr.ephemeral_context() as ctx:
+                        context = ctx
+                        page = await context.new_page()
+                        await page.goto(url, wait_until='domcontentloaded', timeout=30000)
+                        await page.wait_for_timeout(3000)
 
-                    # Send initial screenshot
-                    screenshot_bytes = await page.screenshot(full_page=False)
-                    b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
-                    await websocket.send_json({'type': 'screenshot', 'data': b64})
+                        # Send initial screenshot
+                        screenshot_bytes = await page.screenshot(full_page=False)
+                        b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
+                        await websocket.send_json({'type': 'screenshot', 'data': b64})
 
-                    # Extract and send fields
-                    fields = await _extract_fields_from_page(page)
-                    await websocket.send_json({'type': 'fields', 'fields': fields})
+                        # Extract and send fields
+                        fields = await _extract_fields_from_page(page)
+                        await websocket.send_json({'type': 'fields', 'fields': fields})
 
-                    # Start periodic screenshots
-                    if screenshot_task:
-                        screenshot_task.cancel()
-                    screenshot_task = asyncio.create_task(send_screenshot())
+                        # Start periodic screenshots
+                        if screenshot_task:
+                            screenshot_task.cancel()
+                        screenshot_task = asyncio.create_task(send_screenshot())
+
+                        # Keep processing messages while this context is open
+                        while running:
+                            try:
+                                msg = await asyncio.wait_for(websocket.receive_json(), timeout=30)
+                            except asyncio.TimeoutError:
+                                continue
+                            except WebSocketDisconnect:
+                                running = False
+                                break
+
+                            action = msg.get('action', '')
+                            if action == 'close':
+                                running = False
+                                break
+                            elif action == 'fill':
+                                index = msg.get('index')
+                                value = msg.get('value', '')
+                                if page and not page.is_closed() and index is not None:
+                                    success = await _fill_field_by_index(page, index, value)
+                                    await websocket.send_json({'type': 'filled', 'index': index, 'success': success})
+                                    try:
+                                        screenshot_bytes = await page.screenshot(full_page=False)
+                                        b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
+                                        await websocket.send_json({'type': 'screenshot', 'data': b64})
+                                    except Exception:
+                                        pass
+                            elif action == 'click':
+                                x = msg.get('x', 0)
+                                y = msg.get('y', 0)
+                                if page and not page.is_closed():
+                                    try:
+                                        await page.mouse.click(x, y)
+                                        await page.wait_for_timeout(500)
+                                        fields = await _extract_fields_from_page(page)
+                                        await websocket.send_json({'type': 'fields', 'fields': fields})
+                                        screenshot_bytes = await page.screenshot(full_page=False)
+                                        b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
+                                        await websocket.send_json({'type': 'screenshot', 'data': b64})
+                                    except Exception as e:
+                                        await websocket.send_json({'type': 'error', 'message': str(e)})
+                            elif action == 'scroll':
+                                delta = msg.get('delta', 0)
+                                if page and not page.is_closed():
+                                    try:
+                                        await page.mouse.wheel(0, delta)
+                                        await page.wait_for_timeout(300)
+                                        screenshot_bytes = await page.screenshot(full_page=False)
+                                        b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
+                                        await websocket.send_json({'type': 'screenshot', 'data': b64})
+                                    except Exception:
+                                        pass
+                            elif action == 'fields':
+                                if page and not page.is_closed():
+                                    fields = await _extract_fields_from_page(page)
+                                    await websocket.send_json({'type': 'fields', 'fields': fields})
+                            elif action == 'open':
+                                # Re-open: break inner loop to reopen
+                                url = msg.get('url', '')
+                                if url:
+                                    break
 
                 except Exception as e:
                     await websocket.send_json({'type': 'error', 'message': f'Failed to open: {str(e)}'})
-
-            elif action == 'fill':
-                index = msg.get('index')
-                value = msg.get('value', '')
-                if page and not page.is_closed() and index is not None:
-                    success = await _fill_field_by_index(page, index, value)
-                    await websocket.send_json({'type': 'filled', 'index': index, 'success': success})
-                    # Send updated screenshot
-                    try:
-                        screenshot_bytes = await page.screenshot(full_page=False)
-                        b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
-                        await websocket.send_json({'type': 'screenshot', 'data': b64})
-                    except Exception:
-                        pass
-
-            elif action == 'click':
-                x = msg.get('x', 0)
-                y = msg.get('y', 0)
-                if page and not page.is_closed():
-                    try:
-                        await page.mouse.click(x, y)
-                        await page.wait_for_timeout(500)
-                        # Re-extract fields after click (dropdown might have opened)
-                        fields = await _extract_fields_from_page(page)
-                        await websocket.send_json({'type': 'fields', 'fields': fields})
-                        screenshot_bytes = await page.screenshot(full_page=False)
-                        b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
-                        await websocket.send_json({'type': 'screenshot', 'data': b64})
-                    except Exception as e:
-                        await websocket.send_json({'type': 'error', 'message': str(e)})
-
-            elif action == 'scroll':
-                delta = msg.get('delta', 0)
-                if page and not page.is_closed():
-                    try:
-                        await page.mouse.wheel(0, delta)
-                        await page.wait_for_timeout(300)
-                        screenshot_bytes = await page.screenshot(full_page=False)
-                        b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
-                        await websocket.send_json({'type': 'screenshot', 'data': b64})
-                    except Exception:
-                        pass
-
-            elif action == 'fields':
-                if page and not page.is_closed():
-                    fields = await _extract_fields_from_page(page)
-                    await websocket.send_json({'type': 'fields', 'fields': fields})
-
-            elif action == 'close':
-                running = False
-                break
 
     except WebSocketDisconnect:
         pass
