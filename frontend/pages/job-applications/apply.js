@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import Layout from '../../components/Layout';
 import { Card, Button, Badge, Empty, Spinner, Input } from '../../components/ui';
-import api from '../../lib/api';
+import { api } from '../../lib/api';
 import { useRouter } from 'next/router';
 
 const PROFILE_FIELDS = [
@@ -56,8 +57,11 @@ export default function ApplyPage() {
   const [selectedField, setSelectedField] = useState(null);
   const [profileSearch, setProfileSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  // Review state
+  const [step, setStep] = useState('fill'); // fill | review
+  const [filledScreenshot, setFilledScreenshot] = useState(null);
+  const [filledCount, setFilledCount] = useState(0);
 
-  // Load profile
   useEffect(() => {
     api.get('/job-applications/profile').then((r) => setProfile(r.data)).catch(() => {});
   }, []);
@@ -67,6 +71,8 @@ export default function ApplyPage() {
     setExtracting(true);
     setFields([]);
     setScreenshot(null);
+    setStep('fill');
+    setFilledScreenshot(null);
     try {
       const res = await api.post('/job-applications/extract-fields', { job_url: url });
       setFields(res.data.fields || []);
@@ -120,15 +126,19 @@ export default function ApplyPage() {
           user_value: f.user_value || f.mapped_value || '',
         })),
       });
-      if (res.data.screenshot) {
-        setScreenshot(res.data.screenshot);
-      }
-      alert(`Filled ${res.data.filled_count} fields on the actual page!`);
+      const newScreenshot = res.data.screenshot;
+      setFilledScreenshot(newScreenshot);
+      setFilledCount(res.data.filled_count);
+      setStep('review');
     } catch (e) {
       alert('Fill failed: ' + (e.response?.data?.detail || e.message));
     } finally {
       setFilling(false);
     }
+  };
+
+  const goBackToFill = () => {
+    setStep('fill');
   };
 
   const saveAndContinue = async () => {
@@ -159,9 +169,11 @@ export default function ApplyPage() {
   });
 
   const categories = ['All', ...new Set(PROFILE_FIELDS.map((f) => f.category))];
+  const filledFields = fields.filter((f) => f.user_value || f.mapped_value);
+  const unfilledRequired = fields.filter((f) => f.required && !f.user_value && !f.mapped_value);
 
   return (
-    <Layout title="Apply to Job" breadcrumb={[{ label: 'Applications', href: '/job-applications' }, { label: 'Apply' }]}>
+    <Layout title="Apply to Job" breadcrumb={<><Link href="/job-applications">Applications</Link> / <span>Apply</span></>}>
       {/* URL Input */}
       <Card style={{ padding: 16, marginBottom: 16 }}>
         <div className="flex" style={{ gap: 8 }}>
@@ -175,16 +187,23 @@ export default function ApplyPage() {
           <Button onClick={extractFields} disabled={extracting || !url.trim()}>
             {extracting ? 'Extracting...' : 'Extract Fields'}
           </Button>
-          {fields.length > 0 && (
+          {fields.length > 0 && step === 'fill' && (
             <>
               <Button variant="outline" onClick={fillAllFromProfile} disabled={filling}>
                 Fill All from Profile
               </Button>
-              <Button onClick={fillRemote} disabled={filling}>
-                {filling ? 'Filling...' : 'Fill on Page'}
+              <Button onClick={fillRemote} disabled={filling || filledFields.length === 0}>
+                {filling ? 'Filling...' : `Fill on Page (${filledFields.length})`}
               </Button>
-              <Button variant="outline" onClick={saveAndContinue} disabled={loading}>
-                {loading ? 'Saving...' : 'Save & Continue'}
+            </>
+          )}
+          {step === 'review' && (
+            <>
+              <Button variant="outline" onClick={goBackToFill}>
+                Back to Edit
+              </Button>
+              <Button onClick={saveAndContinue} disabled={loading}>
+                {loading ? 'Saving...' : 'Save & Submit'}
               </Button>
             </>
           )}
@@ -205,16 +224,21 @@ export default function ApplyPage() {
         </div>
       )}
 
-      {/* Side-by-side panels */}
-      {fields.length > 0 && (
+      {/* FILL STEP: Side-by-side panels */}
+      {!extracting && fields.length > 0 && step === 'fill' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16, alignItems: 'start' }}>
           {/* LEFT: Extracted Fields */}
           <Card style={{ padding: 16 }}>
-            <div style={{ fontWeight: 600, marginBottom: 12 }}>
-              Form Fields ({fields.length})
+            <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontWeight: 600 }}>Form Fields ({fields.length})</span>
+              <div className="flex" style={{ gap: 6 }}>
+                <Badge color="var(--success)">{filledFields.length} filled</Badge>
+                {unfilledRequired.length > 0 && (
+                  <Badge color="var(--error)">{unfilledRequired.length} required missing</Badge>
+                )}
+              </div>
             </div>
 
-            {/* Screenshot */}
             {screenshot && (
               <div style={{ marginBottom: 16, textAlign: 'center' }}>
                 <img
@@ -225,12 +249,12 @@ export default function ApplyPage() {
               </div>
             )}
 
-            {/* Fields list */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {fields.map((f, i) => {
                 const val = f.user_value || f.mapped_value || '';
                 const level = getConfidenceLevel(f.confidence);
                 const isSelected = selectedField === i;
+                const isFilled = !!(f.user_value || f.mapped_value);
                 return (
                   <div
                     key={i}
@@ -238,8 +262,8 @@ export default function ApplyPage() {
                     style={{
                       padding: '10px 12px',
                       borderRadius: 6,
-                      border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
-                      background: isSelected ? 'var(--accent-bg, rgba(255,153,0,0.05))' : 'var(--card)',
+                      border: `1px solid ${isSelected ? 'var(--accent)' : isFilled ? 'var(--success)' : 'var(--border)'}`,
+                      background: isSelected ? 'rgba(255,153,0,0.05)' : isFilled ? 'rgba(0,200,0,0.03)' : 'var(--card)',
                       cursor: 'pointer',
                       transition: 'all 0.15s',
                     }}
@@ -249,7 +273,7 @@ export default function ApplyPage() {
                       <div className="flex" style={{ gap: 4, alignItems: 'center' }}>
                         {f.required && <Badge color="var(--error)" style={{ fontSize: 9 }}>Required</Badge>}
                         <Badge color={CONFIDENCE_COLORS[level]} style={{ fontSize: 9 }}>
-                          {level} ({Math.round(f.confidence * 100)}%)
+                          {Math.round(f.confidence * 100)}%
                         </Badge>
                         {f.field_type !== 'text' && (
                           <Badge style={{ fontSize: 9 }}>{f.field_type}</Badge>
@@ -309,12 +333,6 @@ export default function ApplyPage() {
                         }}
                       />
                     )}
-
-                    {f.mapping_reasoning && (
-                      <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
-                        {f.mapping_reasoning}
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -328,7 +346,6 @@ export default function ApplyPage() {
               {selectedField !== null ? 'Click a value to fill the selected field' : 'Click a field on the left, then pick a profile value'}
             </div>
 
-            {/* Search */}
             <Input
               value={profileSearch}
               onChange={(e) => setProfileSearch(e.target.value)}
@@ -336,7 +353,6 @@ export default function ApplyPage() {
               style={{ marginBottom: 8, fontSize: 12 }}
             />
 
-            {/* Category tabs */}
             <div className="flex" style={{ gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
               {categories.map((cat) => (
                 <button
@@ -353,7 +369,6 @@ export default function ApplyPage() {
               ))}
             </div>
 
-            {/* Profile values */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 500, overflowY: 'auto' }}>
               {!profile ? (
                 <Spinner />
@@ -389,13 +404,91 @@ export default function ApplyPage() {
         </div>
       )}
 
+      {/* REVIEW STEP: After filling */}
+      {!extracting && fields.length > 0 && step === 'review' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
+          {/* LEFT: Filled page screenshot */}
+          <Card style={{ padding: 16 }}>
+            <div style={{ fontWeight: 600, marginBottom: 12 }}>
+              Filled Page Preview — {filledCount} field{filledCount !== 1 ? 's' : ''} filled
+            </div>
+            {(filledScreenshot || screenshot) ? (
+              <div style={{ textAlign: 'center' }}>
+                <img
+                  src={`data:image/png;base64,${filledScreenshot || screenshot}`}
+                  alt="Filled job page"
+                  style={{ maxWidth: '100%', borderRadius: 6, border: '1px solid var(--border)' }}
+                />
+              </div>
+            ) : (
+              <Empty message="No screenshot available" />
+            )}
+            <div className="muted" style={{ fontSize: 12, marginTop: 12, textAlign: 'center' }}>
+              Review the filled form above. Click "Back to Edit" to make changes, or "Save & Submit" to proceed.
+            </div>
+          </Card>
+
+          {/* RIGHT: Field summary */}
+          <Card style={{ padding: 16, position: 'sticky', top: 80 }}>
+            <div style={{ fontWeight: 600, marginBottom: 12 }}>Field Summary</div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {fields.map((f, i) => {
+                const val = f.user_value || f.mapped_value || '';
+                const isFilled = !!val;
+                return (
+                  <div key={i} style={{
+                    padding: '8px 10px', borderRadius: 4,
+                    border: `1px solid ${isFilled ? 'var(--success)' : 'var(--border)'}`,
+                    background: isFilled ? 'rgba(0,200,0,0.03)' : 'transparent',
+                  }}>
+                    <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, fontWeight: 500 }}>{f.field_label || f.field_name || `Field ${i + 1}`}</span>
+                      {isFilled ? (
+                        <Badge color="var(--success)" style={{ fontSize: 9 }}>Filled</Badge>
+                      ) : f.required ? (
+                        <Badge color="var(--error)" style={{ fontSize: 9 }}>Required</Badge>
+                      ) : (
+                        <Badge style={{ fontSize: 9 }}>Empty</Badge>
+                      )}
+                    </div>
+                    {isFilled && (
+                      <div style={{ fontSize: 12, marginTop: 2, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {val}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ marginTop: 16, padding: 12, borderRadius: 6, background: 'var(--bg-secondary)' }}>
+              <div className="flex" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 13 }}>Total fields</span>
+                <span style={{ fontWeight: 600 }}>{fields.length}</span>
+              </div>
+              <div className="flex" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 13, color: 'var(--success)' }}>Filled</span>
+                <span style={{ fontWeight: 600, color: 'var(--success)' }}>{filledFields.length}</span>
+              </div>
+              {unfilledRequired.length > 0 && (
+                <div className="flex" style={{ justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 13, color: 'var(--error)' }}>Required missing</span>
+                  <span style={{ fontWeight: 600, color: 'var(--error)' }}>{unfilledRequired.length}</span>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Empty state */}
       {!extracting && fields.length === 0 && (
         <div style={{ textAlign: 'center', padding: 60 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🔗</div>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>&#128279;</div>
           <h3 style={{ marginBottom: 8 }}>Paste a job URL above</h3>
           <p className="muted" style={{ fontSize: 14 }}>
-            We'll open the page, detect the ATS, and extract all form fields.
+            We will open the page, detect the ATS, and extract all form fields.
             <br />Then you can fill them from your profile side-by-side.
           </p>
         </div>
