@@ -9,7 +9,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from backend.security import decode_access_token
 
 logger = logging.getLogger('browser_stream')
-router = APIRouter(tags=['browser-stream'])
+router = APIRouter(prefix='/api', tags=['browser-stream'])
 
 # Active browser sessions per user
 _active_sessions: Dict[int, Dict[str, Any]] = {}
