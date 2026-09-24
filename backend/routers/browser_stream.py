@@ -150,18 +150,16 @@ async def browser_stream_ws(websocket: WebSocket):
     """
     await websocket.accept()
 
-    # Authenticate
+    # Authenticate - extract token from query params
     token = websocket.query_params.get('token', '')
-    user_id = None
-    try:
-        payload = decode_access_token(token)
-        user_id = payload
-    except Exception:
-        pass
+    user_id = decode_access_token(token) if token else None
 
     if not user_id:
-        await websocket.send_json({'type': 'error', 'message': 'Authentication required'})
-        await websocket.close()
+        try:
+            await websocket.send_json({'type': 'error', 'message': 'Authentication required - please log in again'})
+        except Exception:
+            pass
+        await websocket.close(code=4001, reason='Auth required')
         return
 
     from backend.browser.worker import get_browser_manager

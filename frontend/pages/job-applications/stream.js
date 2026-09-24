@@ -35,7 +35,7 @@ export default function BrowserStreamPage() {
   const canvasRef = useRef(null);
 
   useEffect(() => {
-    api('/job-applications/profile').then((data) => setProfile(data)).catch(() => {});
+    api('/api/job-applications/profile').then((data) => setProfile(data)).catch(() => {});
   }, []);
 
   const connect = useCallback(() => {

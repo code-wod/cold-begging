@@ -56,13 +56,13 @@ export default function ApplyPage() {
   const [filledScreenshot, setFilledScreenshot] = useState(null);
   const [filledCount, setFilledCount] = useState(0);
 
-  useEffect(() => { api('/job-applications/profile').then((data) => setProfile(data)).catch(() => {}); }, []);
+  useEffect(() => { api('/api/job-applications/profile').then((data) => setProfile(data)).catch(() => {}); }, []);
 
   const extractFields = async () => {
     if (!url.trim()) return;
     setExtracting(true); setFields([]); setScreenshot(null); setStep('fill'); setFilledScreenshot(null);
     try {
-      const res = await api('/job-applications/extract-fields', { method: 'POST', body: { job_url: url } });
+      const res = await api('/api/job-applications/extract-fields', { method: 'POST', body: { job_url: url } });
       setFields(res.fields || []); setScreenshot(res.screenshot);
       setAtsPlatform(res.ats_platform || ''); setCompanyName(res.company_name || ''); setRoleTitle(res.role_title || '');
     } catch (e) { alert('Failed: ' + e.message); }
@@ -92,7 +92,7 @@ export default function ApplyPage() {
   const fillRemote = async () => {
     setFilling(true);
     try {
-      const res = await api('/job-applications/fill-remote', {
+      const res = await api('/api/job-applications/fill-remote', {
         method: 'POST',
         body: { job_url: url, fields: fields.map((f) => ({ ...f, user_value: f.user_value || f.mapped_value || '' })) },
       });
@@ -104,7 +104,7 @@ export default function ApplyPage() {
   const saveAndContinue = async () => {
     setLoading(true);
     try {
-      const res = await api('/job-applications/save-and-fill', {
+      const res = await api('/api/job-applications/save-and-fill', {
         method: 'POST',
         body: { job_url: url, fields: fields.map((f) => ({ ...f, user_value: f.user_value || f.mapped_value || '' })) },
       });

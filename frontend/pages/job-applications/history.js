@@ -49,8 +49,8 @@ export default function ApplicationHistory() {
       if (platformFilter) params.set('ats_platform', platformFilter);
       params.set('limit', '100');
       const [appsRes, statsRes] = await Promise.all([
-        api(`/job-applications/history?${params.toString()}`),
-        api('/job-applications/stats'),
+        api(`/api/job-applications/history?${params.toString()}`),
+        api('/api/job-applications/stats'),
       ]);
       setApps(appsRes); setStats(statsRes);
     } catch (e) { console.error('Failed to load history', e); }
@@ -63,7 +63,7 @@ export default function ApplicationHistory() {
     if (!confirm('Delete applications older than 30 days?')) return;
     setCleaning(true);
     try {
-      const res = await api('/job-applications/cleanup?max_age_days=30', { method: 'POST' });
+      const res = await api('/api/job-applications/cleanup?max_age_days=30', { method: 'POST' });
       alert(`Deleted ${res.deleted} old applications`); loadApps();
     } catch (e) { alert('Cleanup failed: ' + (e.response?.data?.detail || e.message)); }
     finally { setCleaning(false); }
