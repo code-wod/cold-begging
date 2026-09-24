@@ -88,6 +88,182 @@ def create_application(
     return _app_out(app)
 
 
+@router.post('/extract-fields')
+async def extract_fields_from_url(
+    data: AutofillApplicationCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Extract form fields from a job URL using Playwright (for side-by-side UI)."""
+    if not data.job_url.strip():
+        raise HTTPException(status_code=400, detail='Job URL is required')
+
+    url = data.job_url.strip()
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+
+    from backend.ats.detector import detect_ats, get_adapter
+    from backend.ats.field_extractor import extract_fields
+    from backend.browser.worker import get_browser_manager
+    from backend.services.job_profile_service import JobProfileService
+    from backend.ats.field_mapper import map_fields
+
+    profile_svc = JobProfileService(db)
+    profile = profile_svc.get_or_create(user.id)
+    profile_dict = profile.to_dict()
+
+    browser_mgr = get_browser_manager()
+    try:
+        async with browser_mgr.ephemeral_context() as context:
+            page = await context.new_page()
+            try:
+                await page.goto(url, wait_until='domcontentloaded', timeout=30000)
+                await page.wait_for_timeout(3000)
+
+                # Get page info
+                title = await page.title()
+                company = ''
+                role = ''
+                if title:
+                    parts = title.split(' - ') if ' - ' in title else title.split(' | ')
+                    if len(parts) >= 2:
+                        role = parts[0].strip()
+                        company = parts[-1].strip()
+                    elif title:
+                        role = title.strip()
+
+                # Detect ATS
+                ats_platform = await detect_ats(url, page)
+                adapter = get_adapter(ats_platform)
+
+                # Extract fields
+                if adapter:
+                    fields_data = await adapter.extract_fields(page)
+                else:
+                    fields_data = await extract_fields(page, ats_platform)
+
+                # Map to profile
+                mapped_fields = map_fields(fields_data, profile_dict)
+
+                # Try to get a screenshot
+                import os, tempfile
+                screenshot_b64 = None
+                try:
+                    screenshot_bytes = await page.screenshot(full_page=False)
+                    import base64
+                    screenshot_b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
+                except Exception:
+                    pass
+
+                return {
+                    'success': True,
+                    'ats_platform': ats_platform,
+                    'company_name': company,
+                    'role_title': role,
+                    'fields': mapped_fields,
+                    'screenshot': screenshot_b64,
+                }
+            finally:
+                await page.close()
+    except Exception as e:
+        logger.error('Extract fields error: %s', e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post('/save-and-fill')
+async def save_and_fill(
+    data: dict,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Save mapped fields and fill the actual form via Playwright."""
+    job_url = data.get('job_url', '')
+    fields = data.get('fields', [])
+    resume_id = data.get('resume_id')
+
+    if not job_url:
+        raise HTTPException(status_code=400, detail='job_url is required')
+
+    # Create application
+    svc = AutofillApplicationService(db)
+    app = svc.create(user.id, job_url, resume_id)
+
+    # Store fields
+    svc.set_fields(app.id, fields)
+
+    # Update stats
+    stats = svc.get_stats(app.id)
+    new_status = 'needs_review' if stats['needs_review'] > 0 else 'ready'
+    svc.update_status(app.id, user.id, new_status,
+        total_fields=stats['total_fields'],
+        auto_filled=stats['auto_filled'],
+        needs_review=stats['needs_review'],
+        unanswered=stats['unanswered'])
+
+    return _app_out(app)
+
+
+@router.post('/fill-remote')
+async def fill_remote(
+    data: dict,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Fill a form on a remote page via Playwright and return updated screenshot."""
+    job_url = data.get('job_url', '')
+    fields = data.get('fields', [])
+
+    if not job_url:
+        raise HTTPException(status_code=400, detail='job_url is required')
+
+    from backend.ats.detector import detect_ats, get_adapter
+    from backend.browser.worker import get_browser_manager
+
+    browser_mgr = get_browser_manager()
+    try:
+        async with browser_mgr.ephemeral_context() as context:
+            page = await context.new_page()
+            try:
+                await page.goto(job_url, wait_until='domcontentloaded', timeout=30000)
+                await page.wait_for_timeout(3000)
+
+                ats_platform = await detect_ats(job_url, page)
+                adapter = get_adapter(ats_platform)
+
+                filled_count = 0
+                if adapter:
+                    for f in fields:
+                        val = f.get('user_value') or f.get('mapped_value', '')
+                        conf = f.get('confidence', 0)
+                        if val and conf >= 0.7 and f.get('field_type') != 'file':
+                            try:
+                                success = await adapter.fill_field(page, f, val)
+                                if success:
+                                    filled_count += 1
+                            except Exception:
+                                pass
+
+                # Take screenshot
+                import base64
+                screenshot_b64 = None
+                try:
+                    screenshot_bytes = await page.screenshot(full_page=False)
+                    screenshot_b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
+                except Exception:
+                    pass
+
+                return {
+                    'success': True,
+                    'filled_count': filled_count,
+                    'screenshot': screenshot_b64,
+                }
+            finally:
+                await page.close()
+    except Exception as e:
+        logger.error('Fill remote error: %s', e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get('', response_model=dict)
 def list_applications(
     status: str = None,
