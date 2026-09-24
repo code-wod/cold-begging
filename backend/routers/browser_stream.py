@@ -283,9 +283,6 @@ async def browser_stream_ws(websocket: WebSocket):
         db.close()
 
     try:
-        # Send profile to frontend
-        await websocket.send_json({'type': 'profile', 'data': profile_dict})
-
         while True:
             try:
                 msg = await asyncio.wait_for(websocket.receive_json(), timeout=300)
@@ -344,6 +341,7 @@ async def browser_stream_ws(websocket: WebSocket):
                         'fields': fields,
                         'has_next': has_next,
                         'page_title': title,
+                        'profile': profile_dict,
                     })
 
                 except Exception as e:
@@ -395,6 +393,7 @@ async def browser_stream_ws(websocket: WebSocket):
                     'filled_count': filled_count,
                     'next_action': next_result,
                     'page_title': title,
+                    'profile': profile_dict,
                 })
 
             elif action == 'fill-and-submit':
@@ -429,6 +428,7 @@ async def browser_stream_ws(websocket: WebSocket):
                     'filled_count': filled_count,
                     'next_action': next_result or 'submitted',
                     'page_title': title,
+                    'profile': profile_dict,
                 })
 
             elif action == 'screenshot':

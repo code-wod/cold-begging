@@ -48,6 +48,7 @@ export default function BrowserStreamPage() {
         setStep(data.step || 1);
         setHasNext(data.has_next || false);
         setPageTitle(data.page_title || '');
+        if (data.profile) setProfile(data.profile);
         setFieldValues({});
         setSearch('');
         if (data.filled_count !== undefined) {
