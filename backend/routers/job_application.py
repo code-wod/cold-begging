@@ -170,6 +170,158 @@ async def extract_fields_from_url(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post('/auto-fill')
+async def auto_fill(
+    data: dict,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Open page in Playwright, auto-fill ALL steps from profile, return results.
+
+    This is the simple one-click approach: paste URL, we fill everything we can,
+    navigate through steps, and return the final state.
+    """
+    job_url = data.get('job_url', '')
+    if not job_url:
+        raise HTTPException(status_code=400, detail='job_url is required')
+
+    from backend.ats.detector import detect_ats, get_adapter
+    from backend.ats.field_extractor import extract_fields
+    from backend.ats.field_mapper import map_fields
+    from backend.browser.worker import get_browser_manager
+    from backend.services.job_profile_service import JobProfileService
+
+    profile_svc = JobProfileService(db)
+    profile = profile_svc.get_or_create(user.id)
+    profile_dict = profile.to_dict() if profile else {}
+
+    browser_mgr = get_browser_manager()
+    all_steps = []
+
+    try:
+        async with browser_mgr.ephemeral_context() as context:
+            page = await context.new_page()
+            try:
+                await page.goto(job_url, wait_until='domcontentloaded', timeout=30000)
+                await page.wait_for_timeout(3000)
+
+                # Detect ATS
+                ats_platform = await detect_ats(job_url, page)
+                adapter = get_adapter(ats_platform)
+                title = await page.title()
+
+                max_steps = 10
+                for step_num in range(1, max_steps + 1):
+                    # Extract fields on current page
+                    if adapter:
+                        fields_data = await adapter.extract_fields(page)
+                    else:
+                        fields_data = await extract_fields(page, ats_platform)
+
+                    # Map to profile
+                    mapped = map_fields(fields_data, profile_dict)
+
+                    # Auto-fill high confidence fields
+                    filled = 0
+                    for f in mapped:
+                        val = f.get('user_value') or f.get('mapped_value', '')
+                        conf = f.get('confidence', 0)
+                        if val and conf >= 0.7 and f.get('field_type') != 'file' and adapter:
+                            try:
+                                ok = await adapter.fill_field(page, f, val)
+                                if ok:
+                                    f['status'] = 'filled'
+                                    filled += 1
+                            except Exception:
+                                pass
+
+                    # Upload resume if we have one
+                    if adapter and step_num == 1:
+                        try:
+                            from backend.models import Resume
+                            resume = db.query(Resume).filter(Resume.user_id == user.id).first()
+                            if resume and resume.stored_path and os.path.exists(resume.stored_path):
+                                await adapter.upload_resume(page, resume.stored_path)
+                        except Exception:
+                            pass
+
+                    # Take screenshot
+                    import base64
+                    screenshot_b64 = ''
+                    try:
+                        ss = await page.screenshot(full_page=False)
+                        screenshot_b64 = base64.b64encode(ss).decode('utf-8')
+                    except Exception:
+                        pass
+
+                    # Check for CAPTCHA/login
+                    page_html = await page.content()
+                    page_lower = page_html.lower()
+                    blocked = 'captcha' in page_lower or 'recaptcha' in page_lower
+
+                    step_info = {
+                        'step': step_num,
+                        'fields': mapped,
+                        'total_fields': len(mapped),
+                        'filled': filled,
+                        'screenshot': screenshot_b64,
+                        'blocked': blocked,
+                    }
+                    all_steps.append(step_info)
+
+                    # If blocked or no fields, stop
+                    if blocked or len(mapped) == 0:
+                        break
+
+                    # Try to click Next/Continue
+                    if adapter:
+                        try:
+                            result = await adapter.handle_multi_step(page, max_steps=1)
+                            if result.get('steps_completed', 0) == 0:
+                                break
+                        except Exception:
+                            break
+                    else:
+                        # Generic next button click
+                        clicked = await page.evaluate('''() => {
+                            const btns = document.querySelectorAll('button, a, [role="button"]');
+                            for (const b of btns) {
+                                if (b.offsetParent === null) continue;
+                                const t = b.textContent.trim().toLowerCase();
+                                if (t.includes('next') || t.includes('continue')) {
+                                    b.click();
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }''')
+                        if not clicked:
+                            break
+                        await page.wait_for_timeout(3000)
+
+                    await page.wait_for_timeout(1000)
+
+            finally:
+                await page.close()
+
+    except Exception as e:
+        logger.error('Auto-fill error: %s', e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+    total_filled = sum(s['filled'] for s in all_steps)
+    total_fields = sum(s['total_fields'] for s in all_steps)
+
+    return {
+        'success': True,
+        'ats_platform': ats_platform if all_steps else 'unknown',
+        'total_steps': len(all_steps),
+        'total_fields': total_fields,
+        'total_filled': total_filled,
+        'steps': [{k: v for k, v in s.items() if k != 'screenshot'} for s in all_steps],
+        'screenshots': [s['screenshot'] for s in all_steps if s['screenshot']],
+    }
+
+
 @router.post('/save-and-fill')
 async def save_and_fill(
     data: dict,
