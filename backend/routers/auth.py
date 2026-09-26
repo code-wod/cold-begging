@@ -31,6 +31,7 @@ from ..config import (
 )
 from ..database import get_db
 from ..email_credit_service import grant_free_credits
+from ..email_templates import password_reset_email, verification_email
 from ..encryption import decrypt_plaintext, encrypt_plaintext
 from ..models import PasswordReset, Profile, Subscription, User, EmailVerification
 from ..schemas import (
@@ -107,10 +108,12 @@ def _send_verification_email(user, token):
         logger.warning('SMTP not configured — skipping verification email for %s', user.email)
         return False
     verification_link = f'{API_BASE}/user-email/verification?token={token}&email={user.email}'
-    msg = MIMEText(f'Click here to verify your email: {verification_link}')
-    msg['Subject'] = f'Verify your {SMTP_FROM_NAME} account'
+    html_body = verification_email(verification_link, user.full_name)
+    msg = MIMEText(html_body, 'html')
+    msg['Subject'] = f'Verify your {SMTP_FROM_NAME} email'
     msg['From'] = f'{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>'
     msg['To'] = user.email
+    msg['Reply-To'] = SMTP_FROM_EMAIL
     try:
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as smtp:
             smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
@@ -127,14 +130,12 @@ def _send_password_reset_email(user, token):
         logger.warning('SMTP not configured — skipping reset email for %s', user.email)
         return False
     reset_link = f'{FRONTEND_URL}/login?reset_token={token}'
-    msg = MIMEText(
-        f'You requested a password reset.\n\n'
-        f'Click here to reset: {reset_link}\n\n'
-        f'If you did not request this, ignore this email. The link expires in 1 hour.'
-    )
-    msg['Subject'] = f'{SMTP_FROM_NAME} — Password Reset'
+    html_body = password_reset_email(reset_link, user.full_name)
+    msg = MIMEText(html_body, 'html')
+    msg['Subject'] = f'{SMTP_FROM_NAME} — Reset your password'
     msg['From'] = f'{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>'
     msg['To'] = user.email
+    msg['Reply-To'] = SMTP_FROM_EMAIL
     try:
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as smtp:
             smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
