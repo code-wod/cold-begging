@@ -107,7 +107,7 @@ export default function AIModels() {
           actions={managed.managed_available ? <StatusBadge status="Available" tone="green" /> : <StatusBadge status="Pro only" tone="amber" />}>
           <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <div className="stat-label">Managed by PulseBoard</div>
+              <div className="stat-label">Managed by Codessy</div>
               <b style={{ fontSize: 16 }}>{managed.managed.name}</b>
               <div className="muted">Model: {managed.managed.model}</div>
             </div>

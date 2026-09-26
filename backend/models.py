@@ -475,3 +475,10 @@ class Application(Base):
     resume = relationship('Resume', lazy='joined')
 
     __table_args__ = (UniqueConstraint('user_id', 'job_id', name='uq_application_user_job'),)
+
+
+# Job Application Autofill models
+from .models_job_application import JobProfile, AutofillApplication, AutofillField  # noqa: E402, F401
+
+# Extension models
+from .extension_models import ExtensionProfile, ExtensionLearnedAnswer, ExtensionSession  # noqa: E402, F401

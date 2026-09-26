@@ -50,13 +50,13 @@ export default function ChatWidget() {
       {open && (
         <div className="chat-widget">
           <div className="chat-head">
-            <b>PulseBoard Assistant</b>
+            <b>Codessy Assistant</b>
             <span className="muted" style={{ fontSize: 11 }}>Ask how to use the app</span>
           </div>
           <div className="chat-body" ref={listRef}>
             {messages.length === 0 && (
               <div className="chat-welcome">
-                <p className="muted">Hi! I can help you use PulseBoard — campaigns, email accounts, AI agents, scheduling, and more.</p>
+                <p className="muted">Hi! I can help you use Codessy — campaigns, email accounts, AI agents, scheduling, and more.</p>
                 {SUGGESTIONS.map((s) => (
                   <button key={s} className="chat-suggestion" onClick={() => send(s)}>{s}</button>
                 ))}
@@ -77,7 +77,7 @@ export default function ChatWidget() {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about using PulseBoard…"
+              placeholder="Ask about using Codessy…"
             />
             <button type="submit" disabled={busy || !input.trim()} title="Send">
               {busy ? '…' : Icons.send}

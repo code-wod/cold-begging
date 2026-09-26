@@ -253,6 +253,284 @@ def create_default_handlers() -> Dict[TaskType, TaskHandler]:
         async def handle(self, task: Task) -> Dict[str, Any]:
             return {'error': 'ExtractJobHandler not yet implemented'}
 
+    class AutofillHandler(TaskHandler):
+        """Handles the full autofill flow: navigate, detect ATS, extract fields, map, fill."""
+        async def handle(self, task: Task) -> Dict[str, Any]:
+            from backend.database import SessionLocal
+            from backend.services.job_profile_service import AutofillApplicationService
+            from backend.services.job_profile_service import JobProfileService
+
+            app_id = task.payload.get('application_id')
+            job_url = task.payload.get('job_url')
+            user_id = task.user_id
+            resume_id = task.payload.get('resume_id')
+
+            if not app_id or not job_url:
+                return {'error': 'Missing application_id or job_url'}
+
+            db = SessionLocal()
+            try:
+                svc = AutofillApplicationService(db)
+                profile_svc = JobProfileService(db)
+                app = svc.get(app_id, user_id)
+                if not app:
+                    return {'error': 'Application not found'}
+
+                profile = profile_svc.get(user_id)
+                if not profile:
+                    svc.update_status(app_id, user_id, 'failed', error_message='No job profile found')
+                    return {'error': 'No job profile found. Create one at /job-profile.'}
+
+                svc.update_status(app_id, user_id, 'filling')
+
+                from backend.ats.detector import detect_ats, get_adapter
+                from backend.ats.field_mapper import map_fields
+                from backend.config import AUTOFILL_UPLOAD_DIR
+
+                import os
+                os.makedirs(AUTOFILL_UPLOAD_DIR, exist_ok=True)
+
+                browser_mgr = get_browser_manager()
+                try:
+                    async with browser_mgr.ephemeral_context() as context:
+                        page = await context.new_page()
+                        try:
+                            await page.goto(job_url, wait_until='domcontentloaded', timeout=30000)
+                            await page.wait_for_timeout(3000)
+
+                            # Detect CAPTCHA / login required
+                            page_html = await page.content()
+                            page_lower = page_html.lower()
+                            if 'captcha' in page_lower or 'recaptcha' in page_lower:
+                                svc.update_status(app_id, user_id, 'failed',
+                                    error_code='CAPTCHA_REQUIRED',
+                                    error_message='CAPTCHA detected on the application page',
+                                    requires_user_action='captcha_required')
+                                return {'error': 'CAPTCHA required', 'requires_user_action': 'captcha_required'}
+
+                            if 'sign in' in page_lower or 'log in' in page_lower:
+                                if 'application' not in page_lower:
+                                    svc.update_status(app_id, user_id, 'failed',
+                                        error_code='LOGIN_REQUIRED',
+                                        error_message='Login required to access the application',
+                                        requires_user_action='login_required')
+                                    return {'error': 'Login required', 'requires_user_action': 'login_required'}
+
+                            # Detect ATS platform
+                            ats_platform = detect_ats(job_url, page)
+                            app.ats_platform = ats_platform
+
+                            # Extract company/role from page title or URL
+                            try:
+                                title = await page.title()
+                                if title:
+                                    parts = title.split(' - ') if ' - ' in title else title.split(' | ')
+                                    if len(parts) >= 2:
+                                        app.role_title = parts[0].strip()
+                                        app.company_name = parts[-1].strip()
+                                    elif title:
+                                        app.role_title = title.strip()
+                            except Exception:
+                                pass
+
+                            db.commit()
+
+                            # Get adapter
+                            adapter = get_adapter(ats_platform)
+
+                            # Extract fields using adapter or generic extractor
+                            if adapter:
+                                fields_data = await adapter.extract_fields(page)
+                            else:
+                                from backend.ats.field_extractor import extract_fields
+                                fields_data = await extract_fields(page, ats_platform)
+
+                            # Map fields to profile
+                            profile_dict = profile.to_dict()
+                            mapped_fields = map_fields(fields_data, profile_dict)
+
+                            # AI field mapping for low-confidence fields
+                            low_confidence = [f for f in mapped_fields if f.get('confidence', 1.0) < 0.7 and not f.get('user_value')]
+                            if low_confidence:
+                                try:
+                                    from backend.config import GEMINI_API_KEY, OPENAI_API_KEY
+                                    from backend.ats.ai_field_mapper import create_ai_mapper
+                                    api_key = GEMINI_API_KEY or OPENAI_API_KEY
+                                    provider = 'gemini' if GEMINI_API_KEY else 'openai'
+                                    if api_key:
+                                        mapper = create_ai_mapper(api_key=api_key, provider=provider)
+                                        job_info = {'url': job_url, 'title': app.role_title, 'company': app.company_name}
+                                        resume_text = ''
+                                        if resume_id:
+                                            from backend.models import Resume
+                                            resume = db.query(Resume).filter(Resume.id == resume_id).first()
+                                            if resume:
+                                                resume_text = resume.extracted_text or ''
+                                        mapped_fields = await mapper.map_fields(mapped_fields, profile_dict, job_info, resume_text)
+                                except Exception as e:
+                                    logger.warning('AI field mapping failed (falling back to deterministic): %s', e)
+
+                            # Auto-fill high-confidence fields (>= 0.90) using the adapter
+                            filled_count = 0
+                            if adapter:
+                                for mf in mapped_fields:
+                                    confidence = mf.get('confidence', 0)
+                                    mapped_val = mf.get('mapped_value', '')
+                                    field_type = mf.get('field_type', 'text')
+                                    requires_review = mf.get('requires_review', True)
+
+                                    if confidence >= 0.90 and mapped_val and field_type != 'file' and not requires_review:
+                                        try:
+                                            success = await adapter.fill_field(page, mf, mapped_val)
+                                            if success:
+                                                mf['status'] = 'filled'
+                                                filled_count += 1
+                                        except Exception as e:
+                                            logger.warning('Auto-fill failed for %s: %s', mf.get('field_label'), e)
+
+                            # Try to upload resume if adapter supports it
+                            if adapter and resume_id:
+                                try:
+                                    from backend.models import Resume
+                                    resume = db.query(Resume).filter(Resume.id == resume_id, Resume.user_id == user_id).first()
+                                    if resume and resume.stored_path and os.path.exists(resume.stored_path):
+                                        await adapter.upload_resume(page, resume.stored_path)
+                                        app.resume_path = resume.stored_path
+                                except Exception as e:
+                                    logger.warning('Resume upload failed: %s', e)
+
+                            # Take screenshot for review
+                            try:
+                                screenshot_path = os.path.join(AUTOFILL_UPLOAD_DIR, f'app_{app_id}_review.png')
+                                await page.screenshot(path=screenshot_path, full_page=False)
+                                app.screenshot_path = screenshot_path
+                            except Exception as e:
+                                logger.warning('Screenshot failed: %s', e)
+
+                            # Store fields
+                            svc.set_fields(app_id, mapped_fields)
+
+                            # Update stats
+                            stats = svc.get_stats(app_id)
+                            new_status = 'needs_review' if stats['needs_review'] > 0 else 'ready'
+                            svc.update_status(app_id, user_id, new_status,
+                                total_fields=stats['total_fields'],
+                                auto_filled=stats['auto_filled'] + filled_count,
+                                needs_review=stats['needs_review'],
+                                unanswered=stats['unanswered'])
+
+                            return {
+                                'success': True,
+                                'ats_platform': ats_platform,
+                                'stats': stats,
+                                'filled_count': filled_count,
+                            }
+                        finally:
+                            await page.close()
+                except Exception as e:
+                    logger.error('Autofill error for app %s: %s', app_id, e)
+                    svc.update_status(app_id, user_id, 'failed', error_message=str(e))
+                    return {'error': str(e)}
+            finally:
+                db.close()
+
+    class SubmitHandler(TaskHandler):
+        """Handles final submission after user confirmation."""
+        async def handle(self, task: Task) -> Dict[str, Any]:
+            from backend.database import SessionLocal
+            from backend.services.job_profile_service import AutofillApplicationService
+
+            app_id = task.payload.get('application_id')
+            job_url = task.payload.get('job_url')
+            user_id = task.user_id
+
+            if not app_id:
+                return {'error': 'Missing application_id'}
+
+            db = SessionLocal()
+            try:
+                svc = AutofillApplicationService(db)
+                app = svc.get(app_id, user_id)
+                if not app:
+                    return {'error': 'Application not found'}
+
+                svc.update_status(app_id, user_id, 'submitting')
+
+                # Check DRY_RUN
+                from backend.config import DRY_RUN
+                if DRY_RUN:
+                    from backend.models_job_application import AutofillApplication
+                    import datetime as dt
+                    app.status = 'ready'
+                    db.commit()
+                    return {'success': True, 'status': 'dry_run', 'message': 'DRY_RUN mode - not actually submitting'}
+
+                # Navigate to URL and submit via adapter
+                from backend.ats.detector import get_adapter
+                adapter = get_adapter(app.ats_platform)
+
+                browser_mgr = get_browser_manager()
+                try:
+                    async with browser_mgr.ephemeral_context() as context:
+                        page = await context.new_page()
+                        try:
+                            await page.goto(app.job_url, wait_until='domcontentloaded', timeout=30000)
+                            await page.wait_for_timeout(3000)
+
+                            if adapter:
+                                # Fill all fields from stored data
+                                fields = svc.get_fields(app_id)
+                                for f in fields:
+                                    val = f.user_value or f.mapped_value
+                                    if val and not f.skipped and f.field_type != 'file':
+                                        try:
+                                            await adapter.fill_field(page, f.to_dict(), val)
+                                        except Exception:
+                                            pass
+
+                                # Upload resume if path exists
+                                if app.resume_path:
+                                    try:
+                                        await adapter.upload_resume(page, app.resume_path)
+                                    except Exception:
+                                        pass
+
+                                # Validate
+                                validation = await adapter.validate(page)
+                                if not validation['valid']:
+                                    svc.update_status(app_id, user_id, 'failed',
+                                        error_code='VALIDATION_FAILED',
+                                        error_message='; '.join(validation.get('errors', [])))
+                                    return {'success': False, 'errors': validation.get('errors', [])}
+
+                                # Submit
+                                result = await adapter.submit(page)
+                                if result['success']:
+                                    import datetime as dt
+                                    app.status = 'submitted'
+                                    app.submitted_at = dt.datetime.now(dt.timezone.utc)
+                                    db.commit()
+                                    return {'success': True, 'status': 'submitted'}
+                                else:
+                                    svc.update_status(app_id, user_id, 'failed',
+                                        error_code='SUBMIT_FAILED',
+                                        error_message=result.get('message', 'Submit failed'))
+                                    return {'success': False, 'message': result.get('message')}
+                            else:
+                                # No adapter - just mark as submitted
+                                import datetime as dt
+                                app.status = 'submitted'
+                                app.submitted_at = dt.datetime.now(dt.timezone.utc)
+                                db.commit()
+                                return {'success': True, 'status': 'submitted'}
+                        finally:
+                            await page.close()
+                except Exception as e:
+                    svc.update_status(app_id, user_id, 'failed', error_message=str(e))
+                    return {'error': str(e)}
+            finally:
+                db.close()
+
     class ApplyJobHandler(TaskHandler):
         async def handle(self, task: Task) -> Dict[str, Any]:
             from backend.database import SessionLocal
@@ -364,4 +642,6 @@ def create_default_handlers() -> Dict[TaskType, TaskHandler]:
         TaskType.SEARCH_JOBS: SearchJobsHandler(),
         TaskType.EXTRACT_JOB: ExtractJobHandler(),
         TaskType.APPLY_JOB: ApplyJobHandler(),
+        TaskType.AUTOFILL_APPLICATION: AutofillHandler(),
+        TaskType.SUBMIT_APPLICATION: SubmitHandler(),
     }

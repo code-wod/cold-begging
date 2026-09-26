@@ -71,13 +71,38 @@ export default function Landing() {
     <div className="landing">
       <nav className="landing-nav">
         <div className="landing-brand">
-          <span className="logo">✉️</span>
-          <span>PulseBoard</span>
-          <span className="landing-brand-tag">COLD EMAIL AI</span>
+          <svg viewBox="0 0 120 120" style={{ height: 32, flexShrink: 0 }} role="img" aria-label="Codessy">
+            <defs>
+              <linearGradient id="lb-blue" x1="22" y1="0" x2="58" y2="36" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#35A7FF" /><stop offset="1" stop-color="#2875F0" />
+              </linearGradient>
+              <linearGradient id="lb-purple" x1="64" y1="0" x2="100" y2="36" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#9B5CFF" /><stop offset="1" stop-color="#7340E8" />
+              </linearGradient>
+              <linearGradient id="lb-green" x1="22" y1="50" x2="58" y2="76" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#22D3A6" /><stop offset="1" stop-color="#10B981" />
+              </linearGradient>
+              <linearGradient id="lb-coral" x1="64" y1="50" x2="100" y2="76" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#FF9A55" /><stop offset="1" stop-color="#F45F72" />
+              </linearGradient>
+            </defs>
+            <rect width="120" height="120" rx="28" fill="#070B1F"/>
+            <g transform="translate(-1 22)">
+              <path d="M22 18C22 8.059 30.059 0 40 0h18v18c0 9.941-8.059 18-18 18H22V18Z" fill="url(#lb-blue)" />
+              <circle cx="82" cy="18" r="18" fill="url(#lb-purple)" />
+              <path d="M22 40h18c9.941 0 18 8.059 18 18v18H40c-9.941 0-18-8.059-18-18V40Z" fill="url(#lb-green)" />
+              <path d="M64 40h18c9.941 0 18 8.059 18 18v18H82c-9.941 0-18-8.059-18-18V40Z" fill="url(#lb-coral)" />
+            </g>
+          </svg>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.5px', color: '#fff' }}>Codessy</span>
+            <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '2px', color: '#94a3b8' }}>BUILD. AUTOMATE. SCALE.</span>
+          </div>
         </div>
         <div className="landing-nav-links">
           <a href="#features">Features</a>
           <a href="#how">How it works</a>
+          <a href="#extension">Extension</a>
           <a href="#n8n">n8n Auto-apply</a>
           <a href="#pricing">Pricing</a>
           <a href="#security">Security</a>
@@ -99,7 +124,7 @@ export default function Landing() {
         <div className="landing-hero-eyebrow">Cold email automation · your Gmail · your AI</div>
         <h1>Automate personalized cold email<br />that sounds like <em>you</em></h1>
         <p className="landing-hero-sub">
-          Import a spreadsheet, pick an AI agent, and PulseBoard researches each recipient, writes a
+          Import a spreadsheet, pick an AI agent, and Codessy researches each recipient, writes a
           tailored email, and schedules the send — from your own Gmail account.
         </p>
         <div className="landing-hero-ctas">
@@ -201,6 +226,42 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="landing-section landing-alt" id="extension">
+        <div className="landing-section-head">
+          <div className="landing-kicker">Browser Extension</div>
+          <h2>Fill every job application instantly</h2>
+          <p>Our Chrome extension detects application forms, maps your profile to fields, and fills them in one click. Works across Greenhouse, Workday, Lever, Ashby, and any custom career page.</p>
+        </div>
+        <div className="landing-grid">
+          <div className="landing-card">
+            <div className="landing-card-icon">⚡</div>
+            <h4>Universal Form Detection</h4>
+            <p>Automatically detects job application forms on any career page. No setup required per site.</p>
+          </div>
+          <div className="landing-card">
+            <div className="landing-card-icon">🧠</div>
+            <h4>AI-Powered Mapping</h4>
+            <p>Smart field recognition understands "First Name", "Given Name", "Prenom" — and maps to your profile automatically.</p>
+          </div>
+          <div className="landing-card">
+            <div className="landing-card-icon">✓</div>
+            <h4>Review Before Fill</h4>
+            <p>Confidence scoring shows what's auto-filled vs what needs your review. You're always in control.</p>
+          </div>
+          <div className="landing-card">
+            <div className="landing-card-icon">🔒</div>
+            <h4>Privacy First</h4>
+            <p>Your profile data stays in your browser. Only syncs when you sign in. Never auto-submits.</p>
+          </div>
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 32 }}>
+          <Link href="/extension/download" className="landing-cta" style={{ display: 'inline-block' }}>
+            Install Chrome Extension
+          </Link>
+          <p style={{ fontSize: 13, color: '#999', marginTop: 12 }}>Free · Open source · Works with your Codessy account</p>
+        </div>
+      </section>
+
       <section className="landing-section" id="pricing">
         <div className="landing-section-head">
           <div className="landing-kicker">Pricing</div>
@@ -266,8 +327,32 @@ export default function Landing() {
       <footer className="landing-footer">
         <div className="landing-footer-cols">
           <div>
-            <h5>PulseBoard</h5>
-            <div className="landing-brand"><span className="logo">✉️</span><span>PulseBoard</span></div>
+            <div className="landing-brand" style={{ marginBottom: 8 }}>
+              <svg viewBox="0 0 120 120" style={{ height: 28, flexShrink: 0 }} role="img" aria-label="Codessy">
+                <defs>
+                  <linearGradient id="fb-blue" x1="22" y1="0" x2="58" y2="36" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#35A7FF" /><stop offset="1" stop-color="#2875F0" />
+                  </linearGradient>
+                  <linearGradient id="fb-purple" x1="64" y1="0" x2="100" y2="36" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#9B5CFF" /><stop offset="1" stop-color="#7340E8" />
+                  </linearGradient>
+                  <linearGradient id="fb-green" x1="22" y1="50" x2="58" y2="76" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#22D3A6" /><stop offset="1" stop-color="#10B981" />
+                  </linearGradient>
+                  <linearGradient id="fb-coral" x1="64" y1="50" x2="100" y2="76" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#FF9A55" /><stop offset="1" stop-color="#F45F72" />
+                  </linearGradient>
+                </defs>
+                <rect width="120" height="120" rx="28" fill="#070B1F"/>
+                <g transform="translate(-1 22)">
+                  <path d="M22 18C22 8.059 30.059 0 40 0h18v18c0 9.941-8.059 18-18 18H22V18Z" fill="url(#fb-blue)" />
+                  <circle cx="82" cy="18" r="18" fill="url(#fb-purple)" />
+                  <path d="M22 40h18c9.941 0 18 8.059 18 18v18H40c-9.941 0-18-8.059-18-18V40Z" fill="url(#fb-green)" />
+                  <path d="M64 40h18c9.941 0 18 8.059 18 18v18H82c-9.941 0-18-8.059-18-18V40Z" fill="url(#fb-coral)" />
+                </g>
+              </svg>
+              <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Codessy</span>
+            </div>
             <p style={{ fontSize: 13, margin: '12px 0 0' }}>AI-personalized cold email, sent from your own Gmail.</p>
           </div>
           <div>
@@ -292,7 +377,7 @@ export default function Landing() {
           </div>
         </div>
         <div className="landing-footer-bottom">
-          <span>© {new Date().getFullYear()} PulseBoard. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} Codessy. All rights reserved.</span>
           <span>Made with your Gmail · Your data stays yours</span>
         </div>
       </footer>
