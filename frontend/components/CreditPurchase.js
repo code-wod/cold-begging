@@ -85,11 +85,10 @@ export default function CreditPurchase({ onPurchased }) {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, maxWidth: 500 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, maxWidth: 520 }}>
       {PLANS.map((plan) => {
         const isPopular = plan.badge === 'POPULAR';
-        const isBestValue = plan.badge === 'BEST VALUE';
-        const isHighlighted = isPopular || isBestValue;
+        const isHighlighted = isPopular;
         const isCurrentPlan = (plan.id === 'pro_monthly' && isPro) || (plan.id === 'starter' && !isPro);
 
         return (
@@ -98,97 +97,89 @@ export default function CreditPurchase({ onPurchased }) {
             onClick={() => !isCurrentPlan && handlePurchase(plan)}
             style={{
               position: 'relative',
-              border: `2px solid ${isCurrentPlan ? plan.color : isHighlighted ? plan.color + '88' : 'var(--border)'}`,
-              borderRadius: 12,
-              padding: '24px 16px',
+              border: `2px solid ${isCurrentPlan ? plan.color : isHighlighted ? plan.color + '66' : 'var(--border)'}`,
+              borderRadius: 14,
+              padding: '28px 20px',
               textAlign: 'center',
               cursor: isCurrentPlan ? 'default' : loading ? 'wait' : 'pointer',
-              transition: 'all 0.2s',
-              background: isCurrentPlan ? `${plan.color}10` : isHighlighted ? `${plan.color}08` : 'var(--panel)',
+              transition: 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
+              background: isCurrentPlan
+                ? `linear-gradient(180deg, ${plan.color}08, ${plan.color}04)`
+                : isHighlighted ? `${plan.color}05` : 'var(--panel)',
               opacity: loading && loading !== plan.id ? 0.5 : 1,
+              boxShadow: isHighlighted ? `0 4px 24px ${plan.color}15` : '0 1px 3px rgba(0,0,0,0.04)',
             }}
             onMouseEnter={(e) => {
               if (!isCurrentPlan) {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = `0 8px 24px ${plan.color}22`;
+                e.currentTarget.style.transform = 'translateY(-6px)';
+                e.currentTarget.style.boxShadow = `0 12px 32px ${plan.color}20`;
               }
             }}
             onMouseLeave={(e) => {
               if (!isCurrentPlan) {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.boxShadow = isHighlighted ? `0 4px 24px ${plan.color}15` : '0 1px 3px rgba(0,0,0,0.04)';
               }
             }}
           >
             {isCurrentPlan && (
               <div style={{
                 position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
-                background: plan.color, color: '#fff', fontSize: 10, fontWeight: 700,
-                padding: '3px 12px', borderRadius: 20, letterSpacing: 0.5,
+                background: `linear-gradient(135deg, ${plan.color}, ${plan.color}cc)`,
+                color: '#fff', fontSize: 10, fontWeight: 700,
+                padding: '4px 14px', borderRadius: 20, letterSpacing: 0.5,
+                boxShadow: `0 2px 8px ${plan.color}40`,
               }}>
                 CURRENT PLAN
               </div>
             )}
             {!isCurrentPlan && plan.badge && (
               <div style={{
-                position: 'absolute',
-                top: -12,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: plan.color,
-                color: '#fff',
-                fontSize: 10,
-                fontWeight: 700,
-                padding: '3px 12px',
-                borderRadius: 20,
-                letterSpacing: 0.5,
+                position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
+                background: `linear-gradient(135deg, ${plan.color}, ${plan.color}cc)`,
+                color: '#fff', fontSize: 10, fontWeight: 700,
+                padding: '4px 14px', borderRadius: 20, letterSpacing: 0.5,
+                boxShadow: `0 2px 8px ${plan.color}40`,
               }}>
                 {plan.badge}
               </div>
             )}
 
             <div style={{
-              fontSize: 16,
-              fontWeight: 700,
-              marginBottom: 8,
-              marginTop: (plan.badge || isCurrentPlan) ? 8 : 0,
-              color: plan.color,
+              fontSize: 15, fontWeight: 700,
+              marginBottom: 12, marginTop: (plan.badge || isCurrentPlan) ? 10 : 0,
+              color: plan.color, letterSpacing: -0.2,
             }}>
               {plan.name}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2 }}>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>₹</span>
-              <span style={{ fontSize: 36, fontWeight: 800, lineHeight: 1 }}>{plan.price}</span>
-              <span style={{ fontSize: 12, color: 'var(--muted)' }}>/</span>
-              <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                {plan.period === 'one-time' ? 'once' : plan.period === 'monthly' ? 'mo' : 'yr'}
-              </span>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>₹</span>
+              <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1, letterSpacing: -1, color: 'var(--text)' }}>{plan.price}</span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>
+              {plan.period === 'one-time' ? 'one-time payment' : 'per month'}
             </div>
 
-            <div style={{
-              fontSize: 13,
-              color: 'var(--muted)',
-              marginTop: 8,
-              marginBottom: 16,
-            }}>
+            <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 16, fontWeight: 500 }}>
               {plan.desc}
             </div>
 
             <div style={{
-              background: isCurrentPlan ? plan.color + '22' : loading === plan.id ? 'var(--muted)' : plan.color,
+              background: isCurrentPlan ? plan.color + '15' : loading === plan.id ? 'var(--muted)' : `linear-gradient(135deg, ${plan.color}, ${plan.color}dd)`,
               color: isCurrentPlan ? plan.color : '#fff',
-              padding: '10px 0',
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              transition: 'background 0.2s',
+              padding: '11px 0',
+              borderRadius: 10,
+              fontSize: 14, fontWeight: 700,
+              transition: 'all 0.2s',
+              boxShadow: isCurrentPlan ? 'none' : `0 2px 8px ${plan.color}30`,
+              letterSpacing: -0.1,
             }}>
               {isCurrentPlan ? 'Current Plan' : loading === plan.id ? 'Processing...' : 'Buy Now'}
             </div>
 
             {plan.period === 'monthly' && !isCurrentPlan && (
-              <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 8, fontWeight: 600 }}>
+              <div style={{ fontSize: 11, color: plan.color, marginTop: 10, fontWeight: 600, opacity: 0.8 }}>
                 Just ₹0.08 per email
               </div>
             )}

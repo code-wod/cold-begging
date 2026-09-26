@@ -71,26 +71,41 @@ export default function Dashboard() {
 
       <div className="grid stats">
         <div className="panel stat-card">
+          <div className="stat-card-icon" style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            {Icons.email}
+          </div>
           <div className="stat-label">Emails Sent</div>
           <div className="stat-value">{analytics.emails_sent}</div>
           <div className="muted" style={{ fontSize: 12 }}>Failed: {analytics.emails_failed}</div>
         </div>
         <div className="panel stat-card">
+          <div className="stat-card-icon" style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', color: '#fff', width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            {Icons.analytics}
+          </div>
           <div className="stat-label">Sending Speed</div>
           <div className="stat-value">{rateLimit}/hr</div>
           <div className="muted" style={{ fontSize: 12 }}>{isPro ? 'Pro limit' : 'Free limit'}</div>
         </div>
         <div className="panel stat-card">
+          <div className="stat-card-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            {Icons.recipients}
+          </div>
           <div className="stat-label">Recipients</div>
           <div className="stat-value">{rc.count}</div>
           <Link href="/recipients" className="muted" style={{ fontSize: 12 }}>Manage &rarr;</Link>
         </div>
         <div className="panel stat-card">
+          <div className="stat-card-icon" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            {Icons.campaigns}
+          </div>
           <div className="stat-label">Campaigns</div>
           <div className="stat-value">{analytics.campaigns}</div>
           <Link href="/campaigns" className="muted" style={{ fontSize: 12 }}>View all &rarr;</Link>
         </div>
         <div className="panel stat-card">
+          <div className="stat-card-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #d946ef)', color: '#fff', width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            {Icons.billing}
+          </div>
           <div className="stat-label">Email Credits</div>
           <div className="stat-value">{credits?.remaining ?? '—'}</div>
           <Link href="/billing" className="muted" style={{ fontSize: 12 }}>Buy more &rarr;</Link>
@@ -130,55 +145,31 @@ export default function Dashboard() {
         </Panel>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Panel title="Environment">
-            <div className="field" style={{ marginBottom: 10 }}>
-              <div className="label">Plan</div>
-              {isPro ? (
-                <span className="pro-pill">&#9733; Pro</span>
-              ) : (
-                <div>
-                  <StatusBadge status="Free" tone="gray" />
-                  <div className="help"><Link href="/billing">Upgrade to Pro</Link> for higher sending speed and the managed AI model.</div>
+          <Panel title="Quick setup">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0' }}>
+                <span style={{ width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, background: isPro ? 'linear-gradient(135deg, #f59e0b, #f97316)' : 'var(--badge-gray-bg)', color: isPro ? '#fff' : 'var(--muted)', flexShrink: 0 }}>{isPro ? '\u2713' : '1'}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Plan</div>
+                  <div className="muted" style={{ fontSize: 12 }}>{isPro ? 'Pro — unlimited speed' : 'Free — upgrade for more'}</div>
                 </div>
-              )}
-            </div>
-            <div className="field" style={{ marginBottom: 10 }}>
-              <div className="label">Gmail</div>
-              {connected ? (
-                <StatusBadge status={`Connected · ${connected.email}`} tone="green" />
-              ) : (
-                <>
-                  <StatusBadge status="Not connected" tone="red" />
-                  <div className="help"><Link href="/email-accounts">Connect your Gmail account</Link> to send emails.</div>
-                </>
-              )}
-            </div>
-            <div className="field" style={{ marginBottom: 10 }}>
-              <div className="label">AI</div>
-              {aiReady ? (
-                <StatusBadge status={user.plan === 'pro' ? 'Managed model (Pro)' : `${models.length} model(s) configured`} tone="green" />
-              ) : (
-                <>
-                  <StatusBadge status="No AI model" tone="red" />
-                  <div className="help"><Link href="/ai-models">Add your own AI model</Link> or upgrade to Pro for the managed model.</div>
-                </>
-              )}
-            </div>
-            <div className="field" style={{ marginBottom: 0 }}>
-              <div className="label">AI usage</div>
-              <div className="flex" style={{ justifyContent: 'space-between' }}>
-                <span className="muted">AI generations</span>
-                <b>{billing.ai_generation} / {billing.limits.ai_generation}</b>
+                {!isPro && <Link href="/billing" className="btn sm secondary">Upgrade</Link>}
               </div>
-              <div className="progress mt-8">
-                <div style={{ width: `${Math.min(100, (billing.ai_generation / billing.limits.ai_generation) * 100)}%` }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0' }}>
+                <span style={{ width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, background: connected ? 'linear-gradient(135deg, #10b981, #059669)' : 'var(--badge-gray-bg)', color: connected ? '#fff' : 'var(--muted)', flexShrink: 0 }}>{connected ? '\u2713' : '2'}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Email Account</div>
+                  <div className="muted" style={{ fontSize: 12 }}>{connected ? connected.email : 'Connect Gmail or SMTP'}</div>
+                </div>
+                {!connected && <Link href="/email-accounts" className="btn sm secondary">Connect</Link>}
               </div>
-              <div className="flex mt-8" style={{ justifyContent: 'space-between' }}>
-                <span className="muted">Emails processed</span>
-                <b>{billing.email_sent} / {billing.limits.email_sent}</b>
-              </div>
-              <div className="progress mt-8">
-                <div style={{ width: `${Math.min(100, (billing.email_sent / billing.limits.email_sent) * 100)}%` }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0' }}>
+                <span style={{ width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, background: aiReady ? 'linear-gradient(135deg, #8b5cf6, #6366f1)' : 'var(--badge-gray-bg)', color: aiReady ? '#fff' : 'var(--muted)', flexShrink: 0 }}>{aiReady ? '\u2713' : '3'}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>AI Model</div>
+                  <div className="muted" style={{ fontSize: 12 }}>{aiReady ? (isPro ? 'Managed model' : `${models.length} model(s)`) : 'Add an AI model'}</div>
+                </div>
+                {!aiReady && <Link href="/ai-models" className="btn sm secondary">Add</Link>}
               </div>
             </div>
           </Panel>
