@@ -70,7 +70,7 @@ export default function Login() {
       <Panel bodyClassName="panel-body">
         <div style={{ textAlign: 'center', marginBottom: 18 }}>
           <div style={{ fontSize: 26 }}>✉️</div>
-          <h1 style={{ fontSize: 20 }}>Sign in to PulseBoard</h1>
+          <h1 style={{ fontSize: 20 }}>Sign in to Codessy</h1>
           <p className="muted mb-0">Cold email automation, powered by AI.</p>
         </div>
         {verified && (

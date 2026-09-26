@@ -58,3 +58,7 @@ Required columns:
 - The frontend calls backend `/process` on `http://localhost:8000/process`.
 - Use dry run first to verify generated emails.
 - Sending via Gmail API requires credentials JSON.
+
+cd /Users/gauravkrrr/Documents/gaurav/cold-begging
+source backend/.venv/bin/activate
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload

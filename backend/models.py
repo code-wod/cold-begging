@@ -479,3 +479,6 @@ class Application(Base):
 
 # Job Application Autofill models
 from .models_job_application import JobProfile, AutofillApplication, AutofillField  # noqa: E402, F401
+
+# Extension models
+from .extension_models import ExtensionProfile, ExtensionLearnedAnswer, ExtensionSession  # noqa: E402, F401

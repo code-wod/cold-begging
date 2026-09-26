@@ -21,6 +21,9 @@ const NAV = [
   { href: '/job-applications/auto-fill', label: 'Auto-Fill (Background)', icon: 'play' },
   { href: '/job-applications/history', label: 'History', icon: 'history' },
   { href: '/job-profile', label: 'Job Profile', icon: 'profile' },
+  { section: 'Extension' },
+  { href: '/extension/download', label: 'Download', icon: 'link' },
+  { href: '/extension/applications', label: 'Extension Apps', icon: 'send' },
   { section: 'Automation' },
   { href: '/campaigns', label: 'Campaigns', icon: 'campaigns' },
   { href: '/recipients', label: 'Recipients', icon: 'recipients' },
@@ -59,8 +62,30 @@ export default function Layout({ title, breadcrumb, actions, children }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <span className="logo">✉️</span>
-          <span className="brand-text">PulseBoard</span>
+          <svg viewBox="0 0 120 120" style={{ height: 28, flexShrink: 0 }} role="img" aria-label="Codessy">
+            <defs>
+              <linearGradient id="sb-blue" x1="22" y1="0" x2="58" y2="36" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#35A7FF" /><stop offset="1" stop-color="#2875F0" />
+              </linearGradient>
+              <linearGradient id="sb-purple" x1="64" y1="0" x2="100" y2="36" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#9B5CFF" /><stop offset="1" stop-color="#7340E8" />
+              </linearGradient>
+              <linearGradient id="sb-green" x1="22" y1="50" x2="58" y2="76" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#22D3A6" /><stop offset="1" stop-color="#10B981" />
+              </linearGradient>
+              <linearGradient id="sb-coral" x1="64" y1="50" x2="100" y2="76" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#FF9A55" /><stop offset="1" stop-color="#F45F72" />
+              </linearGradient>
+            </defs>
+            <rect width="120" height="120" rx="28" fill="#070B1F"/>
+            <g transform="translate(-1 22)">
+              <path d="M22 18C22 8.059 30.059 0 40 0h18v18c0 9.941-8.059 18-18 18H22V18Z" fill="url(#sb-blue)" />
+              <circle cx="82" cy="18" r="18" fill="url(#sb-purple)" />
+              <path d="M22 40h18c9.941 0 18 8.059 18 18v18H40c-9.941 0-18-8.059-18-18V40Z" fill="url(#sb-green)" />
+              <path d="M64 40h18c9.941 0 18 8.059 18 18v18H82c-9.941 0-18-8.059-18-18V40Z" fill="url(#sb-coral)" />
+            </g>
+          </svg>
+          <span className="brand-text">Codessy</span>
         </div>
         <nav className="sidebar-nav">
           {NAV.map((item) =>

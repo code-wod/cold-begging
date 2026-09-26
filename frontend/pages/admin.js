@@ -467,7 +467,7 @@ export default function Admin() {
           </>
         }>
         <Field label="Name">
-          <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="PulseBoard Free Gemini" />
+          <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Codessy Free Gemini" />
         </Field>
         <Field label="AI provider">
           <Select options={providerOptions} value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })} />

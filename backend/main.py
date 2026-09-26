@@ -19,6 +19,7 @@ from .routers import (
     chat,
     email_accounts,
     emails,
+    extension,
     job_application,
     job_portals,
     jobs,
@@ -52,7 +53,7 @@ app.add_middleware(
     allow_credentials=True,
 )
 
-for router in (auth, recipients, recipient_groups, email_accounts, agents, campaigns, emails, analytics, billing, chat, admin, profile_assets, jobs, applications, n8n, job_portals, agent, job_application, browser_stream):
+for router in (auth, recipients, recipient_groups, email_accounts, agents, campaigns, emails, analytics, billing, chat, admin, profile_assets, jobs, applications, n8n, job_portals, agent, job_application, browser_stream, extension):
     app.include_router(router.router)
 
 
