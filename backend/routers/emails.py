@@ -166,9 +166,9 @@ def retry_email(log_id: int, user: User = Depends(get_current_user), db: Session
     log = _load_log(db, user, log_id)
     if log.status not in ('failed', 'cancelled'):
         raise HTTPException(status_code=400, detail='Only failed or cancelled emails can be retried')
-    status, error = campaign_service.retry_email_log(db, user, log)
+    status, error, remaining_credits = campaign_service.retry_email_log(db, user, log)
     db.commit()
-    return {'status': status, 'error': error, 'id': log.id}
+    return {'status': status, 'error': error, 'id': log.id, 'remaining_credits': remaining_credits}
 
 
 @router.post('/emails/manual')
@@ -198,12 +198,12 @@ def send_manual_email(payload: ManualEmailIn, user: User = Depends(get_current_u
             model = db.query(AIModel).filter(AIModel.id == agent.ai_model_id).first()
             ai_provider = model.provider if model else ''
             ai_model = model.model if model else ''
-    log, status, error = campaign_service.send_manual_email(
+    log, status, error, remaining_credits = campaign_service.send_manual_email(
         db, user, account, recipient, payload.subject, payload.body, ai_provider, ai_model
     )
     db.commit()
     campaigns = {c.id: c.name for c in db.query(Campaign).filter(Campaign.user_id == user.id).all()}
-    return _history_item(log, campaigns.get(log.campaign_id, ''))
+    return {**_history_item(log, campaigns.get(log.campaign_id, '')), 'remaining_credits': remaining_credits}
 
 
 @router.get('/emails/{email_id}', response_model=GeneratedEmailOut)
@@ -307,9 +307,9 @@ def send_email(email_id: int, user: User = Depends(get_current_user), db: Sessio
         return {'status': 'skipped', 'dry_run': True, 'message': 'Dry run mode — no email was sent'}
     if ge.status == 'sent':
         raise HTTPException(status_code=400, detail='Already sent')
-    status, error = campaign_service.send_generated_email(db, campaign, ge)
+    status, error, remaining_credits = campaign_service.send_generated_email(db, campaign, ge)
     db.commit()
-    return {'status': status, 'error': error}
+    return {'status': status, 'error': error, 'remaining_credits': remaining_credits}
 
 
 @router.post('/campaigns/{campaign_id}/send-pending')
@@ -332,7 +332,7 @@ def send_pending(campaign_id: int, user: User = Depends(get_current_user), db: S
     )
     sent = 0
     for ge in emails:
-        status, _ = campaign_service.send_generated_email(db, campaign, ge)
+        status, _, _ = campaign_service.send_generated_email(db, campaign, ge)
         if status == 'sent':
             sent += 1
     db.commit()

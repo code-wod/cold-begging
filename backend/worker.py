@@ -205,7 +205,7 @@ class CampaignWorker(threading.Thread):
         if campaign.dry_run:
             return  # dry-run campaigns generate but never send
 
-        status, error = campaign_service.send_generated_email(db, campaign, next_email)
+        status, error, _ = campaign_service.send_generated_email(db, campaign, next_email)
         if status == 'failed':
             logger.warning('Send failed for campaign %s: %s', campaign.id, error)
         if campaign.max_sends and campaign.max_sends > 0:

@@ -32,6 +32,7 @@ class User(Base):
     avatar_url = Column(String(1024), default='')
     is_verified = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
+    email_credits = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     phone = Column(String(64), default='')  # phone number
@@ -306,6 +307,24 @@ class UsageRecord(Base):
     metric = Column(String(64), nullable=False)  # ai_generation | email_sent
     quantity = Column(Integer, default=1)
     created_at = Column(DateTime(timezone=True), default=utcnow)
+
+
+class CreditTransaction(Base):
+    """Audit trail for all email credit changes."""
+    __tablename__ = 'credit_transactions'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=False)
+    type = Column(String(32), nullable=False)  # FREE_GRANT | PURCHASE | EMAIL_SEND | REFUND | ADMIN_ADJUSTMENT
+    amount = Column(Integer, nullable=False)  # positive = add, negative = deduct
+    reference_id = Column(String(255), default='')  # payment_id, email_log_id, etc.
+    description = Column(Text, default='')
+    balance_after = Column(Integer, nullable=False)  # snapshot of balance after this transaction
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+
+    __table_args__ = (
+        Index('ix_credit_transaction_user_type', 'user_id', 'type'),
+    )
 
 
 class JobSourceLog(Base):

@@ -20,9 +20,10 @@ export default function Dashboard() {
       api('/api/emails/history?limit=8'),
       api('/api/emails/history?status=scheduled&limit=6'),
       api('/api/ai-models'),
+      api('/api/email-credits'),
     ])
-      .then(([analytics, campaigns, rc, accounts, billing, history, upcoming, models]) =>
-        setData({ analytics, campaigns, rc, accounts, billing, history, upcoming, models })
+      .then(([analytics, campaigns, rc, accounts, billing, history, upcoming, models, credits]) =>
+        setData({ analytics, campaigns, rc, accounts, billing, history, upcoming, models, credits })
       )
       .catch((e) => toast(e.message, 'error'));
   }, []);
@@ -35,7 +36,7 @@ export default function Dashboard() {
     );
   }
 
-  const { analytics, campaigns, rc, accounts, billing, history, upcoming, models } = data;
+  const { analytics, campaigns, rc, accounts, billing, history, upcoming, models, credits } = data;
   const connected = accounts.find((a) => a.status === 'connected');
   const scheduled = campaigns.filter((c) => ['scheduled', 'running'].includes(c.status)).length;
   const hasModel = models.length > 0;
@@ -69,6 +70,11 @@ export default function Dashboard() {
           <div className="stat-label">Campaigns</div>
           <div className="stat-value">{analytics.campaigns}</div>
           <Link href="/campaigns" className="muted" style={{ fontSize: 12 }}>View all →</Link>
+        </div>
+        <div className="panel stat-card">
+          <div className="stat-label">Email Credits</div>
+          <div className="stat-value">{credits?.remaining ?? '—'}</div>
+          <Link href="/billing" className="muted" style={{ fontSize: 12 }}>Buy more →</Link>
         </div>
       </div>
 
