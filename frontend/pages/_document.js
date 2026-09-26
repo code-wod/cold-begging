@@ -16,6 +16,7 @@ export default function MyDocument() {
             __html: `(function(){try{var t=localStorage.getItem('pb-theme');if(!t&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){t='dark';}if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();`,
           }}
         />
+        <script src="https://checkout.razorpay.com/v1/checkout.js" />
       </Head>
       <body>
         <Main />

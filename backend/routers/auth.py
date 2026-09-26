@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from .. import gmail
 from ..config import API_BASE, FRONTEND_URL, SMTP_SENDER_EMAIL, SMTP_SENDER_APP_PASSWORD, SMTP_HOST, SMTP_PORT, SMTP_FROM_NAME
 from ..database import get_db
+from ..email_credit_service import grant_free_credits
 from ..encryption import decrypt_plaintext, encrypt_plaintext
 from ..models import PasswordReset, Profile, Subscription, User, EmailVerification
 from ..schemas import (
@@ -88,6 +89,8 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
     db.flush()
     db.add(Profile(user_id=user.id))
     db.add(Subscription(user_id=user.id, plan='free', status='active'))
+    # Grant 50 free email credits (idempotent)
+    grant_free_credits(db, user.id)
     # Generate and send verification token
     token = secrets.token_urlsafe(32)
     verification = EmailVerification(
@@ -181,6 +184,8 @@ def google_login_callback(
         db.flush()
         db.add(Profile(user_id=user.id))
         db.add(Subscription(user_id=user.id, plan='free', status='active'))
+        # Grant 50 free email credits for new Google OAuth users
+        grant_free_credits(db, user.id)
     else:
         if info.get('full_name') and not user.full_name:
             user.full_name = info['full_name']

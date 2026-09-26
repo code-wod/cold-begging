@@ -10,6 +10,7 @@ from .ai import AnthropicProvider, is_managed, provider_for
 from .cold_email_agent import ColdEmailAgent
 from .config import FREE_RATE_PER_HOUR, MANAGED_MODEL_NAME, MAX_RATE_PER_HOUR, MIN_RATE_PER_HOUR
 from .database import SessionLocal
+from .email_credit_service import consume_credit
 from .email_verification import get_verification_service
 from .encryption import decrypt_plaintext
 from .models import (
@@ -373,7 +374,7 @@ def send_generated_email(db, campaign, generated_email, execution_type='schedule
     """Send one generated email via the campaign's email account.
 
     Moves the email through sending -> sent/failed and keeps the EmailLog snapshot
-    in sync. Returns (status, error).
+    in sync. Returns (status, error, remaining_credits).
     """
     account = (
         db.query(EmailAccount)
@@ -382,7 +383,7 @@ def send_generated_email(db, campaign, generated_email, execution_type='schedule
     )
     recipient = db.query(Recipient).filter(Recipient.id == generated_email.recipient_id).first()
     if not account:
-        return ('failed', 'No sending account configured for this campaign')
+        return ('failed', 'No sending account configured for this campaign', None)
 
     # Email verification check: verify before sending if needed
     if recipient:
@@ -394,20 +395,39 @@ def send_generated_email(db, campaign, generated_email, execution_type='schedule
                 generated_email.status = 'skipped'
                 generated_email.error = f'Email invalid: {result.reason}'
                 generated_email.error_code = 'INVALID_EMAIL'
+                log = _email_log_for(db, campaign, generated_email)
                 log.status = 'failed'
                 log.error = f'Email invalid: {result.reason}'
                 log.error_code = 'INVALID_EMAIL'
                 log.failed_at = dt.datetime.now(dt.timezone.utc)
-                return ('failed', f'Email invalid: {result.reason}')
+                return ('failed', f'Email invalid: {result.reason}', None)
             elif result.status == 'unknown':
                 generated_email.status = 'skipped'
                 generated_email.error = f'Email unknown: {result.reason}'
                 generated_email.error_code = 'UNKNOWN_EMAIL'
+                log = _email_log_for(db, campaign, generated_email)
                 log.status = 'failed'
                 log.error = f'Email unknown: {result.reason}'
                 log.error_code = 'UNKNOWN_EMAIL'
                 log.failed_at = dt.datetime.now(dt.timezone.utc)
-                return ('failed', f'Email unknown: {result.reason}')
+                return ('failed', f'Email unknown: {result.reason}', None)
+
+    # Consume 1 email credit (atomic)
+    success, remaining = consume_credit(
+        db, campaign.user_id,
+        reference_id=f'generated_email:{generated_email.id}',
+        description=f'Campaign email to {recipient.email if recipient else "unknown"}',
+    )
+    if not success:
+        generated_email.status = 'skipped'
+        generated_email.error = 'Insufficient email credits'
+        generated_email.error_code = 'INSUFFICIENT_EMAIL_CREDITS'
+        log = _email_log_for(db, campaign, generated_email)
+        log.status = 'failed'
+        log.error = 'Insufficient email credits'
+        log.error_code = 'INSUFFICIENT_EMAIL_CREDITS'
+        log.failed_at = dt.datetime.now(dt.timezone.utc)
+        return ('failed', 'Insufficient email credits', remaining)
 
     log = _email_log_for(db, campaign, generated_email)
     now = dt.datetime.now(dt.timezone.utc)
@@ -443,7 +463,7 @@ def send_generated_email(db, campaign, generated_email, execution_type='schedule
         log.error = ''
         log.error_code = ''
         db.add(UsageRecord(user_id=campaign.user_id, campaign_id=campaign.id, metric='email_sent'))
-        return ('sent', '')
+        return ('sent', '', remaining)
     except Exception as exc:
         error_code, message = _classify_error(exc)
         generated_email.status = 'failed'
@@ -455,7 +475,7 @@ def send_generated_email(db, campaign, generated_email, execution_type='schedule
         log.failed_at = now
         log.error = message
         log.error_code = error_code
-        return ('failed', message)
+        return ('failed', message, remaining)
 
 
 def retry_email_log(db, user, log):
@@ -470,7 +490,17 @@ def retry_email_log(db, user, log):
         .first()
     )
     if not account:
-        return ('failed', 'No sending account configured for this email')
+        return ('failed', 'No sending account configured for this email', None)
+
+    # Consume 1 email credit (atomic)
+    success, remaining = consume_credit(
+        db, user.id,
+        reference_id=f'retry_log:{log.id}',
+        description=f'Retry email to {log.recipient_email}',
+    )
+    if not success:
+        return ('failed', 'Insufficient email credits', remaining)
+
     now = dt.datetime.now(dt.timezone.utc)
     try:
         if account.provider == 'google':
@@ -503,14 +533,14 @@ def retry_email_log(db, user, log):
             if campaign:
                 campaign.last_sent_at = now
         db.add(UsageRecord(user_id=user.id, campaign_id=log.campaign_id, metric='email_sent'))
-        return ('sent', '')
+        return ('sent', '', remaining)
     except Exception as exc:
         error_code, message = _classify_error(exc)
         log.status = 'failed'
         log.failed_at = now
         log.error = message
         log.error_code = error_code
-        return ('failed', message)
+        return ('failed', message, remaining)
 
 
 def send_manual_email(db, user, account, recipient, subject, body, ai_provider='', ai_model=''):
@@ -571,6 +601,37 @@ def send_manual_email(db, user, account, recipient, subject, body, ai_provider='
             db.flush()
             return (log, 'failed', f'Email unknown: {result.reason}')
 
+    # Consume 1 email credit (atomic)
+    success, remaining = consume_credit(
+        db, user.id,
+        reference_id=f'manual_send',
+        description=f'Manual email to {recipient.email}',
+    )
+    if not success:
+        log = EmailLog(
+            user_id=user.id,
+            recipient_id=recipient.id,
+            email_account_id=account.id,
+            sender_email=account.email,
+            recipient_email=recipient.email,
+            subject=subject or '',
+            body=body or '',
+            generated_subject=subject or '',
+            generated_body=body or '',
+            status='failed',
+            execution_type='manual',
+            ai_provider=ai_provider,
+            ai_model=ai_model,
+            error='Insufficient email credits',
+            error_code='INSUFFICIENT_EMAIL_CREDITS',
+            failed_at=now,
+            generated_at=now,
+            scheduled_at=now,
+        )
+        db.add(log)
+        db.flush()
+        return (log, 'failed', 'Insufficient email credits')
+
     log = EmailLog(
         user_id=user.id,
         recipient_id=recipient.id,
@@ -604,14 +665,14 @@ def send_manual_email(db, user, account, recipient, subject, body, ai_provider='
         log.status = 'sent'
         log.sent_at = now
         db.add(UsageRecord(user_id=user.id, metric='email_sent'))
-        return (log, 'sent', '')
+        return (log, 'sent', '', remaining)
     except Exception as exc:
         error_code, message = _classify_error(exc)
         log.status = 'failed'
         log.failed_at = now
         log.error = message
         log.error_code = error_code
-        return (log, 'failed', message)
+        return (log, 'failed', message, remaining)
 
 
 def schedule_campaign(db, campaign):

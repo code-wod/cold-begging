@@ -108,3 +108,8 @@ AUTOFILL_UPLOAD_DIR = os.getenv('AUTOFILL_UPLOAD_DIR', os.path.join(BASE_DIR, 'u
 # Email Verification (Go email-verifier API server)
 EMAIL_VERIFIER_URL = os.getenv('EMAIL_VERIFIER_URL', 'http://localhost:8080')
 EMAIL_VERIFIER_TIMEOUT = int(os.getenv('EMAIL_VERIFIER_TIMEOUT', '10'))
+
+# Razorpay
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '')
+RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET', '')
