@@ -1,17 +1,34 @@
 import datetime as dt
+import hashlib
 import logging
+import re
 import secrets
 import smtplib
+import time
+from collections import defaultdict
 from email.mime.text import MIMEText
 
 import bcrypt
 import jwt as pyjwt
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import gmail
-from ..config import API_BASE, FRONTEND_URL, SMTP_SENDER_EMAIL, SMTP_SENDER_APP_PASSWORD, SMTP_HOST, SMTP_PORT, SMTP_FROM_NAME
+from ..config import (
+    API_BASE,
+    FRONTEND_URL,
+    RATE_LIMIT_LOGIN_ATTEMPTS,
+    RATE_LIMIT_LOGIN_WINDOW,
+    RATE_LIMIT_RESET_ATTEMPTS,
+    RATE_LIMIT_RESET_WINDOW,
+    SMTP_FROM_EMAIL,
+    SMTP_FROM_NAME,
+    SMTP_HOST,
+    SMTP_PASSWORD,
+    SMTP_PORT,
+    SMTP_USERNAME,
+)
 from ..database import get_db
 from ..email_credit_service import grant_free_credits
 from ..encryption import decrypt_plaintext, encrypt_plaintext
@@ -40,6 +57,35 @@ logger = logging.getLogger('cold_email_agent')
 
 OAUTH_ALGORITHM = 'HS256'
 
+# ── In-memory rate limiter ──────────────────────────────────────────────
+_rate_store = defaultdict(list)  # key → [timestamp, ...]
+
+
+def _is_rate_limited(key, max_attempts, window_seconds):
+    now = time.time()
+    cutoff = now - window_seconds
+    _rate_store[key] = [t for t in _rate_store[key] if t > cutoff]
+    if len(_rate_store[key]) >= max_attempts:
+        return True
+    _rate_store[key].append(now)
+    return False
+
+
+def _check_password_strength(password):
+    """Validate password meets minimum security requirements."""
+    errors = []
+    if len(password) < 8:
+        errors.append('at least 8 characters')
+    if len(password) > 128:
+        errors.append('at most 128 characters')
+    if not re.search(r'[a-z]', password):
+        errors.append('at least one lowercase letter')
+    if not re.search(r'[A-Z]', password):
+        errors.append('at least one uppercase letter')
+    if not re.search(r'[0-9]', password):
+        errors.append('at least one digit')
+    return errors
+
 
 def _user_out(user, db):
     sub = db.query(Subscription).filter(Subscription.user_id == user.id).first()
@@ -56,42 +102,82 @@ def _user_out(user, db):
 
 
 def _send_verification_email(user, token):
-    """Send verification email using SMTP credentials from config."""
-    sender_email = SMTP_SENDER_EMAIL
-    sender_password = SMTP_SENDER_APP_PASSWORD
+    """Send verification email using the active SMTP provider."""
+    if not SMTP_USERNAME or not SMTP_PASSWORD:
+        logger.warning('SMTP not configured — skipping verification email for %s', user.email)
+        return False
     verification_link = f'{API_BASE}/user-email/verification?token={token}&email={user.email}'
     msg = MIMEText(f'Click here to verify your email: {verification_link}')
-    msg['Subject'] = f'Email Verification - {SMTP_FROM_NAME}'
-    msg['From'] = sender_email
+    msg['Subject'] = f'Verify your {SMTP_FROM_NAME} account'
+    msg['From'] = f'{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>'
     msg['To'] = user.email
     try:
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as smtp:
-            smtp.login(sender_email, sender_password)
-            smtp.sendmail(sender_email, user.email, msg.as_string())
+            smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+            smtp.sendmail(SMTP_FROM_EMAIL, user.email, msg.as_string())
         return True
     except Exception as e:
-        logger.warning('Verification email failed for %s: %s', user.email, e)
+        logger.warning('Verification email failed: %s', type(e).__name__)
+        return False
+
+
+def _send_password_reset_email(user, token):
+    """Send password reset email using the active SMTP provider."""
+    if not SMTP_USERNAME or not SMTP_PASSWORD:
+        logger.warning('SMTP not configured — skipping reset email for %s', user.email)
+        return False
+    reset_link = f'{FRONTEND_URL}/login?reset_token={token}'
+    msg = MIMEText(
+        f'You requested a password reset.\n\n'
+        f'Click here to reset: {reset_link}\n\n'
+        f'If you did not request this, ignore this email. The link expires in 1 hour.'
+    )
+    msg['Subject'] = f'{SMTP_FROM_NAME} — Password Reset'
+    msg['From'] = f'{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>'
+    msg['To'] = user.email
+    try:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as smtp:
+            smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+            smtp.sendmail(SMTP_FROM_EMAIL, user.email, msg.as_string())
+        return True
+    except Exception as e:
+        logger.warning('Password reset email failed: %s', type(e).__name__)
         return False
 
 
 @router.post('/signup', response_model=TokenOut)
-def signup(payload: SignupRequest, db: Session = Depends(get_db)):
-    exists = db.query(User).filter(User.email == payload.email.lower()).first()
+def signup(payload: SignupRequest, request: Request, db: Session = Depends(get_db)):
+    # Rate limit signup per IP
+    client_ip = request.client.host if request.client else 'unknown'
+    if _is_rate_limited(f'signup:{client_ip}', 10, 3600):
+        raise HTTPException(status_code=429, detail='Too many signup attempts. Try again later.')
+
+    # Validate password strength
+    pw_errors = _check_password_strength(payload.password)
+    if pw_errors:
+        raise HTTPException(status_code=400, detail=f'Password too weak: {", ".join(pw_errors)}')
+
+    # Normalize email (lowercase, strip whitespace)
+    email = payload.email.strip().lower()
+
+    # Check duplicate (DB constraint also enforces this)
+    exists = db.query(User).filter(User.email == email).first()
     if exists:
         raise HTTPException(status_code=409, detail='An account with this email already exists')
+
     user = User(
-        email=payload.email.lower(),
+        email=email,
         password_hash=hash_password(payload.password),
-        full_name=payload.full_name or '',
-        phone=payload.phone,
+        full_name=(payload.full_name or '').strip()[:255],
+        phone=(payload.phone or '').strip()[:64],
     )
     db.add(user)
     db.flush()
     db.add(Profile(user_id=user.id))
     db.add(Subscription(user_id=user.id, plan='free', status='active'))
-    # Grant 50 free email credits (idempotent)
     grant_free_credits(db, user.id)
-    # Generate and send verification token
+
+    # Generate verification token
     token = secrets.token_urlsafe(32)
     verification = EmailVerification(
         user_id=user.id,
@@ -99,16 +185,32 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
         expires_at=dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=48),
     )
     db.add(verification)
+
+    # Invalidate any previous unused verifications for this user
+    db.query(EmailVerification).filter(
+        EmailVerification.user_id == user.id,
+        EmailVerification.used.is_(False),
+    ).update({'used': True})
+
     db.commit()
     db.refresh(user)
-    # Send verification email (non-blocking)
+
     _send_verification_email(user, token)
     return TokenOut(access_token=create_access_token(user.id), user=_user_out(user, db))
 
 
 @router.post('/login', response_model=TokenOut)
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email.lower()).first()
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
+    client_ip = request.client.host if request.client else 'unknown'
+    email = payload.email.strip().lower()
+
+    # Rate limit per email+IP
+    if _is_rate_limited(f'login:{email}', RATE_LIMIT_LOGIN_ATTEMPTS, RATE_LIMIT_LOGIN_WINDOW):
+        raise HTTPException(status_code=429, detail='Too many login attempts. Please try again later.')
+    if _is_rate_limited(f'login_ip:{client_ip}', RATE_LIMIT_LOGIN_ATTEMPTS * 3, RATE_LIMIT_LOGIN_WINDOW):
+        raise HTTPException(status_code=429, detail='Too many login attempts. Please try again later.')
+
+    user = db.query(User).filter(User.email == email).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail='Invalid email or password')
     if not user.is_verified:
@@ -116,6 +218,10 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
             status_code=403,
             detail='Please verify your email first. Check your inbox for the verification link.',
         )
+
+    # Reset rate limit on successful login
+    _rate_store.pop(f'login:{email}', None)
+
     return TokenOut(access_token=create_access_token(user.id), user=_user_out(user, db))
 
 
@@ -140,8 +246,10 @@ def _verify_oauth_state(state):
 
 
 def _redirect_to_login(params):
+    # Sanitize params to prevent XSS
+    safe_params = params.replace('&', '&amp;').replace('"', '&quot;').replace("'", '&#39;')
     return HTMLResponse(
-        f'<script>window.location.href="{FRONTEND_URL}/login#{params}"</script>'
+        f'<script>window.location.href="{FRONTEND_URL}/login#{safe_params}"</script>'
     )
 
 
@@ -150,7 +258,7 @@ def google_login_url():
     if not gmail.GOOGLE_CLIENT_ID or not gmail.GOOGLE_CLIENT_SECRET:
         raise HTTPException(
             status_code=500,
-            detail='Google OAuth is not configured on the server (GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET)',
+            detail='Google OAuth is not configured on the server',
         )
     return {'authorize_url': gmail.build_login_authorize_url(_oauth_state(), _login_redirect_uri())}
 
@@ -184,7 +292,6 @@ def google_login_callback(
         db.flush()
         db.add(Profile(user_id=user.id))
         db.add(Subscription(user_id=user.id, plan='free', status='active'))
-        # Grant 50 free email credits for new Google OAuth users
         grant_free_credits(db, user.id)
     else:
         if info.get('full_name') and not user.full_name:
@@ -212,19 +319,30 @@ def subscription_status(user: User = Depends(get_current_user), db: Session = De
 
 
 @router.post('/send-verification')
-def send_verification(user: User = Depends(get_current_user_unverified), db: Session = Depends(get_db)):
+def send_verification(
+    request: Request,
+    user: User = Depends(get_current_user_unverified),
+    db: Session = Depends(get_db),
+):
+    client_ip = request.client.host if request.client else 'unknown'
+    if _is_rate_limited(f'verify:{user.id}', 3, 3600):
+        raise HTTPException(status_code=429, detail='Too many verification requests. Try again in an hour.')
+
+    # Invalidate old unused tokens
+    db.query(EmailVerification).filter(
+        EmailVerification.user_id == user.id,
+        EmailVerification.used.is_(False),
+    ).update({'used': True})
+
     token = secrets.token_urlsafe(32)
-    token_hash = hash_password(token)
-    expires_at = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=48)
     verification = EmailVerification(
         user_id=user.id,
-        token_hash=token_hash,
-        expires_at=expires_at,
+        token_hash=hash_password(token),
+        expires_at=dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=48),
     )
     db.add(verification)
     db.commit()
-    db.refresh(verification)
-    # Send verification email
+
     _send_verification_email(user, token)
     return {'message': 'Verification email sent'}
 
@@ -232,21 +350,25 @@ def send_verification(user: User = Depends(get_current_user_unverified), db: Ses
 @router.get('/verify-email')
 def verify_email(token: str, db: Session = Depends(get_db)):
     now = dt.datetime.now(dt.timezone.utc)
-    # bcrypt salts random, so we can't filter by hash equality—scan and verify_password
+    # Only check recent unused tokens (last 48h) to avoid O(n) bcrypt scan
+    cutoff = now - dt.timedelta(hours=48)
     candidates = db.query(EmailVerification).filter(
         EmailVerification.used.is_(False),
         EmailVerification.expires_at > now,
-    ).all()
+        EmailVerification.created_at > cutoff,
+    ).order_by(EmailVerification.id.desc()).limit(20).all()
+
     verification = next(
         (v for v in candidates if verify_password(token, v.token_hash)),
         None,
     )
     if not verification:
         raise HTTPException(status_code=400, detail='Invalid or expired verification token')
+
     verification.used = True
     user = db.query(User).filter(User.id == verification.user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail='User not found')
+        raise HTTPException(status_code=400, detail='Invalid verification link')
     user.is_verified = True
     db.commit()
     return {'message': 'Email verified successfully', 'is_verified': True}
@@ -259,25 +381,42 @@ def update_profile(
     db: Session = Depends(get_db),
 ):
     if payload.full_name is not None:
-        user.full_name = payload.full_name
+        user.full_name = payload.full_name.strip()[:255]
     if payload.avatar_url is not None:
-        user.avatar_url = payload.avatar_url
+        user.avatar_url = payload.avatar_url[:1024]
     profile = db.query(Profile).filter(Profile.user_id == user.id).first()
     if payload.bio is not None:
         if not profile:
             profile = Profile(user_id=user.id)
             db.add(profile)
-        profile.bio = payload.bio
+        profile.bio = payload.bio[:5000]
     db.commit()
     db.refresh(user)
     return _user_out(user, db)
 
 
 @router.post('/forgot-password')
-def forgot_password(payload: ResetRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email.lower()).first()
-    if not user:
+def forgot_password(payload: ResetRequest, request: Request, db: Session = Depends(get_db)):
+    client_ip = request.client.host if request.client else 'unknown'
+    email = payload.email.strip().lower()
+
+    # Rate limit per email and per IP
+    if _is_rate_limited(f'reset:{email}', RATE_LIMIT_RESET_ATTEMPTS, RATE_LIMIT_RESET_WINDOW):
         return {'message': 'If that email exists, a reset link has been generated.'}
+    if _is_rate_limited(f'reset_ip:{client_ip}', RATE_LIMIT_RESET_ATTEMPTS * 5, RATE_LIMIT_RESET_WINDOW):
+        return {'message': 'If that email exists, a reset link has been generated.'}
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        # Generic response — no email enumeration
+        return {'message': 'If that email exists, a reset link has been generated.'}
+
+    # Invalidate old reset tokens
+    db.query(PasswordReset).filter(
+        PasswordReset.user_id == user.id,
+        PasswordReset.used.is_(False),
+    ).update({'used': True})
+
     token = secrets.token_urlsafe(32)
     db.add(
         PasswordReset(
@@ -287,34 +426,45 @@ def forgot_password(payload: ResetRequest, db: Session = Depends(get_db)):
         )
     )
     db.commit()
-    # No email transport configured: log the reset token for local development.
-    import logging
 
-    logging.getLogger('cold_email_agent').info(
-        'Password reset token for %s: %s', user.email, token
-    )
+    # Send reset email (never log the token)
+    _send_password_reset_email(user, token)
+
     return {'message': 'If that email exists, a reset link has been generated.'}
 
 
 @router.post('/reset-password')
 def reset_password(payload: ResetConfirmRequest, db: Session = Depends(get_db)):
-    reset = (
-        db.query(PasswordReset)
-        .filter(PasswordReset.used.is_(False))
-        .order_by(PasswordReset.id.desc())
-        .all()
-    )
+    now = dt.datetime.now(dt.timezone.utc)
+    # Only check recent unused tokens
+    cutoff = now - dt.timedelta(hours=1)
+    candidates = db.query(PasswordReset).filter(
+        PasswordReset.used.is_(False),
+        PasswordReset.expires_at > now,
+        PasswordReset.created_at > cutoff,
+    ).order_by(PasswordReset.id.desc()).limit(10).all()
+
     match = None
-    for row in reset:
+    for row in candidates:
         if verify_password(payload.token, row.token_hash):
             match = row
             break
+
     if not match:
         raise HTTPException(status_code=400, detail='Invalid or expired reset token')
-    if match.expires_at < dt.datetime.now(dt.timezone.utc):
+    if match.expires_at < now:
         raise HTTPException(status_code=400, detail='Reset token has expired')
+
+    # Validate new password strength
+    pw_errors = _check_password_strength(payload.password)
+    if pw_errors:
+        raise HTTPException(status_code=400, detail=f'Password too weak: {", ".join(pw_errors)}')
+
     match.used = True
     user = db.query(User).filter(User.id == match.user_id).first()
+    if not user:
+        raise HTTPException(status_code=400, detail='Invalid reset token')
     user.password_hash = hash_password(payload.password)
     db.commit()
+
     return {'message': 'Password updated. You can now log in.'}

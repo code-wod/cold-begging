@@ -1,5 +1,6 @@
 import os
 import secrets
+import sys
 
 from dotenv import load_dotenv
 
@@ -84,12 +85,51 @@ N8N_WEBHOOK_SECRET = os.getenv('N8N_WEBHOOK_SECRET', '')
 UPLOAD_DIR = os.getenv('UPLOAD_DIR', os.path.join(BASE_DIR, 'uploads'))
 RESUME_UPLOAD_DIR = os.getenv('RESUME_UPLOAD_DIR', os.path.join(UPLOAD_DIR, 'resumes'))
 
-# Email verification settings (override via env: SMTP_SENDER_EMAIL, SMTP_SENDER_PASSWORD)
-SMTP_SENDER_EMAIL = os.getenv('SMTP_SENDER_EMAIL', 'gk022135@gmail.com')
-SMTP_SENDER_APP_PASSWORD = os.getenv('SMTP_SENDER_APP_PASSWORD', 'aipq ucst eval rnbg')  # Google App Password
-SMTP_HOST = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-SMTP_PORT = int(os.getenv('SMTP_PORT', '465'))
-SMTP_FROM_NAME = os.getenv('SMTP_FROM_NAME', 'Cold Begging')
+# ── SMTP Provider Configuration ─────────────────────────────────────────
+# SMTP_METHOD must be 'gmail' or 'namecheap'. Fail fast if invalid/missing.
+SMTP_METHOD = os.getenv('SMTP_METHOD', '').lower()
+_VALID_SMTP_METHODS = {'gmail', 'namecheap'}
+if SMTP_METHOD not in _VALID_SMTP_METHODS:
+    print(
+        f'[FATAL] SMTP_METHOD must be one of {_VALID_SMTP_METHODS}, got: {SMTP_METHOD!r}. '
+        'Set SMTP_METHOD=gmail or SMTP_METHOD=namecheap in backend/.env',
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+# Gmail SMTP settings
+GMAIL_SMTP_HOST = os.getenv('GMAIL_SMTP_HOST', 'smtp.gmail.com')
+GMAIL_SMTP_PORT = int(os.getenv('GMAIL_SMTP_PORT', '465'))
+GMAIL_SMTP_USERNAME = os.getenv('GMAIL_SMTP_USERNAME', '')
+GMAIL_SMTP_PASSWORD = os.getenv('GMAIL_SMTP_PASSWORD', '')
+GMAIL_FROM_EMAIL = os.getenv('GMAIL_FROM_EMAIL', '')
+
+# Namecheap SMTP settings
+NAMECHEAP_SMTP_HOST = os.getenv('NAMECHEAP_SMTP_HOST', 'mail.privateemail.com')
+NAMECHEAP_SMTP_PORT = int(os.getenv('NAMECHEAP_SMTP_PORT', '465'))
+NAMECHEAP_SMTP_USERNAME = os.getenv('NAMECHEAP_SMTP_USERNAME', '')
+NAMECHEAP_SMTP_PASSWORD = os.getenv('NAMECHEAP_SMTP_PASSWORD', '')
+NAMECHEAP_FROM_EMAIL = os.getenv('NAMECHEAP_FROM_EMAIL', '')
+
+# Resolved SMTP settings — single source of truth for the active provider
+if SMTP_METHOD == 'gmail':
+    SMTP_HOST = GMAIL_SMTP_HOST
+    SMTP_PORT = GMAIL_SMTP_PORT
+    SMTP_USERNAME = GMAIL_SMTP_USERNAME
+    SMTP_PASSWORD = GMAIL_SMTP_PASSWORD
+    SMTP_FROM_EMAIL = GMAIL_FROM_EMAIL
+else:  # namecheap
+    SMTP_HOST = NAMECHEAP_SMTP_HOST
+    SMTP_PORT = NAMECHEAP_SMTP_PORT
+    SMTP_USERNAME = NAMECHEAP_SMTP_USERNAME
+    SMTP_PASSWORD = NAMECHEAP_SMTP_PASSWORD
+    SMTP_FROM_EMAIL = NAMECHEAP_FROM_EMAIL
+
+SMTP_FROM_NAME = os.getenv('SMTP_FROM_NAME', 'Codessy')
+
+# Legacy aliases — used by auth.py for sending verification/reset emails
+SMTP_SENDER_EMAIL = SMTP_FROM_EMAIL
+SMTP_SENDER_APP_PASSWORD = SMTP_PASSWORD
 
 # Browser Agent Configuration
 PLAYWRIGHT_HEADLESS = os.getenv('PLAYWRIGHT_HEADLESS', 'false').lower() == 'true'
@@ -113,3 +153,9 @@ EMAIL_VERIFIER_TIMEOUT = int(os.getenv('EMAIL_VERIFIER_TIMEOUT', '10'))
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '')
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '')
 RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET', '')
+
+# Rate limiting (in-memory, per-server)
+RATE_LIMIT_LOGIN_ATTEMPTS = int(os.getenv('RATE_LIMIT_LOGIN_ATTEMPTS', '5'))
+RATE_LIMIT_LOGIN_WINDOW = int(os.getenv('RATE_LIMIT_LOGIN_WINDOW', '300'))  # seconds
+RATE_LIMIT_RESET_ATTEMPTS = int(os.getenv('RATE_LIMIT_RESET_ATTEMPTS', '3'))
+RATE_LIMIT_RESET_WINDOW = int(os.getenv('RATE_LIMIT_RESET_WINDOW', '3600'))  # seconds
