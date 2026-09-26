@@ -309,6 +309,32 @@ export default function Recipients() {
     setComposeForm({ email_account_id: firstAccount?.id || '', subject: '', body: '' });
   };
 
+  const verifyRecipient = async (recipient) => {
+    try {
+      const result = await api(`/api/recipients/${recipient.id}/verify`, { method: 'POST' });
+      toast(`Email ${result.verification_status}: ${result.verification_reason || 'No details'}`, 
+            result.verification_status === 'valid' ? 'success' : 
+            result.verification_status === 'invalid' ? 'error' : 'info');
+      loadRecipients(page);
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
+
+  const bulkVerify = async () => {
+    if (!activeGroup) return;
+    try {
+      const result = await api('/api/recipients/verify-bulk', {
+        method: 'POST',
+        body: { group_id: activeGroup.id, limit: 100 },
+      });
+      toast(`Verified: ${result.valid} valid, ${result.invalid} invalid, ${result.unknown} unknown`, 'success');
+      loadRecipients(page);
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
+
   const sendManual = async () => {
     if (!composeForm.email_account_id || !composeForm.subject || !composeForm.body) {
       toast('Pick an account and fill subject and body', 'error');
@@ -346,6 +372,9 @@ export default function Recipients() {
         <Button variant="secondary" disabled={importing} onClick={openImport}>
           {importing ? <Spinner /> : Icons.up} Import
         </Button>
+        {view === 'detail' && (
+          <Button variant="secondary" onClick={bulkVerify}>{Icons.check} Verify All</Button>
+        )}
         {view === 'groups' && (
           <Button variant="secondary" onClick={() => setNewGroupOpen(true)}>{Icons.plus} New group</Button>
         )}
@@ -392,6 +421,7 @@ export default function Recipients() {
                     <th>Email</th>
                     <th>Company</th>
                     <th>Industry</th>
+                    <th>Status</th>
                     <th>Category</th>
                     <th>Role</th>
                     <th>Added</th>
@@ -404,11 +434,15 @@ export default function Recipients() {
                       <td><b>{r.email}</b></td>
                       <td>{r.company_name || '—'}</td>
                       <td>{r.industry || '—'}</td>
+                      <td>
+                        <StatusBadge status={r.verification_status || 'not_verified'} />
+                      </td>
                       <td>{_categoryName(categories, r.category_id) || '—'}</td>
                       <td>{r.job_role ? `${r.job_role}${r.position_level ? ` (${r.position_level})` : ''}` : '—'}</td>
                       <td className="muted">{fmtRel(r.created_at)}</td>
                       <td>
                         <div className="flex" style={{ gap: 6 }}>
+                          <button className="btn ghost sm" title="Verify email" onClick={() => verifyRecipient(r)}>{Icons.check}</button>
                           <button className="btn ghost sm" title="Edit" onClick={() => openEdit(r)}>{Icons.edit}</button>
                           <button className="btn ghost sm" title="Send email" onClick={() => openCompose(r)}>{Icons.send}</button>
                           <button className="btn ghost sm" title="Delete" onClick={() => setConfirmDelete(r)}>{Icons.trash}</button>

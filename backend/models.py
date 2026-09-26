@@ -104,6 +104,9 @@ class Recipient(Base):
     funding_status = Column(String(255), default='')
     recent_news = Column(Text, default='')
     contact_person_name = Column(String(255), default='')
+    verification_status = Column(String(20), default='not_verified', index=True)
+    verification_reason = Column(Text, default='')
+    verified_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -112,6 +115,7 @@ class Recipient(Base):
     __table_args__ = (
         UniqueConstraint('user_id', 'email', name='uq_recipient_user_email'),
         Index('ix_recipient_user_group', 'user_id', 'group_id'),
+        Index('ix_recipient_user_verification', 'user_id', 'verification_status'),
     )
 
 

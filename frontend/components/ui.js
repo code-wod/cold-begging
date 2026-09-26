@@ -129,9 +129,12 @@ const EMAIL_TONES = {
   generated: 'gray', approved: 'teal', scheduled: 'teal', sending: 'blue',
   sent: 'green', failed: 'red', cancelled: 'gray', skipped: 'gray',
 };
+const VERIFICATION_TONES = {
+  valid: 'green', invalid: 'red', unknown: 'amber', not_verified: 'gray',
+};
 
 export function StatusBadge({ status, tone }) {
-  const resolved = tone || CAMPAIGN_TONES[status] || EMAIL_TONES[status] || 'gray';
+  const resolved = tone || VERIFICATION_TONES[status] || CAMPAIGN_TONES[status] || EMAIL_TONES[status] || 'gray';
   return <span className={`badge ${resolved}`}>{status.replace('_', ' ')}</span>;
 }
 

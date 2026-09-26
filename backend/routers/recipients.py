@@ -139,6 +139,9 @@ def _recipient_out(db, r):
         position_level=r.position_level,
         group_id=r.group_id,
         group_name=group_name,
+        verification_status=r.verification_status or 'not_verified',
+        verification_reason=r.verification_reason or '',
+        verified_at=r.verified_at.isoformat() if r.verified_at else None,
         created_at=r.created_at.isoformat() if r.created_at else None,
     )
 
@@ -348,3 +351,110 @@ def bulk_delete(
     )
     db.commit()
     return {'deleted': len(ids)}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Email Verification Endpoints
+# ──────────────────────────────────────────────────────────────────────────────
+
+@router.post('/{recipient_id}/verify')
+def verify_recipient(
+    recipient_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Verify a single recipient's email address."""
+    from ..email_verification import get_verification_service
+
+    recipient = (
+        db.query(Recipient)
+        .filter(Recipient.id == recipient_id, Recipient.user_id == user.id)
+        .first()
+    )
+    if not recipient:
+        raise HTTPException(status_code=404, detail='Recipient not found')
+
+    verifier = get_verification_service()
+    result = verifier.verify(recipient.email)
+    verifier.persist_result(db, recipient, result)
+    db.commit()
+
+    return {
+        'id': recipient.id,
+        'email': recipient.email,
+        'verification_status': recipient.verification_status,
+        'verification_reason': recipient.verification_reason,
+        'verified_at': recipient.verified_at.isoformat() if recipient.verified_at else None,
+    }
+
+
+@router.post('/verify-bulk')
+def bulk_verify_recipients(
+    payload: dict,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Bulk verify recipients. Optional: {group_id: int, limit: int}."""
+    from ..email_verification import get_verification_service
+
+    group_id = payload.get('group_id')
+    limit = min(payload.get('limit', 100), 500)  # Cap at 500 per batch
+
+    query = db.query(Recipient).filter(Recipient.user_id == user.id)
+    if group_id:
+        query = query.filter(Recipient.group_id == group_id)
+
+    recipients = query.limit(limit).all()
+    verifier = get_verification_service()
+
+    results = {'valid': 0, 'invalid': 0, 'unknown': 0, 'total': len(recipients)}
+
+    for recipient in recipients:
+        if not verifier.should_reverify(recipient):
+            continue
+
+        result = verifier.verify(recipient.email)
+        verifier.persist_result(db, recipient, result)
+
+        if result.status == 'valid':
+            results['valid'] += 1
+        elif result.status == 'invalid':
+            results['invalid'] += 1
+        else:
+            results['unknown'] += 1
+
+    db.commit()
+    return results
+
+
+@router.get('/verification-stats')
+def get_verification_stats(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get verification statistics for the user's recipients."""
+    from sqlalchemy import func
+
+    stats = (
+        db.query(
+            Recipient.verification_status,
+            func.count(Recipient.id)
+        )
+        .filter(Recipient.user_id == user.id)
+        .group_by(Recipient.verification_status)
+        .all()
+    )
+
+    result = {
+        'not_verified': 0,
+        'valid': 0,
+        'invalid': 0,
+        'unknown': 0,
+        'total': 0,
+    }
+    for status, count in stats:
+        if status in result:
+            result[status] = count
+        result['total'] += count
+
+    return result

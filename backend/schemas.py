@@ -177,6 +177,9 @@ class RecipientOut(BaseModel):
     position_level: str
     group_id: Optional[int] = None
     group_name: str = ''
+    verification_status: str = 'not_verified'
+    verification_reason: str = ''
+    verified_at: Optional[str] = None
     created_at: Optional[str] = None
 
 
