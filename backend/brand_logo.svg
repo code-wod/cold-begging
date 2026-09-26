@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 120" role="img" aria-labelledby="title desc">
+  <title id="title">Codessy</title>
+  <desc id="desc">Codessy — Build. Automate. Scale.</desc>
+  
+<defs>
+  <linearGradient id="blue" x1="22" y1="0" x2="58" y2="36" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#35A7FF"/><stop offset="1" stop-color="#2875F0"/>
+  </linearGradient>
+  <linearGradient id="purple" x1="64" y1="0" x2="100" y2="36" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#9B5CFF"/><stop offset="1" stop-color="#7340E8"/>
+  </linearGradient>
+  <linearGradient id="green" x1="22" y1="40" x2="58" y2="76" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#22D3A6"/><stop offset="1" stop-color="#10B981"/>
+  </linearGradient>
+  <linearGradient id="coral" x1="64" y1="40" x2="100" y2="76" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#FF9A55"/><stop offset="1" stop-color="#F45F72"/>
+  </linearGradient>
+</defs>
+
+  <g transform="translate(0 22)">
+<g>
+  <!-- Blue: Build -->
+  <path d="M22 18C22 8.059 30.059 0 40 0h18v18c0 9.941-8.059 18-18 18H22V18Z"
+        fill="url(#blue)"/>
+  <!-- Purple: Automate -->
+  <circle cx="82" cy="18" r="18" fill="url(#purple)"/>
+  <!-- Green: Scale -->
+  <path d="M22 40h18c9.941 0 18 8.059 18 18v18H40c-9.941 0-18-8.059-18-18V40Z"
+        fill="url(#green)"/>
+  <!-- Coral: Possibilities -->
+  <path d="M64 40h18c9.941 0 18 8.059 18 18v18H82c-9.941 0-18-8.059-18-18V40Z"
+        fill="url(#coral)"/>
+</g>
+</g>
+  <text x="132" y="59" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="52" font-weight="750" letter-spacing="-2.2" fill="#111827">Codessy</text>
+  <text x="134" y="88" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="15" font-weight="500" letter-spacing="2.2" fill="#667085">BUILD. AUTOMATE. SCALE.</text>
+</svg>

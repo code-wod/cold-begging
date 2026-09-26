@@ -1,8 +1,10 @@
 """
 Codessy email templates — HTML emails with branding.
 All templates use inline CSS for maximum email client compatibility.
+Brand images are base64-encoded SVGs embedded as data URIs.
 """
 
+import base64
 import os
 
 from .config import FRONTEND_URL, SMTP_FROM_NAME
@@ -18,35 +20,36 @@ _TEXT = '#1E293B'
 _MUTED = '#64748B'
 _BORDER = '#E2E8F0'
 
-# Logo SVG inline (simplified for email)
-_LOGO_SVG = '''
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="48" height="48" role="img" aria-label="Codessy">
-<defs>
-  <linearGradient id="eb" x1="22" y1="0" x2="58" y2="36" gradientUnits="userSpaceOnUse">
-    <stop stop-color="#35A7FF"/><stop offset="1" stop-color="#2875F0"/>
-  </linearGradient>
-  <linearGradient id="ep" x1="64" y1="0" x2="100" y2="36" gradientUnits="userSpaceOnUse">
-    <stop stop-color="#9B5CFF"/><stop offset="1" stop-color="#7340E8"/>
-  </linearGradient>
-  <linearGradient id="eg" x1="22" y1="40" x2="58" y2="76" gradientUnits="userSpaceOnUse">
-    <stop stop-color="#22D3A6"/><stop offset="1" stop-color="#10B981"/>
-  </linearGradient>
-  <linearGradient id="ec" x1="64" y1="40" x2="100" y2="76" gradientUnits="userSpaceOnUse">
-    <stop stop-color="#FF9A55"/><stop offset="1" stop-color="#F45F72"/>
-  </linearGradient>
-</defs>
-  <rect width="120" height="120" rx="28" fill="#070B1F"/>
-  <g transform="translate(-1 22)">
-    <path d="M22 18C22 8.059 30.059 0 40 0h18v18c0 9.941-8.059 18-18 18H22V18Z" fill="url(#eb)"/>
-    <circle cx="82" cy="18" r="18" fill="url(#ep)"/>
-    <path d="M22 40h18c9.941 0 18 8.059 18 18v18H40c-9.941 0-18-8.059-18-18V40Z" fill="url(#eg)"/>
-    <path d="M64 40h18c9.941 0 18 8.059 18 18v18H82c-9.941 0-18-8.059-18-18V40Z" fill="url(#ec)"/>
-  </g>
-</svg>'''
+# ── Brand images as base64 data URIs ────────────────────────────────────
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _load_svg_b64(filename):
+    """Load an SVG from the same directory and return a data URI."""
+    path = os.path.join(_BASE_DIR, filename)
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            svg = f.read()
+        return 'data:image/svg+xml;base64,' + base64.b64encode(svg.encode('utf-8')).decode('utf-8')
+    except FileNotFoundError:
+        return ''
+
+
+# Full brand logo: icon + "Codessy" + tagline (560x120)
+BRAND_LOGO_URI = _load_svg_b64('brand_logo.svg')
+# Icon-only logo (120x120)
+ICON_LOGO_URI = _load_svg_b64('brand_icon.svg')
+
+# Fallback: hosted URL on Vercel
+BRAND_LOGO_URL = f'{FRONTEND_URL.rstrip("/")}/brand/codessy-brand.svg'
+ICON_LOGO_URL = f'{FRONTEND_URL.rstrip("/")}/brand/codessy-favicon.svg'
 
 
 def _base(title, subtitle, content_html):
     """Base email template wrapper."""
+    # Use data URI if available, otherwise hosted URL
+    logo_src = BRAND_LOGO_URI or BRAND_LOGO_URL
+
     return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -59,11 +62,11 @@ def _base(title, subtitle, content_html):
 <tr><td align="center">
 <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
 
-<!-- Logo -->
-<tr><td align="center" style="padding-bottom:24px;">
-{_LOGO_SVG}
-<div style="font-size:20px;font-weight:700;color:{_DARK};margin-top:8px;letter-spacing:-0.5px;">Codessy</div>
-<div style="font-size:11px;color:{_MUTED};letter-spacing:1px;text-transform:uppercase;">BUILD. AUTOMATE. SCALE.</div>
+<!-- Brand Logo -->
+<tr><td align="center" style="padding-bottom:32px;">
+  <a href="{FRONTEND_URL}" style="text-decoration:none;">
+    <img src="{logo_src}" alt="Codessy — Build. Automate. Scale." width="280" style="display:block;max-width:280px;height:auto;" />
+  </a>
 </td></tr>
 
 <!-- Card -->
@@ -166,7 +169,7 @@ def password_reset_email(reset_link, user_name=''):
 
 
 def welcome_email(user_name='', login_link=''):
-    """Welcome email sent after signup (optional)."""
+    """Welcome email sent after signup."""
     greeting = f'Hi {user_name}!' if user_name else 'Hi!'
     content = f'''
     <p style="margin:0 0 16px;font-size:15px;color:{_TEXT};">{greeting}</p>
