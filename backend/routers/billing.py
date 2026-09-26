@@ -246,7 +246,7 @@ def verify_payment(payload: VerifyPaymentRequest, user: User = Depends(get_curre
         raise HTTPException(status_code=500, detail='Failed to credit account')
 
     # Upgrade subscription plan based on pack type
-    sub = db.query(Subscription).filter(Subscription.user_id == user.id).first()
+    sub = _get_subscription(db, user)
     if sub:
         if pack['type'] in ('monthly', 'yearly'):
             sub.plan = 'pro'
@@ -256,6 +256,8 @@ def verify_payment(payload: VerifyPaymentRequest, user: User = Depends(get_curre
                 sub.renews_at = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=30)
             else:
                 sub.renews_at = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=365)
+            db.commit()
+            logger.info('Plan upgraded to pro for user %s', user.id)
 
     db.commit()
     logger.info('Payment verified: %s credits + plan upgrade for user %s', pack['credits'], user.id)
@@ -364,7 +366,7 @@ async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
 
         # Upgrade subscription plan for monthly/yearly packs
         if success and pack['type'] in ('monthly', 'yearly'):
-            sub = db.query(Subscription).filter(Subscription.user_id == user_id).first()
+            sub = _get_subscription(db, user_id)
             if sub:
                 sub.plan = 'pro'
                 sub.status = 'active'

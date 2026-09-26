@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../lib/auth';
@@ -8,6 +9,13 @@ import { Icons, Spinner } from './ui';
 const NAV = [
   { section: 'Overview' },
   { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { section: 'Automation' },
+  { href: '/campaigns', label: 'Campaigns', icon: 'campaigns' },
+  { href: '/recipients', label: 'Recipients', icon: 'recipients' },
+  { href: '/ai-agents', label: 'AI Agents', icon: 'agents' },
+  { href: '/email-accounts', label: 'Email Accounts', icon: 'email' },
+  { href: '/history', label: 'History', icon: 'history' },
+  { href: '/analytics', label: 'Analytics', icon: 'analytics' },
   { section: 'Job Hunting' },
   { href: '/jobs', label: 'Jobs', icon: 'search' },
   { href: '/applications', label: 'Applications', icon: 'send' },
@@ -15,23 +23,6 @@ const NAV = [
   { href: '/agent', label: 'Agent Control', icon: 'play' },
   { href: '/resumes', label: 'Resumes', icon: 'profile' },
   { href: '/job-preferences', label: 'Job Preferences', icon: 'settings' },
-  { section: 'Job Autofill' },
-  { href: '/job-applications', label: 'Applications', icon: 'send' },
-  { href: '/job-applications/iframe-fill', label: 'Fill Application', icon: 'play' },
-  { href: '/job-applications/auto-fill', label: 'Auto-Fill (Background)', icon: 'play' },
-  { href: '/job-applications/history', label: 'History', icon: 'history' },
-  { href: '/job-profile', label: 'Job Profile', icon: 'profile' },
-  { section: 'Extension' },
-  { href: '/extension/download', label: 'Download', icon: 'link' },
-  { href: '/extension/applications', label: 'Extension Apps', icon: 'send' },
-  { section: 'Automation' },
-  { href: '/campaigns', label: 'Campaigns', icon: 'campaigns' },
-  { href: '/recipients', label: 'Recipients', icon: 'recipients' },
-  { href: '/recipient-catalog', label: 'Recipient Catalog', icon: 'recipients' },
-  { href: '/ai-agents', label: 'AI Agents', icon: 'agents' },
-  { href: '/email-accounts', label: 'Email Accounts', icon: 'email' },
-  { href: '/history', label: 'History', icon: 'history' },
-  { href: '/analytics', label: 'Analytics', icon: 'analytics' },
   { section: 'Account' },
   { href: '/settings', label: 'Settings', icon: 'settings' },
   { href: '/billing', label: 'Billing', icon: 'billing' },
@@ -43,6 +34,16 @@ const ADMIN_NAV = [{ href: '/admin', label: 'Admin', icon: 'settings' }];
 export default function Layout({ title, breadcrumb, actions, children }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
+  const navRef = useRef(null);
+
+  // Scroll active sidebar link into view on route change
+  useEffect(() => {
+    if (!navRef.current) return;
+    const active = navRef.current.querySelector('.sidebar-link.active');
+    if (active) {
+      active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [router.pathname]);
 
   if (loading) {
     return (
@@ -87,7 +88,7 @@ export default function Layout({ title, breadcrumb, actions, children }) {
           </svg>
           <span className="brand-text">Codessy</span>
         </div>
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" ref={navRef}>
           {NAV.map((item) =>
             item.section ? (
               <div key={item.section} className="sidebar-section">
