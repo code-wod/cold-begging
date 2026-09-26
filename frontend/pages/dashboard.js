@@ -43,11 +43,30 @@ export default function Dashboard() {
   const aiReady = user.plan === 'pro' || hasModel;
   const rateLimit = billing.limits?.emails_per_hour || 10;
 
+  const isPro = user.plan === 'pro';
+
   return (
     <Layout title="Dashboard" breadcrumb={<Link href="/dashboard">Dashboard</Link>}>
       <div className="page-head">
-        <h1>Welcome back{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}</h1>
-        <div className="muted">Overview of your outreach automation workspace.</div>
+        <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1>Welcome back{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}</h1>
+            <div className="muted">Overview of your outreach automation workspace.</div>
+          </div>
+          <div className="plan-badge-wrap">
+            {isPro ? (
+              <Link href="/billing" className="plan-badge plan-badge-pro">
+                <span className="plan-badge-icon">&#9733;</span>
+                <span>Pro Plan</span>
+              </Link>
+            ) : (
+              <Link href="/billing" className="plan-badge plan-badge-free">
+                <span>Free Plan</span>
+                <span className="plan-badge-arrow">&rarr;</span>
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="grid stats">
@@ -59,22 +78,22 @@ export default function Dashboard() {
         <div className="panel stat-card">
           <div className="stat-label">Sending Speed</div>
           <div className="stat-value">{rateLimit}/hr</div>
-          <div className="muted" style={{ fontSize: 12 }}>{user.plan === 'pro' ? 'Pro limit' : 'Free limit'}</div>
+          <div className="muted" style={{ fontSize: 12 }}>{isPro ? 'Pro limit' : 'Free limit'}</div>
         </div>
         <div className="panel stat-card">
           <div className="stat-label">Recipients</div>
           <div className="stat-value">{rc.count}</div>
-          <Link href="/recipients" className="muted" style={{ fontSize: 12 }}>Manage →</Link>
+          <Link href="/recipients" className="muted" style={{ fontSize: 12 }}>Manage &rarr;</Link>
         </div>
         <div className="panel stat-card">
           <div className="stat-label">Campaigns</div>
           <div className="stat-value">{analytics.campaigns}</div>
-          <Link href="/campaigns" className="muted" style={{ fontSize: 12 }}>View all →</Link>
+          <Link href="/campaigns" className="muted" style={{ fontSize: 12 }}>View all &rarr;</Link>
         </div>
         <div className="panel stat-card">
           <div className="stat-label">Email Credits</div>
           <div className="stat-value">{credits?.remaining ?? '—'}</div>
-          <Link href="/billing" className="muted" style={{ fontSize: 12 }}>Buy more →</Link>
+          <Link href="/billing" className="muted" style={{ fontSize: 12 }}>Buy more &rarr;</Link>
         </div>
       </div>
 
@@ -114,9 +133,13 @@ export default function Dashboard() {
           <Panel title="Environment">
             <div className="field" style={{ marginBottom: 10 }}>
               <div className="label">Plan</div>
-              <StatusBadge status={user.plan === 'pro' ? 'Pro' : 'Free'} tone={user.plan === 'pro' ? 'green' : 'gray'} />
-              {user.plan === 'free' && (
-                <div className="help"><Link href="/billing">Upgrade to Pro</Link> for higher sending speed and the managed AI model.</div>
+              {isPro ? (
+                <span className="pro-pill">&#9733; Pro</span>
+              ) : (
+                <div>
+                  <StatusBadge status="Free" tone="gray" />
+                  <div className="help"><Link href="/billing">Upgrade to Pro</Link> for higher sending speed and the managed AI model.</div>
+                </div>
               )}
             </div>
             <div className="field" style={{ marginBottom: 10 }}>

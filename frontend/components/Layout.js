@@ -111,10 +111,13 @@ export default function Layout({ title, breadcrumb, actions, children }) {
             ))}
         </nav>
         <div className="sidebar-footer">
-          <span className="plan-pill">
-            {user.plan === 'pro' ? '⭐ Pro Plan' : 'Free Plan'} ·{' '}
-            <Link href="/billing" style={{ color: '#93c5fd' }}>Upgrade</Link>
-          </span>
+          {user.plan === 'pro' ? (
+            <div className="sidebar-plan-badge sidebar-plan-pro">&#9733; Pro Plan</div>
+          ) : (
+            <Link href="/billing" className="sidebar-plan-badge sidebar-plan-free">
+              Free Plan &middot; Upgrade
+            </Link>
+          )}
           <button className="btn ghost sm" style={{ color: '#cbd5e1', width: '100%' }} onClick={logout}>
             {Icons.logout} Sign out
           </button>

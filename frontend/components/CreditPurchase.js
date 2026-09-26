@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '../lib/auth';
 import { api } from '../lib/api';
 import { useToast } from './ui';
 
@@ -12,6 +13,7 @@ const PLANS = [
     desc: 'Send up to 200 cold emails',
     badge: '',
     color: '#6366f1',
+    icon: '&#9889;',
   },
   {
     id: 'pro_monthly',
@@ -22,12 +24,15 @@ const PLANS = [
     desc: 'Send up to 1,199 cold emails/mo',
     badge: 'POPULAR',
     color: '#f59e0b',
+    icon: '&#9733;',
   },
 ];
 
 export default function CreditPurchase({ onPurchased }) {
   const toast = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(null);
+  const isPro = user?.plan === 'pro';
 
   const handlePurchase = async (plan) => {
     setLoading(plan.id);
@@ -85,32 +90,46 @@ export default function CreditPurchase({ onPurchased }) {
         const isPopular = plan.badge === 'POPULAR';
         const isBestValue = plan.badge === 'BEST VALUE';
         const isHighlighted = isPopular || isBestValue;
+        const isCurrentPlan = (plan.id === 'pro_monthly' && isPro) || (plan.id === 'starter' && !isPro);
 
         return (
           <div
             key={plan.id}
-            onClick={() => handlePurchase(plan)}
+            onClick={() => !isCurrentPlan && handlePurchase(plan)}
             style={{
               position: 'relative',
-              border: `2px solid ${isHighlighted ? plan.color : 'var(--border)'}`,
+              border: `2px solid ${isCurrentPlan ? plan.color : isHighlighted ? plan.color + '88' : 'var(--border)'}`,
               borderRadius: 12,
               padding: '24px 16px',
               textAlign: 'center',
-              cursor: loading ? 'wait' : 'pointer',
+              cursor: isCurrentPlan ? 'default' : loading ? 'wait' : 'pointer',
               transition: 'all 0.2s',
-              background: isHighlighted ? `${plan.color}08` : 'var(--panel)',
+              background: isCurrentPlan ? `${plan.color}10` : isHighlighted ? `${plan.color}08` : 'var(--panel)',
               opacity: loading && loading !== plan.id ? 0.5 : 1,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-4px)';
-              e.currentTarget.style.boxShadow = `0 8px 24px ${plan.color}22`;
+              if (!isCurrentPlan) {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = `0 8px 24px ${plan.color}22`;
+              }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
+              if (!isCurrentPlan) {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }
             }}
           >
-            {plan.badge && (
+            {isCurrentPlan && (
+              <div style={{
+                position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
+                background: plan.color, color: '#fff', fontSize: 10, fontWeight: 700,
+                padding: '3px 12px', borderRadius: 20, letterSpacing: 0.5,
+              }}>
+                CURRENT PLAN
+              </div>
+            )}
+            {!isCurrentPlan && plan.badge && (
               <div style={{
                 position: 'absolute',
                 top: -12,
@@ -132,7 +151,7 @@ export default function CreditPurchase({ onPurchased }) {
               fontSize: 16,
               fontWeight: 700,
               marginBottom: 8,
-              marginTop: plan.badge ? 8 : 0,
+              marginTop: (plan.badge || isCurrentPlan) ? 8 : 0,
               color: plan.color,
             }}>
               {plan.name}
@@ -157,18 +176,18 @@ export default function CreditPurchase({ onPurchased }) {
             </div>
 
             <div style={{
-              background: loading === plan.id ? 'var(--muted)' : plan.color,
-              color: '#fff',
+              background: isCurrentPlan ? plan.color + '22' : loading === plan.id ? 'var(--muted)' : plan.color,
+              color: isCurrentPlan ? plan.color : '#fff',
               padding: '10px 0',
               borderRadius: 8,
               fontSize: 14,
               fontWeight: 600,
               transition: 'background 0.2s',
             }}>
-              {loading === plan.id ? 'Processing...' : 'Buy Now'}
+              {isCurrentPlan ? 'Current Plan' : loading === plan.id ? 'Processing...' : 'Buy Now'}
             </div>
 
-            {plan.period === 'monthly' && (
+            {plan.period === 'monthly' && !isCurrentPlan && (
               <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 8, fontWeight: 600 }}>
                 Just ₹0.08 per email
               </div>
