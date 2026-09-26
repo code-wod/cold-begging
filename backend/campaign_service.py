@@ -10,6 +10,7 @@ from .ai import AnthropicProvider, is_managed, provider_for
 from .cold_email_agent import ColdEmailAgent
 from .config import FREE_RATE_PER_HOUR, MANAGED_MODEL_NAME, MAX_RATE_PER_HOUR, MIN_RATE_PER_HOUR
 from .database import SessionLocal
+from .email_verification import get_verification_service
 from .encryption import decrypt_plaintext
 from .models import (
     AIAgent,
@@ -382,6 +383,32 @@ def send_generated_email(db, campaign, generated_email, execution_type='schedule
     recipient = db.query(Recipient).filter(Recipient.id == generated_email.recipient_id).first()
     if not account:
         return ('failed', 'No sending account configured for this campaign')
+
+    # Email verification check: verify before sending if needed
+    if recipient:
+        verifier = get_verification_service()
+        if verifier.should_reverify(recipient):
+            result = verifier.verify(recipient.email)
+            verifier.persist_result(db, recipient, result)
+            if result.status == 'invalid':
+                generated_email.status = 'skipped'
+                generated_email.error = f'Email invalid: {result.reason}'
+                generated_email.error_code = 'INVALID_EMAIL'
+                log.status = 'failed'
+                log.error = f'Email invalid: {result.reason}'
+                log.error_code = 'INVALID_EMAIL'
+                log.failed_at = dt.datetime.now(dt.timezone.utc)
+                return ('failed', f'Email invalid: {result.reason}')
+            elif result.status == 'unknown':
+                generated_email.status = 'skipped'
+                generated_email.error = f'Email unknown: {result.reason}'
+                generated_email.error_code = 'UNKNOWN_EMAIL'
+                log.status = 'failed'
+                log.error = f'Email unknown: {result.reason}'
+                log.error_code = 'UNKNOWN_EMAIL'
+                log.failed_at = dt.datetime.now(dt.timezone.utc)
+                return ('failed', f'Email unknown: {result.reason}')
+
     log = _email_log_for(db, campaign, generated_email)
     now = dt.datetime.now(dt.timezone.utc)
     generated_email.status = 'sending'
@@ -489,6 +516,61 @@ def retry_email_log(db, user, log):
 def send_manual_email(db, user, account, recipient, subject, body, ai_provider='', ai_model=''):
     """Send a one-off manual email and record it in history. Returns (log, status, error)."""
     now = dt.datetime.now(dt.timezone.utc)
+
+    # Email verification check: verify before sending if needed
+    verifier = get_verification_service()
+    if verifier.should_reverify(recipient):
+        result = verifier.verify(recipient.email)
+        verifier.persist_result(db, recipient, result)
+        if result.status == 'invalid':
+            log = EmailLog(
+                user_id=user.id,
+                recipient_id=recipient.id,
+                email_account_id=account.id,
+                sender_email=account.email,
+                recipient_email=recipient.email,
+                subject=subject or '',
+                body=body or '',
+                generated_subject=subject or '',
+                generated_body=body or '',
+                status='failed',
+                execution_type='manual',
+                ai_provider=ai_provider,
+                ai_model=ai_model,
+                error=f'Email invalid: {result.reason}',
+                error_code='INVALID_EMAIL',
+                failed_at=now,
+                generated_at=now,
+                scheduled_at=now,
+            )
+            db.add(log)
+            db.flush()
+            return (log, 'failed', f'Email invalid: {result.reason}')
+        elif result.status == 'unknown':
+            log = EmailLog(
+                user_id=user.id,
+                recipient_id=recipient.id,
+                email_account_id=account.id,
+                sender_email=account.email,
+                recipient_email=recipient.email,
+                subject=subject or '',
+                body=body or '',
+                generated_subject=subject or '',
+                generated_body=body or '',
+                status='failed',
+                execution_type='manual',
+                ai_provider=ai_provider,
+                ai_model=ai_model,
+                error=f'Email unknown: {result.reason}',
+                error_code='UNKNOWN_EMAIL',
+                failed_at=now,
+                generated_at=now,
+                scheduled_at=now,
+            )
+            db.add(log)
+            db.flush()
+            return (log, 'failed', f'Email unknown: {result.reason}')
+
     log = EmailLog(
         user_id=user.id,
         recipient_id=recipient.id,
