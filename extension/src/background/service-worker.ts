@@ -91,6 +91,21 @@ async function handleContentMsg(msg: any, tab: chrome.tabs.Tab): Promise<any> {
         }
       }
 
+      // Save job to backend (fire-and-forget)
+      if (msg.jobTitle && msg.company && api.isAuthenticated()) {
+        api.saveJob({
+          title: msg.jobTitle,
+          company: msg.company,
+          url: msg.url,
+          location: msg.location || '',
+          description: msg.description || '',
+          platform: msg.platform || '',
+          salary: msg.salary || '',
+          employment_type: msg.employmentType || '',
+          remote_type: msg.remoteType || '',
+        }).then(r => log('Job saved:', r)).catch(e => log('Job save failed:', e));
+      }
+
       // Forward detection to side panel
       try {
         chrome.runtime.sendMessage({
@@ -99,6 +114,8 @@ async function handleContentMsg(msg: any, tab: chrome.tabs.Tab): Promise<any> {
           jobTitle: msg.jobTitle,
           company: msg.company,
           url: msg.url,
+          location: msg.location,
+          description: msg.description,
         });
       } catch {}
 

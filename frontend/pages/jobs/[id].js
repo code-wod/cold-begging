@@ -100,7 +100,9 @@ export default function JobDetail() {
           <div className="muted">{job.company_name} · {job.location || 'Location not specified'}</div>
         </div>
         <div className="flex" style={{ gap: 8, marginTop: 8 }}>
-          <span className="badge gray">{job.source}</span>
+          <span className={`badge ${job.source === 'extension' ? 'purple' : 'gray'}`}>
+            {job.source === 'extension' ? 'Chrome Extension' : job.source}
+          </span>
           {job.remote_type && <span className="badge blue">{job.remote_type}</span>}
           {job.employment_type && <span className="badge teal">{job.employment_type}</span>}
           {job.experience_level && <span className="badge amber">{job.experience_level}</span>}

@@ -6,10 +6,13 @@ from typing import Optional, List, Dict, Any
 import os
 import zipfile
 import io
+import hashlib
+import json
+import datetime as dt
 
 from ..database import get_db
 from ..security import get_current_user
-from ..models import User
+from ..models import User, Job
 from ..extension_models import (
     ExtensionProfile,
     ExtensionLearnedAnswer,
@@ -102,6 +105,18 @@ class SessionCreate(BaseModel):
     fields_detected: Optional[int] = 0
     fields_filled: Optional[int] = 0
     duration_seconds: Optional[int] = 0
+
+
+class JobCreate(BaseModel):
+    title: str
+    company: str
+    url: Optional[str] = ''
+    location: Optional[str] = ''
+    description: Optional[str] = ''
+    platform: Optional[str] = ''
+    salary: Optional[str] = ''
+    employment_type: Optional[str] = ''
+    remote_type: Optional[str] = ''
 
 
 # ── Profile Endpoints ────────────────────────────────────────────────────────
@@ -470,6 +485,50 @@ def create_session(
     db.add(session)
     db.commit()
     return {'success': True}
+
+
+# ── Jobs Endpoints ───────────────────────────────────────────────────────────
+
+def _compute_job_hash(company: str, title: str, location: str, url: str) -> str:
+    content = f"{company.strip().lower()}|{title.strip().lower()}|{location.strip().lower()}|{url.strip().lower()}"
+    return hashlib.sha256(content.encode()).hexdigest()[:64]
+
+
+@router.post('/jobs')
+def save_job_from_extension(
+    body: JobCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Save a job discovered via the Chrome extension into the main jobs table."""
+    job_hash = _compute_job_hash(body.company, body.title, body.location, body.url)
+
+    existing = db.query(Job).filter(Job.job_hash == job_hash).first()
+    if existing:
+        existing.updated_at = dt.datetime.now(dt.timezone.utc)
+        db.commit()
+        return {'job_id': existing.id, 'is_new': False}
+
+    job = Job(
+        source='extension',
+        title=body.title,
+        company_name=body.company,
+        application_url=body.url or '',
+        location=body.location or '',
+        remote_type=body.remote_type or '',
+        employment_type=body.employment_type or '',
+        description=body.description or '',
+        job_hash=job_hash,
+        source_data=json.dumps({
+            'platform': body.platform,
+            'salary_text': body.salary,
+            'discovered_via': 'chrome_extension',
+        }),
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    return {'job_id': job.id, 'is_new': True}
 
 
 # ── Documents Endpoint ───────────────────────────────────────────────────────

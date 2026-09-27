@@ -41,6 +41,7 @@
   --badge-amber-bg: #fef4e6; --badge-amber-fg: #b45309;
   --badge-red-bg: #feecec; --badge-red-fg: #b91c1c;
   --badge-orange-bg: #fff0e6; --badge-orange-fg: #c2410c;
+  --badge-purple-bg: #f3e8ff; --badge-purple-fg: #7c3aed;
 
   --wizard-bg: #ffffff;
   --wizard-active-bg: #e8f0fe; --wizard-active-fg: #2563eb;
@@ -115,6 +116,7 @@
   --badge-amber-bg: #78350f; --badge-amber-fg: #fcd34d;
   --badge-red-bg: #7f1d1d; --badge-red-fg: #fca5a5;
   --badge-orange-bg: #7c2d12; --badge-orange-fg: #fdba74;
+  --badge-purple-bg: #3b1f7a; --badge-purple-fg: #c4b5fd;
 
   --wizard-bg: #161d29;
   --wizard-active-bg: #1d3a6e; --wizard-active-fg: #93c5fd;
@@ -286,6 +288,7 @@ table.dense tr:hover td { background: var(--row-hover-bg); }
 .badge.amber { background: var(--badge-amber-bg); color: var(--badge-amber-fg); }
 .badge.red { background: var(--badge-red-bg); color: var(--badge-red-fg); }
 .badge.orange { background: var(--badge-orange-bg); color: var(--badge-orange-fg); }
+.badge.purple { background: var(--badge-purple-bg); color: var(--badge-purple-fg); }
 
 .stat-card { padding: 16px; }
 .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }

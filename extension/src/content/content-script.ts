@@ -1,6 +1,7 @@
-import type { FormField, AutofillState, Platform } from '../types';
+import type { FormField, AutofillState, Platform, JobInfo } from '../types';
 import {
   isGreenhousePage, extractGreenhouseFields, fillGreenhouseField as _fillGH, extractJobTitle as _ghTitle, extractCompany as _ghCompany,
+  extractLocation as _ghLocation, extractDescription as _ghDescription, extractSalary as _ghSalary,
 } from '../adapters/greenhouse';
 import {
   isWorkdayPage, extractWorkdayFields, fillWorkdayField as _fillWD, extractWorkdayJobInfo,
@@ -57,14 +58,37 @@ function fillForPlatform(fieldId: string, value: string, platform: Platform): bo
 }
 
 // ── Extract job info based on platform ──────────────────────────────────────
-function getJobInfo(doc: Document, platform: Platform, url: string): { jobTitle: string; company: string } {
+function getJobInfo(doc: Document, platform: Platform, url: string): JobInfo {
+  const empty: JobInfo = { jobTitle: '', company: '', location: '', description: '', salary: '', employmentType: '', remoteType: '' };
   switch (platform) {
-    case 'greenhouse': return { jobTitle: _ghTitle(doc), company: _ghCompany(doc, url) };
-    case 'workday': return extractWorkdayJobInfo(doc);
-    case 'lever': return extractLeverJobInfo(doc);
-    case 'ashby': return extractAshbyJobInfo(doc);
-    case 'smartrecruiters': return extractSmartRecruitersJobInfo(doc);
-    default: return { jobTitle: doc.querySelector('h1')?.textContent?.trim() || '', company: '' };
+    case 'greenhouse': {
+      const jobTitle = _ghTitle(doc);
+      const company = _ghCompany(doc, url);
+      const location = _ghLocation(doc);
+      const description = _ghDescription(doc);
+      const salary = _ghSalary(doc);
+      return { ...empty, jobTitle, company, location, description, salary };
+    }
+    case 'workday': {
+      const info = extractWorkdayJobInfo(doc);
+      return { ...empty, jobTitle: info.jobTitle, company: info.company, location: info.location || '', description: info.description || '' };
+    }
+    case 'lever': {
+      const info = extractLeverJobInfo(doc);
+      return { ...empty, jobTitle: info.jobTitle, company: info.company, location: info.location || '', description: info.description || '' };
+    }
+    case 'ashby': {
+      const info = extractAshbyJobInfo(doc);
+      return { ...empty, jobTitle: info.jobTitle, company: info.company, location: info.location || '', description: info.description || '' };
+    }
+    case 'smartrecruiters': {
+      const info = extractSmartRecruitersJobInfo(doc);
+      return { ...empty, jobTitle: info.jobTitle, company: info.company, location: info.location || '', description: info.description || '' };
+    }
+    default: {
+      const jobTitle = doc.querySelector('h1')?.textContent?.trim() || '';
+      return { ...empty, jobTitle };
+    }
   }
 }
 
@@ -287,18 +311,23 @@ async function handleDetect() {
   const url = window.location.href;
   currentPlatform = detectPlatform(url);
   const isApp = currentPlatform !== 'generic' || hasApplicationForm();
-  const { jobTitle, company } = getJobInfo(document, currentPlatform, url);
+  const info = getJobInfo(document, currentPlatform, url);
 
   if (isApp) setState('application_detected');
 
-  log('Detection:', { platform: currentPlatform, isApp, jobTitle, company });
+  log('Detection:', { platform: currentPlatform, isApp, ...info });
 
   return {
     isApplication: isApp,
     confidence: currentPlatform !== 'generic' ? 0.95 : 0.5,
     platform: currentPlatform,
-    jobTitle,
-    company,
+    jobTitle: info.jobTitle,
+    company: info.company,
+    location: info.location,
+    description: info.description,
+    salary: info.salary,
+    employmentType: info.employmentType,
+    remoteType: info.remoteType,
   };
 }
 
@@ -398,12 +427,18 @@ function autoDetect() {
 
   if (currentPlatform !== 'generic' || hasApplicationForm()) {
     setState('application_detected');
+    const info = getJobInfo(document, currentPlatform, window.location.href);
     try {
       chrome.runtime.sendMessage({
         type: 'FORM_DETECTED',
         platform: currentPlatform,
-        jobTitle: getJobInfo(document, currentPlatform, window.location.href).jobTitle,
-        company: getJobInfo(document, currentPlatform, window.location.href).company,
+        jobTitle: info.jobTitle,
+        company: info.company,
+        location: info.location,
+        description: info.description,
+        salary: info.salary,
+        employmentType: info.employmentType,
+        remoteType: info.remoteType,
         url: window.location.href,
       });
     } catch {}

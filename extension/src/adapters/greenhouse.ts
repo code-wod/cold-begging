@@ -276,3 +276,21 @@ export function extractCompany(doc: Document, url: string): string {
 
   return '';
 }
+
+// ── Extract location from page ───────────────────────────────────────────────
+export function extractLocation(doc: Document): string {
+  const el = doc.querySelector('.location, [class*="location"], .application-location');
+  return el?.textContent?.trim() || '';
+}
+
+// ── Extract job description ──────────────────────────────────────────────────
+export function extractDescription(doc: Document): string {
+  const el = doc.querySelector('.content, [class*="description"], .application-description, #content');
+  return el?.textContent?.trim()?.slice(0, 2000) || '';
+}
+
+export function extractSalary(doc: Document): string {
+  const text = doc.body?.textContent || '';
+  const match = text.match(/\$[\d,]+(?:\s*[-–]\s*\$[\d,]+)?(?:\s*(?:per|\/)\s*(?:year|annum|month|hr|hour))/i);
+  return match ? match[0].trim() : '';
+}

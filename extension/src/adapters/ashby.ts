@@ -125,12 +125,18 @@ export function mapProfileToAshby(profile: any): Record<string, string> {
 }
 
 // ── Extract job info ────────────────────────────────────────────────────────
-export function extractAshbyJobInfo(doc: Document): { jobTitle: string; company: string } {
+export function extractAshbyJobInfo(doc: Document): { jobTitle: string; company: string; location: string; description: string } {
   const h1 = doc.querySelector('h1, h2, [class*="job-title"]');
   const jobTitle = h1?.textContent?.trim() || '';
 
   const companyEl = doc.querySelector('[class*="company"], [class*="organization"]');
   const company = companyEl?.textContent?.trim() || '';
 
-  return { jobTitle, company };
+  const locationEl = doc.querySelector('[class*="location"], [class*="region"]');
+  const location = locationEl?.textContent?.trim() || '';
+
+  const descEl = doc.querySelector('[class*="description"], [class*="content"], [class*="body"]');
+  const description = descEl?.textContent?.trim()?.slice(0, 2000) || '';
+
+  return { jobTitle, company, location, description };
 }

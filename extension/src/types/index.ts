@@ -15,6 +15,21 @@ export interface ApplicationDetectionResult {
   platform: Platform;
   jobTitle?: string;
   company?: string;
+  location?: string;
+  description?: string;
+  salary?: string;
+  employmentType?: string;
+  remoteType?: string;
+}
+
+export interface JobInfo {
+  jobTitle: string;
+  company: string;
+  location: string;
+  description: string;
+  salary: string;
+  employmentType: string;
+  remoteType: string;
 }
 
 // ── Form Field ──────────────────────────────────────────────────────────────
