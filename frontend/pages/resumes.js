@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
-import { api } from '../lib/api';
+import { api, AUTH_URL } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { Empty, Panel, Spinner, useToast, Icons, Button, Field, Input, Select, Modal } from '../components/ui';
 
@@ -16,7 +16,7 @@ export default function Resumes() {
   const [linkData, setLinkData] = useState({ name: '', url: '', resume_type: 'general', is_default: false });
   const [uploading, setUploading] = useState(false);
 
-  const getPreviewUrl = (resumeId) => `/api/jobs/resumes/${resumeId}/preview`;
+  const getPreviewUrl = (resumeId) => `${AUTH_URL}/api/jobs/resumes/${resumeId}/preview`;
 
   useEffect(() => {
     fetchResumes();
@@ -42,21 +42,14 @@ export default function Resumes() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('name', uploadData.name);
-    formData.append('resume_type', uploadData.resume_type);
-    formData.append('is_default', uploadData.is_default.toString());
-
     setUploading(true);
     try {
-      const token = localStorage.getItem('cold_email_token');
-      const res = await fetch('/api/jobs/resumes', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
-      });
-      if (!res.ok) throw new Error('Upload failed');
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('name', uploadData.name);
+      formData.append('resume_type', uploadData.resume_type);
+      formData.append('is_default', uploadData.is_default.toString());
+      await api('/api/jobs/resumes', { method: 'POST', form: formData });
       toast('Resume uploaded!', 'success');
       setUploadModal(false);
       setUploadData({ name: '', resume_type: 'general', is_default: false, file: null });
