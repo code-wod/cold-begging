@@ -161,7 +161,7 @@ export function mapProfileToWorkday(profile: any): Record<string, string> {
 }
 
 // ── Extract job info ────────────────────────────────────────────────────────
-export function extractWorkdayJobInfo(doc: Document): { jobTitle: string; company: string } {
+export function extractWorkdayJobInfo(doc: Document): { jobTitle: string; company: string; location: string; description: string } {
   const h1 = doc.querySelector('h1, [data-automation-id="jobPostingHeader"]');
   const jobTitle = h1?.textContent?.trim() || '';
 
@@ -169,5 +169,11 @@ export function extractWorkdayJobInfo(doc: Document): { jobTitle: string; compan
   const companyEl = doc.querySelector('[data-automation-id="companyName"]');
   const company = companyEl?.textContent?.trim() || '';
 
-  return { jobTitle, company };
+  const locationEl = doc.querySelector('[data-automation-id="jobPostingLocation"], [class*="location"]');
+  const location = locationEl?.textContent?.trim() || '';
+
+  const descEl = doc.querySelector('[data-automation-id="jobPostingDescription"], [class*="description"]');
+  const description = descEl?.textContent?.trim()?.slice(0, 2000) || '';
+
+  return { jobTitle, company, location, description };
 }

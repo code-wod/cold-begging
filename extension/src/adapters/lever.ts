@@ -139,12 +139,18 @@ export function mapProfileToLever(profile: any): Record<string, string> {
 }
 
 // ── Extract job info ────────────────────────────────────────────────────────
-export function extractLeverJobInfo(doc: Document): { jobTitle: string; company: string } {
+export function extractLeverJobInfo(doc: Document): { jobTitle: string; company: string; location: string; description: string } {
   const h1 = doc.querySelector('.posting-headline h2, h2');
   const jobTitle = h1?.textContent?.trim() || '';
 
   const companyEl = doc.querySelector('.posting-headline h1, .company-name');
   const company = companyEl?.textContent?.trim() || '';
 
-  return { jobTitle, company };
+  const locationEl = doc.querySelector('.posting-headline .location, .sort-location, [class*="location"]');
+  const location = locationEl?.textContent?.trim() || '';
+
+  const descEl = doc.querySelector('.posting-headline + .section-wrapper, .content, [class*="description"]');
+  const description = descEl?.textContent?.trim()?.slice(0, 2000) || '';
+
+  return { jobTitle, company, location, description };
 }

@@ -101,19 +101,18 @@ def subscription(user: User = Depends(get_current_user), db: Session = Depends(g
 
 @router.post('/upgrade')
 def upgrade(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    sub = _get_subscription(db, user)
-    sub.plan = 'pro'
-    sub.status = 'active'
-    sub.started_at = dt.datetime.now(dt.timezone.utc)
-    sub.renews_at = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=30)
-    db.commit()
-    return {'plan': 'pro'}
+    """Upgrade to Pro — ONLY via Razorpay payment. This endpoint is disabled."""
+    raise HTTPException(status_code=403, detail='Upgrades must be made through the payment system')
 
 
 @router.post('/downgrade')
 def downgrade(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     sub = _get_subscription(db, user)
+    if sub.plan == 'free':
+        return {'plan': 'free'}
     sub.plan = 'free'
+    sub.status = 'active'
+    sub.renews_at = None
     db.commit()
     return {'plan': 'free'}
 
@@ -206,6 +205,10 @@ def verify_payment(payload: VerifyPaymentRequest, user: User = Depends(get_curre
         raise HTTPException(status_code=400, detail='Invalid pack ID')
 
     # Verify signature: HMAC-SHA256(order_id + "|" + payment_id, KEY_SECRET)
+    if not RAZORPAY_KEY_SECRET:
+        logger.error('RAZORPAY_KEY_SECRET not set — cannot verify payment')
+        raise HTTPException(status_code=500, detail='Payment verification not configured')
+
     expected = hmac.new(
         RAZORPAY_KEY_SECRET.encode(),
         f'{payload.razorpay_order_id}|{payload.razorpay_payment_id}'.encode(),
@@ -215,6 +218,22 @@ def verify_payment(payload: VerifyPaymentRequest, user: User = Depends(get_curre
     if not hmac.compare_digest(expected, payload.razorpay_signature):
         logger.warning('Payment signature mismatch for user %s', user.id)
         raise HTTPException(status_code=400, detail='Invalid payment signature')
+
+    # Idempotency: check if this payment was already processed
+    existing = db.query(CreditTransaction).filter(
+        CreditTransaction.reference_id == payload.razorpay_payment_id,
+        CreditTransaction.type == PURCHASE_TYPE,
+    ).first()
+    if existing:
+        # Already processed — return current balance
+        from .email_credit_service import get_balance
+        balance = get_balance(db, user.id)
+        return {
+            'status': 'already_processed',
+            'credits_added': 0,
+            'new_balance': balance['remaining'],
+            'plan': _get_subscription(db, user).plan,
+        }
 
     # Add credits to user
     success, new_balance = add_credits(
@@ -227,7 +246,7 @@ def verify_payment(payload: VerifyPaymentRequest, user: User = Depends(get_curre
         raise HTTPException(status_code=500, detail='Failed to credit account')
 
     # Upgrade subscription plan based on pack type
-    sub = db.query(Subscription).filter(Subscription.user_id == user.id).first()
+    sub = _get_subscription(db, user)
     if sub:
         if pack['type'] in ('monthly', 'yearly'):
             sub.plan = 'pro'
@@ -237,7 +256,8 @@ def verify_payment(payload: VerifyPaymentRequest, user: User = Depends(get_curre
                 sub.renews_at = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=30)
             else:
                 sub.renews_at = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=365)
-        # 'one_time' packs keep the current plan (free)
+            db.commit()
+            logger.info('Plan upgraded to pro for user %s', user.id)
 
     db.commit()
     logger.info('Payment verified: %s credits + plan upgrade for user %s', pack['credits'], user.id)
@@ -255,8 +275,8 @@ def verify_payment(payload: VerifyPaymentRequest, user: User = Depends(get_curre
 def _verify_webhook_signature(body: bytes, signature: str) -> bool:
     """Verify Razorpay webhook signature: HMAC-SHA256(body, WEBHOOK_SECRET)."""
     if not RAZORPAY_WEBHOOK_SECRET:
-        logger.warning('RAZORPAY_WEBHOOK_SECRET not set — skipping verification')
-        return True
+        logger.error('RAZORPAY_WEBHOOK_SECRET not set — webhook verification DISABLED')
+        return False
     expected = hmac.new(
         RAZORPAY_WEBHOOK_SECRET.encode(),
         body,
@@ -346,7 +366,7 @@ async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
 
         # Upgrade subscription plan for monthly/yearly packs
         if success and pack['type'] in ('monthly', 'yearly'):
-            sub = db.query(Subscription).filter(Subscription.user_id == user_id).first()
+            sub = _get_subscription(db, user_id)
             if sub:
                 sub.plan = 'pro'
                 sub.status = 'active'

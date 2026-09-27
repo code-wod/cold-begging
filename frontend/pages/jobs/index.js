@@ -56,7 +56,7 @@ export default function Jobs() {
   const fetchSources = async () => {
     try {
       const data = await api('/api/jobs/sources');
-      setSources(data);
+      setSources([{ name: 'extension' }, ...data]);
     } catch (e) {
       console.error('Failed to fetch sources', e);
     }
@@ -215,7 +215,9 @@ export default function Jobs() {
               <div key={job.id} className="panel job-card" style={{ flexDirection: 'column', height: '100%' }}>
                 <div className="flex justify-between" style={{ marginBottom: 8 }}>
                   <div>
-                    <span className="badge gray">{job.source}</span>
+                    <span className={`badge ${job.source === 'extension' ? 'purple' : 'gray'}`}>
+                      {job.source === 'extension' ? 'Chrome Extension' : job.source}
+                    </span>
                     {job.remote_type && <span className="badge blue" style={{ marginLeft: 8 }}>{job.remote_type}</span>}
                     {job.employment_type && <span className="badge teal" style={{ marginLeft: 8 }}>{job.employment_type}</span>}
                     {job.experience_level && <span className="badge amber" style={{ marginLeft: 8 }}>{job.experience_level}</span>}

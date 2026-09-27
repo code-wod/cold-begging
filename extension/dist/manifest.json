@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Cold-Begging Autofill",
+  "name": "Codessy Autofill",
   "version": "1.0.0",
   "description": "Universal job application autofill — paste your profile once, fill every application instantly.",
   "permissions": [
@@ -35,7 +35,7 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_title": "Cold-Begging Autofill"
+    "default_title": "Codessy Autofill"
   },
   "icons": {
     "16": "icons/icon16.png",

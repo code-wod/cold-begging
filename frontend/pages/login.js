@@ -5,26 +5,26 @@ import { useAuth } from '../lib/auth';
 import { api } from '../lib/api';
 import { Button, Field, Input, Panel } from '../components/ui';
 import ThemeToggle from '../components/ThemeToggle';
+import Logo from '../components/Logo';
 
 export default function Login() {
   const { login, finishGoogle } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   const [verified, setVerified] = useState(false);
 
   useEffect(() => {
-    // Check for verification success after email click
     const verifiedParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('verified');
     if (verifiedParam === '1') {
       setVerified(true);
       window.history.replaceState(null, '', '/login');
     }
 
-    // Handle Google OAuth callback via fragment token
     const hashParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.hash.replace(/^#/, '')) : null;
     const token = hashParams?.get('google_token');
     if (token) {
@@ -68,14 +68,14 @@ export default function Login() {
     <div className="auth-wrap">
       <div className="auth-theme"><ThemeToggle /></div>
       <Panel bodyClassName="panel-body">
-        <div style={{ textAlign: 'center', marginBottom: 18 }}>
-          <div style={{ fontSize: 26 }}>✉️</div>
-          <h1 style={{ fontSize: 20 }}>Sign in to Codessy</h1>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <Logo size={40} showText={false} color="#fff" style={{ justifyContent: 'center' }} />
+          <h1 style={{ fontSize: 20, marginTop: 12 }}>Sign in to Codessy</h1>
           <p className="muted mb-0">Cold email automation, powered by AI.</p>
         </div>
         {verified && (
           <div className="toast success" style={{ position: 'static', marginBottom: 14 }}>
-            🎉 Your email has been verified! You can now sign in.
+            Your email has been verified! You can now sign in.
           </div>
         )}
         {error && <div className="toast error" style={{ position: 'static', marginBottom: 14 }}>{error}</div>}
@@ -84,7 +84,12 @@ export default function Login() {
             <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
           </Field>
           <Field label="Password">
-            <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+            <div className="input-with-toggle">
+              <Input type={showPw ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" />
+              <button type="button" className="pw-toggle" onClick={() => setShowPw(!showPw)} tabIndex={-1}>
+                {showPw ? '🙈' : '👁️'}
+              </button>
+            </div>
           </Field>
           <Button type="submit" disabled={busy} style={{ width: '100%', justifyContent: 'center' }}>
             {busy ? 'Signing in…' : 'Sign in'}
@@ -99,7 +104,7 @@ export default function Login() {
           {googleBusy ? 'Redirecting to Google…' : 'Continue with Google'}
         </Button>
         <div className="mt-16 flex" style={{ justifyContent: 'center', fontSize: 13 }}>
-          <Link href="/forgot">Forgot password?</Link>
+          <Link href="#" onClick={(e) => { e.preventDefault(); alert('Please contact support to reset your password.'); }}>Forgot password?</Link>
         </div>
         <div className="mt-8" style={{ textAlign: 'center', fontSize: 13 }}>
           New here? <Link href="/signup">Create an account</Link>

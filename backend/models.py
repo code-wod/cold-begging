@@ -2,6 +2,7 @@ import datetime as dt
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -24,6 +25,9 @@ def utcnow():
 
 class User(Base):
     __tablename__ = 'users'
+    __table_args__ = (
+        CheckConstraint('email_credits >= 0', name='ck_user_email_credits_non_negative'),
+    )
 
     id = Column(Integer, primary_key=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
@@ -33,9 +37,11 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
     email_credits = Column(Integer, default=0, nullable=False)
+    resume_score_checks = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     phone = Column(String(64), default='')  # phone number
+    timezone = Column(String(64), default='UTC')  # auto-detected or user-set
 
 
 class Profile(Base):

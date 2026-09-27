@@ -38,7 +38,7 @@ module.exports = {
     }),
     new HtmlWebpackPlugin({
       template: './src/sidepanel/index.html',
-      filename: 'src/sidepanel/index.html',
+      filename: 'sidepanel/index.html',
       chunks: ['sidepanel/app'],
     }),
   ],

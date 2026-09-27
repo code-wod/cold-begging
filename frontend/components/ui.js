@@ -180,7 +180,7 @@ export function Confirm({ open, title = 'Confirm action', message, onCancel, onC
   );
 }
 
-const APP_TZ = 'Asia/Kolkata'; // default display timezone for all timestamps
+const DEFAULT_TZ = 'Asia/Kolkata'; // fallback display timezone
 
 const parseIso = (iso) => {
   const s = String(iso || '');
@@ -188,12 +188,36 @@ const parseIso = (iso) => {
   return new Date(`${s}Z`); // SQLite stores naive UTC; treat offset-less ISO as UTC
 };
 
-export const fmtDate = (iso) => {
+export const fmtDate = (iso, tz) => {
   if (!iso) return '—';
   try {
     return parseIso(iso).toLocaleString(undefined, {
-      timeZone: APP_TZ,
+      timeZone: tz || DEFAULT_TZ,
       year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+  } catch {
+    return iso;
+  }
+};
+
+export const fmtTime = (iso, tz) => {
+  if (!iso) return '—';
+  try {
+    return parseIso(iso).toLocaleString(undefined, {
+      timeZone: tz || DEFAULT_TZ,
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+  } catch {
+    return iso;
+  }
+};
+
+export const fmtDateShort = (iso, tz) => {
+  if (!iso) return '—';
+  try {
+    return parseIso(iso).toLocaleString(undefined, {
+      timeZone: tz || DEFAULT_TZ,
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
     });
   } catch {
     return iso;

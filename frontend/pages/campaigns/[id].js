@@ -3,13 +3,15 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
 import { api } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
 import {
-  Button, Confirm, Empty, Icons, Modal, Panel, Progress, Spinner, StatusBadge, TextArea, fmtDate, useToast,
+  Button, Confirm, Empty, Icons, Modal, Panel, Progress, Spinner, StatusBadge, TextArea, fmtDate, fmtTime, useToast,
 } from '../../components/ui';
 
 export default function CampaignDetail() {
   const router = useRouter();
   const { id } = router.query;
+  const { user } = useAuth();
   const toast = useToast();
   const [campaign, setCampaign] = useState(null);
   const [emails, setEmails] = useState(null);
@@ -139,12 +141,26 @@ export default function CampaignDetail() {
         <Panel title="Schedule">
           <table className="dense">
             <tbody>
-              <tr><td className="muted">Window</td><td>{campaign.send_start_time} – {campaign.send_end_time} {campaign.timezone}</td></tr>
+              <tr><td className="muted">Window</td><td>{campaign.send_start_time} – {campaign.send_end_time}</td></tr>
+              <tr><td className="muted">Timezone</td><td>{campaign.timezone || 'UTC'} {user?.timezone && campaign.timezone !== user.timezone ? <span className="muted">(your local: {user.timezone})</span> : ''}</td></tr>
               <tr><td className="muted">Days</td><td>{campaign.active_days.map((d) => ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][d]).join(', ')}</td></tr>
               <tr><td className="muted">Speed</td><td>{campaign.emails_per_hour}/hr (~1 per {Math.max(1, Math.round(3600 / (campaign.emails_per_hour || 10)))}s)</td></tr>
               {campaign.daily_limit > 0 && <tr><td className="muted">Daily cap</td><td>{campaign.daily_limit}</td></tr>}
               {campaign.max_sends > 0 && (
                 <tr><td className="muted">Auto-stop</td><td>after {campaign.max_sends} sends {campaign.sent_count >= campaign.max_sends ? '(reached)' : ''}</td></tr>
+              )}
+              {campaign.start_at && (
+                <tr><td className="muted">Starts</td><td>{fmtDate(campaign.start_at, user?.timezone)}</td></tr>
+              )}
+              {campaign.end_at && (
+                <tr><td className="muted">Ends</td><td>{fmtDate(campaign.end_at, user?.timezone)}</td></tr>
+              )}
+              {!campaign.start_at && campaign.status === 'scheduled' && (
+                <tr><td className="muted">Est. duration</td><td>
+                  {campaign.recipient_count > 0 && campaign.emails_per_hour > 0
+                    ? `~${Math.ceil(campaign.recipient_count / campaign.emails_per_hour)} hour${Math.ceil(campaign.recipient_count / campaign.emails_per_hour) > 1 ? 's' : ''}`
+                    : 'Calculating…'}
+                </td></tr>
               )}
               <tr><td className="muted">Agent</td><td>{campaign.agent_id ? `#${campaign.agent_id}` : 'Default'}</td></tr>
               <tr><td className="muted">Sending account</td><td>{accounts.find((a) => a.id === campaign.email_account_id)?.email || <span className="muted">Not set</span>}</td></tr>

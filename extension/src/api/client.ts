@@ -129,6 +129,44 @@ class ApiClient {
     return this.request<any[]>(`/extension/sessions${q}`);
   }
 
+  // ── Jobs (save discovered jobs to main jobs table) ──────────────────────────
+  async saveJob(job: {
+    title: string;
+    company: string;
+    url?: string;
+    location?: string;
+    description?: string;
+    platform?: string;
+    salary?: string;
+    employment_type?: string;
+    remote_type?: string;
+  }): Promise<{ job_id: number; is_new: boolean }> {
+    return this.request<{ job_id: number; is_new: boolean }>('/extension/jobs', {
+      method: 'POST',
+      body: JSON.stringify(job),
+    });
+  }
+
+  // ── Match Score (AI resume-to-job scoring) ──────────────────────────────────
+  async matchScore(job: {
+    title: string;
+    company: string;
+    location?: string;
+    description?: string;
+    requirements?: string;
+  }): Promise<{
+    match_score: number;
+    recommendation: string;
+    matched_skills: string[];
+    missing_skills: string[];
+    reasoning: string;
+  }> {
+    return this.request('/extension/match-score', {
+      method: 'POST',
+      body: JSON.stringify(job),
+    });
+  }
+
   // ── Documents ───────────────────────────────────────────────────────────
   async uploadDocument(file: File, type: 'resume' | 'cover_letter'): Promise<{ path: string; name: string }> {
     const formData = new FormData();

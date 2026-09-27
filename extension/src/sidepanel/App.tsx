@@ -3,6 +3,32 @@ import type { ApplicationProfile, FormField, FieldSuggestion, AutofillState, Pla
 import { api } from '../api/client';
 import { ProfilePanel } from './components/ProfilePanel';
 
+function CodessyLogo({ size = 28 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="120" rx="24" fill="#070B1F"/>
+      <path d="M28 30h28v28H28z" fill="url(#blue)"/>
+      <circle cx="82" cy="44" r="14" fill="url(#purple)"/>
+      <path d="M28 74h28v18H28z" fill="url(#green)"/>
+      <path d="M64 74h28v18H64z" fill="url(#coral)"/>
+      <defs>
+        <linearGradient id="blue" x1="28" y1="30" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#35A7FF"/><stop offset="1" stopColor="#2875F0"/>
+        </linearGradient>
+        <linearGradient id="purple" x1="68" y1="30" x2="96" y2="58" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#9B5CFF"/><stop offset="1" stopColor="#7340E8"/>
+        </linearGradient>
+        <linearGradient id="green" x1="28" y1="74" x2="56" y2="92" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#22D3A6"/><stop offset="1" stopColor="#10B981"/>
+        </linearGradient>
+        <linearGradient id="coral" x1="64" y1="74" x2="92" y2="92" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#FF9A55"/><stop offset="1" stopColor="#F45F72"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 function App() {
   const [tab, setTab] = useState<'fill' | 'profile' | 'history'>('fill');
   const [state, setState] = useState<AutofillState>('idle');
@@ -22,6 +48,16 @@ function App() {
   const [isAuth, setIsAuth] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [matchResult, setMatchResult] = useState<{
+    match_score: number;
+    recommendation: string;
+    matched_skills: string[];
+    missing_skills: string[];
+    reasoning: string;
+    has_resume?: boolean;
+    has_preferences?: boolean;
+  } | null>(null);
+  const [matchLoading, setMatchLoading] = useState(false);
 
   useEffect(() => { init(); }, []);
 
@@ -65,6 +101,20 @@ function App() {
         setJobTitle(d.jobTitle || '');
         setCompany(d.company || '');
         setStatusText(`${d.platform || 'Unknown'} application detected`);
+        // Trigger match scoring if authenticated
+        if (api.isAuthenticated() && d.jobTitle && d.company) {
+          setMatchLoading(true);
+          api.matchScore({
+            title: d.jobTitle,
+            company: d.company,
+            location: d.location || '',
+            description: d.description || '',
+            requirements: '',
+          }).then(result => {
+            setMatchResult(result);
+            setMatchLoading(false);
+          }).catch(() => setMatchLoading(false));
+        }
       } else {
         // Not detected — still let user scan manually
         setStatusText('');
@@ -100,6 +150,13 @@ function App() {
         setPlatform(msg.platform);
         setJobTitle(msg.jobTitle || '');
         setCompany(msg.company || '');
+        // Reset match result on new detection
+        setMatchResult(null);
+        setMatchLoading(true);
+      }
+      if (msg.type === 'MATCH_SCORE_RESULT' && msg.matchResult) {
+        setMatchResult(msg.matchResult);
+        setMatchLoading(false);
       }
     };
     chrome.runtime.onMessage.addListener(listener);
@@ -329,8 +386,13 @@ function App() {
     return (
       <div style={s.container}>
         <div style={s.header}>
-          <h1 style={s.title}>Cold-Begging</h1>
-          <p style={s.sub}>Sign in to use your profile</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <CodessyLogo size={32} />
+            <div>
+              <h1 style={s.title}>Codessy</h1>
+              <p style={s.sub}>Sign in to use your profile</p>
+            </div>
+          </div>
         </div>
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <input type="email" placeholder="Email" value={loginEmail}
@@ -351,9 +413,14 @@ function App() {
   return (
     <div style={s.container}>
       <div style={s.header}>
-        <h1 style={s.title}>Cold-Begging</h1>
-        {jobTitle && <div style={{ fontSize: 13, opacity: 0.9, marginTop: 4 }}>{jobTitle}</div>}
-        {company && <div style={{ fontSize: 12, opacity: 0.6 }}>{company}</div>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <CodessyLogo size={30} />
+          <div>
+            <h1 style={s.title}>Codessy</h1>
+            {jobTitle && <div style={{ fontSize: 13, opacity: 0.9, marginTop: 2 }}>{jobTitle}</div>}
+            {company && <div style={{ fontSize: 12, opacity: 0.6 }}>{company}</div>}
+          </div>
+        </div>
         {statusText && (
           <div style={{ fontSize: 11, opacity: 0.7, marginTop: 6, padding: '4px 8px', background: 'rgba(255,255,255,0.1)', borderRadius: 4 }}>
             {statusText}
@@ -391,9 +458,98 @@ function App() {
                 <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
                   {getPlatformName(platform)} Application Detected
                 </p>
+                {jobTitle && <p style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>{jobTitle}</p>}
+                {company && <p style={{ fontSize: 12, color: '#999', marginBottom: 12 }}>{company}</p>}
+
+                {/* Match Score Card */}
+                {matchLoading && !matchResult && (
+                  <div style={{ ...scoreCard, borderColor: '#e0e0e0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0' }}>
+                      <span style={{ fontSize: 12, color: '#999' }}>Analyzing match...</span>
+                    </div>
+                  </div>
+                )}
+
+                {matchResult && (
+                  <div style={{ ...scoreCard, borderColor: getScoreColor(matchResult.match_score) + '40' }}>
+                    {/* No resume setup prompt */}
+                    {matchResult.recommendation === 'setup_required' ? (
+                      <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                        <p style={{ fontSize: 28, margin: '0 0 8px' }}>📋</p>
+                        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Complete your profile to see match scores</p>
+                        <p style={{ fontSize: 11, color: '#888', marginBottom: 12, lineHeight: 1.4 }}>
+                          Upload your resume and set job preferences on Codessy to get AI-powered match scoring.
+                        </p>
+                        <a
+                          href="https://cold-begging.vercel.app/resumes"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-block', padding: '8px 16px', background: '#ff9900', color: 'white',
+                            borderRadius: 6, fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer',
+                          }}
+                        >
+                          Upload Resume →
+                        </a>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Score circle */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+                          <div style={{
+                            width: 56, height: 56, borderRadius: '50%',
+                            background: `conic-gradient(${getScoreColor(matchResult.match_score)} ${matchResult.match_score * 3.6}deg, #eee 0deg)`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0,
+                          }}>
+                            <div style={{
+                              width: 44, height: 44, borderRadius: '50%', background: '#fff',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 16, fontWeight: 700, color: getScoreColor(matchResult.match_score),
+                            }}>
+                              {matchResult.match_score}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'left', flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: getScoreColor(matchResult.match_score) }}>
+                              {getRecommendationLabel(matchResult.recommendation)}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#888', marginTop: 2, lineHeight: 1.4 }}>
+                              {matchResult.reasoning}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Skills */}
+                        {matchResult.matched_skills.length > 0 && (
+                          <div style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Matched</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {matchResult.matched_skills.map(s => (
+                                <span key={s} style={{ ...skillPill, background: '#dcfce7', color: '#166534' }}>{s}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {matchResult.missing_skills.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 10, color: '#dc2626', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Missing</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {matchResult.missing_skills.map(s => (
+                                <span key={s} style={{ ...skillPill, background: '#fef2f2', color: '#991b1b' }}>{s}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {profile?.personal?.firstName ? (
                   <button onClick={handleExtractAndFill} disabled={loading}
-                    style={{ ...s.primaryBtn, fontSize: 16, padding: '14px 24px' }}>
+                    style={{ ...s.primaryBtn, fontSize: 16, padding: '14px 24px', marginTop: matchResult || matchLoading ? 12 : 0 }}>
                     {loading ? 'Scanning...' : `⚡ Fill ${fieldCount} Fields`}
                   </button>
                 ) : (
@@ -512,9 +668,45 @@ function App() {
   );
 }
 
+function getScoreColor(score: number): string {
+  if (score >= 80) return '#16a34a';
+  if (score >= 60) return '#d97706';
+  return '#dc2626';
+}
+
+function getRecommendationLabel(rec: string): string {
+  switch (rec) {
+    case 'strong_apply': return 'Strong Match — Apply Now';
+    case 'apply': return 'Good Match — Apply';
+    case 'consider': return 'Fair Match — Consider';
+    case 'weak': return 'Weak Match';
+    case 'reject': return 'Poor Match';
+    case 'setup_required': return 'Setup Required';
+    default: return rec;
+  }
+}
+
+const scoreCard: React.CSSProperties = {
+  background: 'white',
+  borderRadius: 10,
+  border: '1px solid #e5e7eb',
+  padding: 16,
+  marginBottom: 8,
+  textAlign: 'left',
+};
+
+const skillPill: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '2px 8px',
+  borderRadius: 4,
+  fontSize: 11,
+  fontWeight: 500,
+  lineHeight: '18px',
+};
+
 const s: Record<string, React.CSSProperties> = {
   container: { display: 'flex', flexDirection: 'column', height: '100vh', background: '#f8f9fa', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' },
-  header: { padding: '16px', background: '#1a1a2e', color: 'white' },
+  header: { padding: '16px', background: '#070B1F', color: 'white' },
   title: { fontSize: 16, fontWeight: 700, margin: 0 },
   sub: { fontSize: 11, opacity: 0.6, margin: '4px 0 0' },
   tab: { flex: 1, padding: '10px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: '#666' },

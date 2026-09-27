@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
-import { api } from '../lib/api';
+import { api, AUTH_URL } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { Empty, Panel, Spinner, useToast, Icons, Button, Field, Input, Select, Modal } from '../components/ui';
 
@@ -11,9 +11,12 @@ export default function Resumes() {
   const [loading, setLoading] = useState(true);
   const [uploadModal, setUploadModal] = useState(false);
   const [linkModal, setLinkModal] = useState(false);
+  const [previewResume, setPreviewResume] = useState(null);
   const [uploadData, setUploadData] = useState({ name: '', resume_type: 'general', is_default: false });
   const [linkData, setLinkData] = useState({ name: '', url: '', resume_type: 'general', is_default: false });
   const [uploading, setUploading] = useState(false);
+
+  const getPreviewUrl = (resumeId) => `${AUTH_URL}/api/jobs/resumes/${resumeId}/preview`;
 
   useEffect(() => {
     fetchResumes();
@@ -39,21 +42,14 @@ export default function Resumes() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('name', uploadData.name);
-    formData.append('resume_type', uploadData.resume_type);
-    formData.append('is_default', uploadData.is_default.toString());
-
     setUploading(true);
     try {
-      const token = localStorage.getItem('cold_email_token');
-      const res = await fetch('/api/jobs/resumes', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
-      });
-      if (!res.ok) throw new Error('Upload failed');
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('name', uploadData.name);
+      formData.append('resume_type', uploadData.resume_type);
+      formData.append('is_default', uploadData.is_default.toString());
+      await api('/api/jobs/resumes', { method: 'POST', form: formData });
       toast('Resume uploaded!', 'success');
       setUploadModal(false);
       setUploadData({ name: '', resume_type: 'general', is_default: false, file: null });
@@ -154,7 +150,12 @@ export default function Resumes() {
                     Experience: {resume.experience_years} years
                   </div>
                 )}
-                <div className="flex justify-between mt-16" style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                <div className="flex justify-between" style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                  {resume.filename && (
+                    <Button size="sm" variant="secondary" onClick={() => setPreviewResume(resume)}>
+                      {Icons.eye} Preview
+                    </Button>
+                  )}
                   {!resume.is_default && (
                     <Button size="sm" variant="secondary" onClick={() => handleSetDefault(resume.id)}>
                       {Icons.check} Set Default
@@ -255,6 +256,19 @@ export default function Resumes() {
           <Button variant="secondary" onClick={() => setLinkModal(false)}>Cancel</Button>
           <Button onClick={handleLink}>Add Link</Button>
         </div>
+      </Modal>
+
+      {/* Preview Modal */}
+      <Modal open={!!previewResume} title={previewResume?.name || 'Resume Preview'} onClose={() => setPreviewResume(null)}>
+        {previewResume && (
+          <div style={{ width: '100%', height: '70vh', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+            <iframe
+              src={getPreviewUrl(previewResume.id)}
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              title={`Preview: ${previewResume.name}`}
+            />
+          </div>
+        )}
       </Modal>
     </Layout>
   );

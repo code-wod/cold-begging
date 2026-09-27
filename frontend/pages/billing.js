@@ -40,14 +40,8 @@ export default function Billing() {
   return (
     <Layout title="Billing" breadcrumb={<span>Billing</span>}>
       {/* Hero Banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        borderRadius: 16,
-        padding: '32px 40px',
-        color: '#fff',
-        marginBottom: 24,
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className={`billing-hero ${sub.plan === 'pro' ? 'billing-hero-pro' : ''}`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 1 }}>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>
               {credits.remaining} credits remaining
@@ -59,18 +53,28 @@ export default function Billing() {
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{
-              display: 'inline-block',
-              padding: '6px 16px',
-              borderRadius: 20,
-              background: sub.plan === 'pro' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
-              fontSize: 14,
-              fontWeight: 600,
-            }}>
-              {sub.plan === 'pro' ? '⭐ Pro' : 'Free'}
-            </div>
+            {sub.plan === 'pro' ? (
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '8px 18px', borderRadius: 20,
+                background: 'linear-gradient(135deg, #f59e0b, #f97316)',
+                fontSize: 14, fontWeight: 700, color: '#fff',
+                boxShadow: '0 2px 12px rgba(245,158,11,0.3)',
+              }}>
+                &#9733; Pro
+              </div>
+            ) : (
+              <div style={{
+                display: 'inline-block',
+                padding: '6px 16px', borderRadius: 20,
+                background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+                fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.7)',
+              }}>
+                Free
+              </div>
+            )}
             {sub.plan === 'pro' && sub.renews_at && (
-              <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+              <div style={{ fontSize: 12, opacity: 0.6, marginTop: 6 }}>
                 Renews {fmtDate(sub.renews_at)}
               </div>
             )}
@@ -78,7 +82,7 @@ export default function Billing() {
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
+      <div className="grid billing-grid" style={{ gap: 16, alignItems: 'start' }}>
         <div>
           {/* Plans */}
           <Panel title="Choose a plan" style={{ marginBottom: 16 }}>
@@ -131,7 +135,7 @@ export default function Billing() {
                       <td style={{ fontSize: 13 }}>{fmtDate(p.created_at)}</td>
                       <td style={{ fontSize: 13 }}>{p.description}</td>
                       <td style={{ textAlign: 'right', fontSize: 13, fontWeight: 600 }}>
-                        {p.type === 'PURCHASE' ? `₹${Math.abs(p.amount / 100)}` : `₹${Math.abs(p.amount / 100)}`}
+                        {p.type === 'PURCHASE' ? `₹${Math.abs(p.amount / 100)}` : `-₹${Math.abs(p.amount / 100)}`}
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <StatusBadge

@@ -5,18 +5,20 @@ import { useAuth } from '../lib/auth';
 import { api } from '../lib/api';
 import { Button, Field, Input, Panel } from '../components/ui';
 import ThemeToggle from '../components/ThemeToggle';
+import Logo from '../components/Logo';
 
 export default function Signup() {
   const { signup } = useAuth();
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');  // phone number
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
-  const [submitted, setSubmitted] = useState(false);  // show verification message after signup
+  const [submitted, setSubmitted] = useState(false);
 
   const google = async () => {
     setGoogleBusy(true);
@@ -36,7 +38,7 @@ export default function Signup() {
     setError('');
     try {
       await signup(email, password, name, phone);
-      setSubmitted(true);  // Show verification message instead of redirecting
+      setSubmitted(true);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -48,55 +50,60 @@ export default function Signup() {
     <div className="auth-wrap">
       <div className="auth-theme"><ThemeToggle /></div>
       <Panel>
-        <div style={{ textAlign: 'center', marginBottom: 18 }}>
-          <div style={{ fontSize: 26 }}>✉️</div>
-          <h1 style={{ fontSize: 20 }}>Create your free account</h1>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <Logo size={40} showText={false} color="#fff" style={{ justifyContent: 'center' }} />
+          <h1 style={{ fontSize: 20, marginTop: 12 }}>Create your free account</h1>
           <p className="muted mb-0">Connect your own Gmail. Use your own AI key. Start today.</p>
         </div>
         {submitted ? (
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 18 }}>📧</div>
-          <h2 style={{ fontSize: 20, marginBottom: 12 }}>Check your email</h2>
-          <p className="muted mb-0">
-            We sent a verification link to <b>{email}</b>. Click the link to verify your account, then sign in.
-          </p>
-          <div className="mt-16" style={{ textAlign: 'center', fontSize: 13 }}>
-            <Link href="/login">Back to sign in</Link>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 18 }}>📧</div>
+            <h2 style={{ fontSize: 20, marginBottom: 12 }}>Check your email</h2>
+            <p className="muted mb-0">
+              We sent a verification link to <b>{email}</b>. Click the link to verify your account, then sign in.
+            </p>
+            <div className="mt-16" style={{ textAlign: 'center', fontSize: 13 }}>
+              <Link href="/login">Back to sign in</Link>
+            </div>
           </div>
-        </div>
-      ) : (
-        <>
-        {error && <div className="toast error" style={{ position: 'static', marginBottom: 14 }}>{error}</div>}
-        <form onSubmit={submit}>
-          <Field label="Full name">
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ada Lovelace" />
-          </Field>
-          <Field label="Work email">
-            <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-          </Field>
-          <Field label="Phone number" help="Required to reduce duplicate requests">
-            <Input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1234567890" />
-          </Field>
-          <Field label="Password" help="At least 8 characters.">
-            <Input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-          </Field>
-          <Button type="submit" disabled={busy} style={{ width: '100%', justifyContent: 'center' }}>
-            {busy ? 'Creating account…' : 'Get Started Free'}
-          </Button>
-        </form>
-        <div className="flex" style={{ alignItems: 'center', gap: 10, margin: '14px 0' }}>
-          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-          <span className="muted" style={{ fontSize: 12 }}>or</span>
-          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-        </div>
-        <Button variant="secondary" disabled={googleBusy} onClick={google} style={{ width: '100%', justifyContent: 'center' }}>
-          {googleBusy ? 'Redirecting to Google…' : 'Continue with Google'}
-        </Button>
-        <div className="mt-16" style={{ textAlign: 'center', fontSize: 13 }}>
-          Already have an account? <Link href="/login">Sign in</Link>
-        </div>
-        </>
-      )}
+        ) : (
+          <>
+            {error && <div className="toast error" style={{ position: 'static', marginBottom: 14 }}>{error}</div>}
+            <form onSubmit={submit}>
+              <Field label="Full name">
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ada Lovelace" />
+              </Field>
+              <Field label="Work email">
+                <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+              </Field>
+              <Field label="Phone number" help="Required to reduce duplicate requests">
+                <Input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1234567890" />
+              </Field>
+              <Field label="Password" help="At least 8 characters.">
+                <div className="input-with-toggle">
+                  <Input type={showPw ? 'text' : 'password'} required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a strong password" />
+                  <button type="button" className="pw-toggle" onClick={() => setShowPw(!showPw)} tabIndex={-1}>
+                    {showPw ? '🙈' : '👁️'}
+                  </button>
+                </div>
+              </Field>
+              <Button type="submit" disabled={busy} style={{ width: '100%', justifyContent: 'center' }}>
+                {busy ? 'Creating account…' : 'Get Started Free'}
+              </Button>
+            </form>
+            <div className="flex" style={{ alignItems: 'center', gap: 10, margin: '14px 0' }}>
+              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              <span className="muted" style={{ fontSize: 12 }}>or</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            </div>
+            <Button variant="secondary" disabled={googleBusy} onClick={google} style={{ width: '100%', justifyContent: 'center' }}>
+              {googleBusy ? 'Redirecting to Google…' : 'Continue with Google'}
+            </Button>
+            <div className="mt-16" style={{ textAlign: 'center', fontSize: 13 }}>
+              Already have an account? <Link href="/login">Sign in</Link>
+            </div>
+          </>
+        )}
       </Panel>
     </div>
   );

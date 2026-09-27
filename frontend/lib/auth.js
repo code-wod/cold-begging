@@ -3,6 +3,14 @@ import { api, clearToken, getToken, setToken } from './api';
 
 const AuthContext = createContext(null);
 
+function detectTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -13,7 +21,16 @@ export function AuthProvider({ children }) {
       return;
     }
     api('/api/auth/me')
-      .then(setUser)
+      .then((u) => {
+        setUser(u);
+        // Auto-detect and save timezone if not set
+        const browserTz = detectTimezone();
+        if (u.timezone !== browserTz) {
+          api('/api/auth/detect-timezone', { method: 'POST', body: { timezone: browserTz } })
+            .then((res) => setUser((prev) => prev ? { ...prev, timezone: res.timezone } : prev))
+            .catch(() => {});
+        }
+      })
       .catch(() => clearToken())
       .finally(() => setLoading(false));
   }, []);
@@ -22,6 +39,11 @@ export function AuthProvider({ children }) {
     const d = await api('/api/auth/login', { method: 'POST', body: { email, password } });
     setToken(d.access_token);
     setUser(d.user);
+    // Detect timezone after login
+    const browserTz = detectTimezone();
+    api('/api/auth/detect-timezone', { method: 'POST', body: { timezone: browserTz } })
+      .then((res) => setUser((prev) => prev ? { ...prev, timezone: res.timezone } : prev))
+      .catch(() => {});
     return d.user;
   };
 
@@ -32,6 +54,11 @@ export function AuthProvider({ children }) {
     });
     setToken(d.access_token);
     setUser(d.user);
+    // Detect timezone after signup
+    const browserTz = detectTimezone();
+    api('/api/auth/detect-timezone', { method: 'POST', body: { timezone: browserTz } })
+      .then((res) => setUser((prev) => prev ? { ...prev, timezone: res.timezone } : prev))
+      .catch(() => {});
     return d.user;
   };
 
@@ -39,6 +66,11 @@ export function AuthProvider({ children }) {
     setToken(token);
     const user = await api('/api/auth/me');
     setUser(user);
+    // Detect timezone after Google login
+    const browserTz = detectTimezone();
+    api('/api/auth/detect-timezone', { method: 'POST', body: { timezone: browserTz } })
+      .then((res) => setUser((prev) => prev ? { ...prev, timezone: res.timezone } : prev))
+      .catch(() => {});
     return user;
   };
 
