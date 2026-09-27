@@ -126,11 +126,11 @@ def preview_resume(
     from fastapi.responses import FileResponse
     from .models import Resume as ResumeModel
     resume = db.query(ResumeModel).filter(ResumeModel.id == resume_id, ResumeModel.user_id == current_user.id).first()
-    if not resume or not resume.file_path:
+    if not resume or not resume.stored_path:
         raise HTTPException(status_code=404, detail='Resume file not found')
-    if not os.path.exists(resume.file_path):
+    if not os.path.exists(resume.stored_path):
         raise HTTPException(status_code=404, detail='Resume file not found on disk')
-    return FileResponse(resume.file_path, media_type='application/pdf', filename=resume.filename or 'resume.pdf')
+    return FileResponse(resume.stored_path, media_type='application/pdf', filename=resume.filename or 'resume.pdf')
 
 
 @router.post('/resumes', response_model=ResumeOut)
