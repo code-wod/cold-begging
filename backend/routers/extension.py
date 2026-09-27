@@ -554,6 +554,11 @@ def get_match_score(
         Resume.user_id == user.id,
         Resume.is_default.is_(True)
     ).first()
+    # Fallback: any resume if no default set
+    if not default_resume:
+        default_resume = db.query(Resume).filter(
+            Resume.user_id == user.id
+        ).order_by(Resume.created_at.desc()).first()
 
     parts = []
     if prefs:
