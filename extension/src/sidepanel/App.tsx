@@ -3,6 +3,32 @@ import type { ApplicationProfile, FormField, FieldSuggestion, AutofillState, Pla
 import { api } from '../api/client';
 import { ProfilePanel } from './components/ProfilePanel';
 
+function CodessyLogo({ size = 28 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="120" rx="24" fill="#070B1F"/>
+      <path d="M28 30h28v28H28z" fill="url(#blue)"/>
+      <circle cx="82" cy="44" r="14" fill="url(#purple)"/>
+      <path d="M28 74h28v18H28z" fill="url(#green)"/>
+      <path d="M64 74h28v18H64z" fill="url(#coral)"/>
+      <defs>
+        <linearGradient id="blue" x1="28" y1="30" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#35A7FF"/><stop offset="1" stopColor="#2875F0"/>
+        </linearGradient>
+        <linearGradient id="purple" x1="68" y1="30" x2="96" y2="58" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#9B5CFF"/><stop offset="1" stopColor="#7340E8"/>
+        </linearGradient>
+        <linearGradient id="green" x1="28" y1="74" x2="56" y2="92" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#22D3A6"/><stop offset="1" stopColor="#10B981"/>
+        </linearGradient>
+        <linearGradient id="coral" x1="64" y1="74" x2="92" y2="92" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#FF9A55"/><stop offset="1" stopColor="#F45F72"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 function App() {
   const [tab, setTab] = useState<'fill' | 'profile' | 'history'>('fill');
   const [state, setState] = useState<AutofillState>('idle');
@@ -360,8 +386,13 @@ function App() {
     return (
       <div style={s.container}>
         <div style={s.header}>
-          <h1 style={s.title}>Cold-Begging</h1>
-          <p style={s.sub}>Sign in to use your profile</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <CodessyLogo size={32} />
+            <div>
+              <h1 style={s.title}>Codessy</h1>
+              <p style={s.sub}>Sign in to use your profile</p>
+            </div>
+          </div>
         </div>
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <input type="email" placeholder="Email" value={loginEmail}
@@ -382,9 +413,14 @@ function App() {
   return (
     <div style={s.container}>
       <div style={s.header}>
-        <h1 style={s.title}>Cold-Begging</h1>
-        {jobTitle && <div style={{ fontSize: 13, opacity: 0.9, marginTop: 4 }}>{jobTitle}</div>}
-        {company && <div style={{ fontSize: 12, opacity: 0.6 }}>{company}</div>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <CodessyLogo size={30} />
+          <div>
+            <h1 style={s.title}>Codessy</h1>
+            {jobTitle && <div style={{ fontSize: 13, opacity: 0.9, marginTop: 2 }}>{jobTitle}</div>}
+            {company && <div style={{ fontSize: 12, opacity: 0.6 }}>{company}</div>}
+          </div>
+        </div>
         {statusText && (
           <div style={{ fontSize: 11, opacity: 0.7, marginTop: 6, padding: '4px 8px', background: 'rgba(255,255,255,0.1)', borderRadius: 4 }}>
             {statusText}
@@ -670,7 +706,7 @@ const skillPill: React.CSSProperties = {
 
 const s: Record<string, React.CSSProperties> = {
   container: { display: 'flex', flexDirection: 'column', height: '100vh', background: '#f8f9fa', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' },
-  header: { padding: '16px', background: '#1a1a2e', color: 'white' },
+  header: { padding: '16px', background: '#070B1F', color: 'white' },
   title: { fontSize: 16, fontWeight: 700, margin: 0 },
   sub: { fontSize: 11, opacity: 0.6, margin: '4px 0 0' },
   tab: { flex: 1, padding: '10px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: '#666' },
