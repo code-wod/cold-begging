@@ -1,4 +1,4 @@
-const KEY = 'pb-theme';
+const KEY = 'codessy-theme';
 
 export function getTheme() {
   if (typeof window === 'undefined') return 'light';

@@ -135,7 +135,7 @@ export default function Billing() {
                       <td style={{ fontSize: 13 }}>{fmtDate(p.created_at)}</td>
                       <td style={{ fontSize: 13 }}>{p.description}</td>
                       <td style={{ textAlign: 'right', fontSize: 13, fontWeight: 600 }}>
-                        {p.type === 'PURCHASE' ? `₹${Math.abs(p.amount / 100)}` : `₹${Math.abs(p.amount / 100)}`}
+                        {p.type === 'PURCHASE' ? `₹${Math.abs(p.amount / 100)}` : `-₹${Math.abs(p.amount / 100)}`}
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <StatusBadge

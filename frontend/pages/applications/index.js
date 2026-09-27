@@ -222,10 +222,10 @@ export default function Applications() {
         {total > pageSize && (
           <div className="flex justify-between mt-16">
             <Button variant="secondary" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-              {Icons.up} Prev
+              <span style={{ transform: 'rotate(-90deg)', display: 'inline-flex' }}>{Icons.up}</span> Prev
             </Button>
             <Button variant="secondary" size="sm" onClick={() => setPage(p => p + 1)} disabled={page * pageSize >= total}>
-              Next {Icons.up}
+              Next <span style={{ transform: 'rotate(90deg)', display: 'inline-flex' }}>{Icons.up}</span>
             </Button>
           </div>
         )}

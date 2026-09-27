@@ -19,7 +19,7 @@ export default function Analytics() {
     );
   }
 
-  const max = Math.max(1, ...data.daily.map((d) => d.sent));
+  const max = Math.max(1, ...(data.daily || []).map((d) => d.sent));
 
   const cards = [
     ['Emails Generated', data.emails_generated],
@@ -47,7 +47,7 @@ export default function Analytics() {
 
       <Panel title="Emails sent — last 14 days" className="mt-16">
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 180 }}>
-          {data.daily.map((d) => (
+          {(data.daily || []).map((d) => (
             <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
               <div title={`${d.date}: ${d.sent}`}
                 style={{ width: '70%', background: d.sent ? 'var(--primary)' : '#e7eaf0', borderRadius: '3px 3px 0 0', height: `${Math.max(2, (d.sent / max) * 160)}px` }} />
