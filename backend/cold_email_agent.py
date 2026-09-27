@@ -49,7 +49,7 @@ class ColdEmailAgent:
         email_length='medium',
         use_company_research=True,
         custom_prompt=None,
-        max_tokens=500,
+        max_tokens=1000,
         ai_provider=None,
         sender_context=None,
     ):
@@ -179,6 +179,14 @@ class ColdEmailAgent:
                 )
                 return getattr(response, 'completion', '')
 
+            if hasattr(self.anthropic_client, 'messages'):
+                response = self.anthropic_client.messages.create(
+                    model=model,
+                    max_tokens=max_tokens,
+                    messages=[{'role': 'user', 'content': prompt}],
+                )
+                return response.content[0].text
+
             return ''
         except Exception as exc:
             logger.warning('Anthropic completion failed: %s', exc)
@@ -234,86 +242,138 @@ class ColdEmailAgent:
                 'key_keywords': []
             }
 
+    def _parse_email_response(self, raw):
+        """Robustly parse SUBJECT:/BODY: from AI response. Returns (subject, body) or (None, None)."""
+        if not raw:
+            return None, None
+        cleaned = raw.replace('```', '').strip()
+
+        # Try case-insensitive split on BODY:
+        match = re.search(r'(?:SUBJECT|Subject)\s*:\s*(.+?)(?:\n|$)', cleaned)
+        body_match = re.search(r'(?:BODY|Body)\s*:\s*(.*)', cleaned, re.DOTALL)
+        if match and body_match:
+            subject = match.group(1).strip()
+            body = body_match.group(1).strip()
+            if subject and body and len(body) > 20:
+                return subject, body
+
+        # Fallback: split on first newline — line before is subject, rest is body
+        lines = [l.strip() for l in cleaned.split('\n') if l.strip()]
+        if len(lines) >= 2:
+            subject = lines[0].lstrip('SUBJECT:').lstrip('Subject:').strip().strip('"').strip("'")
+            body = '\n'.join(lines[1:]).lstrip('BODY:').lstrip('Body:').strip()
+            if subject and body and len(body) > 20:
+                return subject, body
+
+        return None, None
+
     def generate_personalized_email(self, company_data, company_profile):
         tone_map = {
-            'professional': 'Professional but conversational',
-            'conversational': 'Conversational and approachable',
-            'friendly': 'Friendly and warm',
-            'formal': 'Formal and respectful',
+            'professional': 'Professional but conversational — like a real person writing, not a template',
+            'conversational': 'Conversational and approachable — write like you are texting a colleague',
+            'friendly': 'Friendly and warm — genuine, not salesy',
+            'formal': 'Formal and respectful — corporate but not stiff',
         }
         subject_map = {
-            'personalized': f'Personalized subject line about {company_data["company_name"]}',
-            'curiosity': 'Create a curiosity-driven subject line',
-            'benefit': 'Create a benefit-focused subject line',
+            'personalized': f'Write a subject line that mentions {company_data["company_name"]} specifically',
+            'curiosity': 'Write a curiosity-driven subject line that makes them want to open',
+            'benefit': 'Write a subject line that hints at a specific benefit',
         }
         length_map = {
-            'short': '2 short paragraphs maximum',
-            'medium': '3-4 short paragraphs maximum',
-            'long': '4-5 short paragraphs maximum',
+            'short': 'Keep it to 2-3 short paragraphs (under 100 words)',
+            'medium': 'Keep it to 3-4 short paragraphs (100-180 words)',
+            'long': 'Keep it to 4-5 paragraphs (180-250 words)',
         }
 
         tone_instruction = tone_map.get(self.tone, tone_map['professional'])
         subject_instruction = subject_map.get(self.subject_style, subject_map['personalized'])
         length_instruction = length_map.get(self.email_length, length_map['medium'])
 
-        prompt = (
-            f"Write a personalized cold email for a job opportunity. Requirements:\n\n"
-            f"Recipient Context:\n"
-            f"- Company: {company_data['company_name']}\n"
-            f"- Recipient Email: {company_data['email']}\n"
-            f"- Target Job Role: {company_data['job_role']}\n"
-            f"- Position Level: {company_data['position_level']}\n\n"
-            f"Company Profile:\n"
-            f"- Pain Points: {', '.join(company_profile.get('company_pain_points', []))}\n"
-            f"- Growth Stage: {company_profile.get('growth_stage')}\n"
-            f"- Culture: {company_profile.get('company_culture')}\n\n"
-            f"Email Requirements:\n"
-            f"1. Subject line: SHORT, personalized, NOT generic. {subject_instruction}.\n"
-            f"2. Body: {length_instruction}.\n"
-            f"3. Tone: {tone_instruction}.\n"
-            f"4. NEVER mention salary or benefits first.\n"
-            f"5. Focus on: company achievement, your interest, value proposition.\n"
-            f"6. CTA: Ask for a brief call/chat with low friction.\n"
-            f"7. NO generic templates - MUST be specific to company.\n\n"
-            f"Format response EXACTLY as:\n"
-            f"SUBJECT: [subject line]\n"
-            f"BODY:\n"
-            f"[email body]\n\n"
-            f"If you have optional details such as recent news or funding status, include them naturally.\n"
-        )
-
+        sender_block = ''
         if self.sender_context:
-            prompt += (
-                f"\nSender Background (REAL facts about the sender — use these to ground the email "
-                f"in genuine experience, projects, and links; never invent skills outside of this):\n"
+            sender_block = (
+                f"\nAbout the sender (use these REAL details — do not invent anything):\n"
                 f"{self.sender_context}\n"
-                f"\nReference the sender's real background naturally (specific experience, projects, "
-                f"and a portfolio/linkedin link where relevant) so the email reads as authentically "
-                f"from this person.\n"
             )
 
+        custom_block = ''
         if self.custom_prompt:
-            prompt += f"Additional instructions: {self.custom_prompt}\n"
+            custom_block = f"\nAdditional instructions from the user: {self.custom_prompt}\n"
 
+        prompt = (
+            f"You are writing a cold outreach email. Write ONLY the email — no explanations, no notes, no commentary.\n\n"
+            f"RECIPIENT:\n"
+            f"- Company: {company_data['company_name']}\n"
+            f"- Role they hire for: {company_data['job_role']}\n"
+            f"- Seniority: {company_data['position_level']}\n"
+            f"- Contact: {company_data.get('contact_person_name') or 'the hiring manager'}\n"
+            f"- Industry: {company_data['industry']}\n\n"
+            f"COMPANY CONTEXT:\n"
+            f"- Likely pain points: {', '.join(company_profile.get('company_pain_points', ['hiring needs']))}\n"
+            f"- Stage: {company_profile.get('growth_stage', 'growth')}\n"
+            f"- Culture vibe: {company_profile.get('company_culture', 'fast-paced team')}\n"
+            f"{sender_block}"
+            f"WRITING RULES:\n"
+            f"- Tone: {tone_instruction}\n"
+            f"- Length: {length_instruction}\n"
+            f"- Subject: {subject_instruction}\n"
+            f"- Open with something specific about {company_data['company_name']} (their product, news, or industry move)\n"
+            f"- Connect their need to the sender's relevant experience\n"
+            f"- CTA: low-friction ask (15-min call, quick chat)\n"
+            f"- NEVER use placeholders like [Your Name], [Company], [Role]\n"
+            f"- NEVER start with 'I hope this email finds you well' or 'I am writing to'\n"
+            f"- Write as if you are a real person who did 2 minutes of research\n"
+            f"{custom_block}"
+            f"RESPOND IN THIS EXACT FORMAT (nothing else):\n"
+            f"SUBJECT: your subject line here\n"
+            f"BODY:\n"
+            f"your email body here\n"
+        )
+
+        # Attempt 1: generate with full context
         raw = self._anthropic_completion(prompt, max_tokens=self.max_tokens, model=self.ai_model) if (self.anthropic_client or self.ai_provider) else ''
-        if raw:
-            raw = raw.replace('```', '').strip()
-            parts = raw.split('BODY:')
-            subject = parts[0].replace('SUBJECT:', '').strip()
-            body = parts[1].strip() if len(parts) > 1 else ''
-            if subject and body:
-                return subject, body
+        subject, body = self._parse_email_response(raw)
 
-        logger.info('Using built-in fallback email template for %s', company_data['company_name'])
-        subject = f"Quick chat about {company_data['company_name']} and {company_data['job_role']}"
+        # Attempt 2: if parsing failed, retry with even stricter format instruction
+        if not subject or not body:
+            logger.info('Retrying email generation for %s with stricter format', company_data['company_name'])
+            retry_prompt = (
+                f"Write a cold email. Output ONLY two lines — nothing else:\n"
+                f"Line 1: SUBJECT: <subject>\n"
+                f"Line 2: BODY: <email body>\n\n"
+                f"Company: {company_data['company_name']}\n"
+                f"Role: {company_data['job_role']}\n"
+                f"Industry: {company_data['industry']}\n"
+                f"Contact: {company_data.get('contact_person_name') or 'there'}\n"
+                f"Tone: {tone_instruction}\n"
+                f"Make it specific to {company_data['company_name']}. No placeholders.\n"
+            )
+            raw = self._anthropic_completion(retry_prompt, max_tokens=self.max_tokens, model=self.ai_model) if (self.anthropic_client or self.ai_provider) else ''
+            subject, body = self._parse_email_response(raw)
+
+        if subject and body:
+            return subject, body
+
+        # Last resort: improved fallback (never uses [Your Name])
+        logger.warning('All generation attempts failed for %s, using improved fallback', company_data['company_name'])
+        contact = company_data.get('contact_person_name') or 'there'
+        company = company_data['company_name']
+        role = company_data['job_role']
+        industry = company_data['industry']
+        stage = company_profile.get('growth_stage', 'growth')
+
+        subject = f"{company} + {role} — quick question"
         body = (
-            f"Hi {company_data.get('contact_person_name') or 'there'},\n\n"
-            f"I saw the work {company_data['company_name']} is doing in {company_data['industry']} and wanted to share a quick note. "
-            f"With your focus on {company_profile.get('growth_stage', 'growth')} stage challenges, I believe there is a strong fit for the {company_data['job_role']} role at the {company_data['position_level']} level.\n\n"
-            f"I bring experience helping teams improve hiring velocity, align strategic goals, and land the right leadership for fast-moving companies. I would love to learn more about your current talent priorities and explore a brief call.\n\n"
-            f"Would you be open to a 15-minute conversation this week?\n\n"
-            f"Best regards,\n"
-            f"[Your Name]"
+            f"Hi {contact},\n\n"
+            f"Noticed {company} is building in {industry} — {stage} stage companies like yours "
+            f"usually need strong {role} leadership to scale without breaking processes.\n\n"
+            f"I have helped similar teams hire faster by aligning the role requirements with "
+            f"candidates who have shipped results in comparable environments. Happy to share a "
+            f"couple of examples if useful.\n\n"
+            f"Would a 15-minute call this week work? No pitch — just want to learn about "
+            f"your hiring priorities.\n\n"
+            f"Best,\n"
+            f"{{sender_name}}"
         )
         return subject, body
 

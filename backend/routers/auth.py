@@ -375,6 +375,21 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     return {'message': 'Email verified successfully', 'is_verified': True}
 
 
+@router.post('/detect-timezone')
+def detect_timezone(
+    payload: dict,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Save the browser-detected timezone to the user profile."""
+    tz = (payload.get('timezone') or '').strip()[:64]
+    if not tz:
+        return {'timezone': user.timezone or 'UTC'}
+    user.timezone = tz
+    db.commit()
+    return {'timezone': user.timezone}
+
+
 @router.patch('/profile', response_model=UserOut)
 def update_profile(
     payload: ProfileUpdate,
@@ -385,6 +400,8 @@ def update_profile(
         user.full_name = payload.full_name.strip()[:255]
     if payload.avatar_url is not None:
         user.avatar_url = payload.avatar_url[:1024]
+    if payload.timezone is not None:
+        user.timezone = payload.timezone.strip()[:64] or 'UTC'
     profile = db.query(Profile).filter(Profile.user_id == user.id).first()
     if payload.bio is not None:
         if not profile:

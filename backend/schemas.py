@@ -33,6 +33,7 @@ class UserOut(BaseModel):
     is_verified: bool
     is_admin: bool = False
     plan: str = 'free'
+    timezone: str = 'UTC'
     created_at: Optional[str] = None
 
 
@@ -102,6 +103,7 @@ class ProfileUpdate(BaseModel):
     full_name: Optional[str] = None
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
+    timezone: Optional[str] = None
 
 
 # ---------- Profile assets ----------

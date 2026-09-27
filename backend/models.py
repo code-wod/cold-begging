@@ -40,6 +40,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     phone = Column(String(64), default='')  # phone number
+    timezone = Column(String(64), default='UTC')  # auto-detected or user-set
 
 
 class Profile(Base):

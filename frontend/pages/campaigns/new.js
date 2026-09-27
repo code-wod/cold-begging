@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
 import { api } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
 import { Button, Field, Icons, Input, Modal, Panel, Select, Spinner, StatusBadge, TextArea, useToast } from '../../components/ui';
 
 const STEPS = [
@@ -17,15 +18,19 @@ const DAYS = [
   ['Monday', 0], ['Tuesday', 1], ['Wednesday', 2], ['Thursday', 3], ['Friday', 4], ['Saturday', 5], ['Sunday', 6],
 ];
 
-const TIMEZONES = [
+const COMMON_TIMEZONES = [
   ['Asia/Kolkata', 'IST (India)'], ['UTC', 'UTC'], ['America/New_York', 'EST (New York)'],
   ['America/Chicago', 'CST (Chicago)'], ['America/Denver', 'MST (Denver)'], ['America/Los_Angeles', 'PST (Los Angeles)'],
   ['Europe/London', 'GMT (London)'], ['Europe/Berlin', 'CET (Berlin)'], ['Asia/Dubai', 'GST (Dubai)'],
   ['Asia/Singapore', 'SGT (Singapore)'], ['Asia/Tokyo', 'JST (Tokyo)'], ['Australia/Sydney', 'AEST (Sydney)'],
+  ['Asia/Shanghai', 'CST (Shanghai)'], ['Asia/Seoul', 'KST (Seoul)'], ['America/Sao_Paulo', 'BRT (São Paulo)'],
+  ['Europe/Paris', 'CET (Paris)'], ['Europe/Amsterdam', 'CET (Amsterdam)'], ['Asia/Bangkok', 'ICT (Bangkok)'],
+  ['Asia/Jakarta', 'WIB (Jakarta)'], ['Africa/Lagos', 'WAT (Lagos)'], ['Africa/Nairobi', 'EAT (Nairobi)'],
 ];
 
 export default function NewCampaign() {
   const router = useRouter();
+  const { user } = useAuth();
   const toast = useToast();
   const [step, setStep] = useState(0);
   const [groups, setGroups] = useState([]);
@@ -38,7 +43,8 @@ export default function NewCampaign() {
     custom_prompt: '', use_company_research: true, review_required: true, dry_run: true,
     agent_id: null, email_account_id: null, asset_ids: [],
     send_start_time: '09:00', send_end_time: '17:00', active_days: [0, 1, 2, 3, 4],
-    emails_per_hour: 10, delay_seconds: 0, daily_limit: 0, max_sends: 0, timezone: 'Asia/Kolkata', start_at: '', end_at: '',
+    emails_per_hour: 10, delay_seconds: 0, daily_limit: 0, max_sends: 0,
+    timezone: user?.timezone || 'Asia/Kolkata', start_at: '', end_at: '',
   });
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -63,6 +69,13 @@ export default function NewCampaign() {
       .catch((e) => toast(e.message, 'error'));
     api('/api/billing').then(setBilling).catch(() => {});
   }, []);
+
+  // Sync timezone from user profile
+  useEffect(() => {
+    if (user?.timezone) {
+      setForm((f) => ({ ...f, timezone: f.timezone === 'Asia/Kolkata' ? user.timezone : f.timezone }));
+    }
+  }, [user?.timezone]);
 
   const plan = billing?.plan || 'free';
   const planRateLimit = billing?.limits?.emails_per_hour || 10;
@@ -383,9 +396,12 @@ export default function NewCampaign() {
                 <Input type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
               </Field>
             </div>
-            <Field label="Timezone" help="The send window above is in this timezone.">
+            <Field label="Timezone" help={`Send window times are in this timezone. Detected: ${user?.timezone || 'UTC'}`}>
               <Select value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}>
-                {TIMEZONES.map(([value, label]) => (
+                {user?.timezone && !COMMON_TIMEZONES.some(([v]) => v === user.timezone) && (
+                  <option key={user.timezone} value={user.timezone}>{user.timezone} (your local)</option>
+                )}
+                {COMMON_TIMEZONES.map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </Select>

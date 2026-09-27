@@ -116,6 +116,23 @@ def list_resumes(
     return result
 
 
+@router.get('/resumes/{resume_id}/preview')
+def preview_resume(
+    resume_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Serve the resume PDF file for preview."""
+    from fastapi.responses import FileResponse
+    from .models import Resume as ResumeModel
+    resume = db.query(ResumeModel).filter(ResumeModel.id == resume_id, ResumeModel.user_id == current_user.id).first()
+    if not resume or not resume.file_path:
+        raise HTTPException(status_code=404, detail='Resume file not found')
+    if not os.path.exists(resume.file_path):
+        raise HTTPException(status_code=404, detail='Resume file not found on disk')
+    return FileResponse(resume.file_path, media_type='application/pdf', filename=resume.filename or 'resume.pdf')
+
+
 @router.post('/resumes', response_model=ResumeOut)
 async def upload_resume(
     name: str = Form(...),
