@@ -129,7 +129,7 @@ export default function Dashboard() {
                     <tr key={c.id}>
                       <td><Link href={`/campaigns/${c.id}`}>{c.name}</Link></td>
                       <td><StatusBadge status={c.status} /></td>
-                      <td style={{ minWidth: 160 }}>
+                      <td style={{ minWidth: 120, maxWidth: 180 }}>
                         <div className="flex">
                           <div className="progress" style={{ flex: 1 }}><div style={{ width: `${(done / total) * 100}%` }} /></div>
                           <span className="muted">{done}/{total}</span>
