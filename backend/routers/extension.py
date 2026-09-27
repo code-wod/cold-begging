@@ -12,7 +12,9 @@ import datetime as dt
 
 from ..database import get_db
 from ..security import get_current_user
-from ..models import User, Job
+from ..models import User, Job, Resume, JobPreferences, AIModel
+from ..ai import provider_for, is_managed
+from ..encryption import decrypt_plaintext
 from ..extension_models import (
     ExtensionProfile,
     ExtensionLearnedAnswer,
@@ -105,6 +107,14 @@ class SessionCreate(BaseModel):
     fields_detected: Optional[int] = 0
     fields_filled: Optional[int] = 0
     duration_seconds: Optional[int] = 0
+
+
+class MatchScoreRequest(BaseModel):
+    title: str
+    company: str
+    location: Optional[str] = ''
+    description: Optional[str] = ''
+    requirements: Optional[str] = ''
 
 
 class JobCreate(BaseModel):
@@ -529,6 +539,171 @@ def save_job_from_extension(
     db.commit()
     db.refresh(job)
     return {'job_id': job.id, 'is_new': True}
+
+
+@router.post('/match-score')
+def get_match_score(
+    body: MatchScoreRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """AI-powered resume-to-job match score for the Chrome extension."""
+    # Build profile context
+    prefs = db.query(JobPreferences).filter(JobPreferences.user_id == user.id).first()
+    default_resume = db.query(Resume).filter(
+        Resume.user_id == user.id,
+        Resume.is_default.is_(True)
+    ).first()
+
+    parts = []
+    if prefs:
+        for field_name, label in [
+            ('preferred_roles', 'Preferred Roles'),
+            ('skills', 'Skills'),
+            ('preferred_locations', 'Preferred Locations'),
+            ('experience_levels', 'Experience Levels'),
+        ]:
+            val = getattr(prefs, field_name, None)
+            if val:
+                try:
+                    items = json.loads(val)
+                    if items:
+                        parts.append(f"{label}: {', '.join(items)}")
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        if prefs.minimum_salary:
+            parts.append(f"Minimum Salary: {prefs.currency} {prefs.minimum_salary:,}")
+        parts.append(f"Remote Preference: {prefs.remote_preference}")
+
+    if default_resume:
+        if default_resume.text_content:
+            parts.append(f"Resume ({default_resume.name}): {default_resume.text_content[:2000]}")
+        if default_resume.skills:
+            try:
+                skills = json.loads(default_resume.skills)
+                if skills:
+                    parts.append(f"Resume Skills: {', '.join(skills)}")
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+    profile_context = '\n'.join(parts) if parts else 'No profile information available.'
+
+    # Find AI provider
+    model = db.query(AIModel).filter(AIModel.user_id == user.id, AIModel.is_default.is_(True)).first()
+    if not model:
+        model = db.query(AIModel).filter(AIModel.is_platform.is_(True), AIModel.price_usd == 0).first()
+
+    if not model:
+        # Fallback: keyword-based scoring
+        return _fallback_score(profile_context, body)
+
+    try:
+        if is_managed(model):
+            from backend.ai import AnthropicProvider
+            from backend.config import MANAGED_MODEL_NAME
+            provider = AnthropicProvider()
+            model_name = MANAGED_MODEL_NAME
+        else:
+            api_key = decrypt_plaintext(model.api_key_encrypted) if model.api_key_encrypted else None
+            provider = provider_for(model, api_key=api_key)
+            model_name = model.model
+            if not provider:
+                return _fallback_score(profile_context, body)
+
+        prompt = f"""You are an expert career coach. Score how well this candidate matches the job.
+
+CANDIDATE PROFILE:
+{profile_context}
+
+JOB:
+Title: {body.title}
+Company: {body.company}
+Location: {body.location or 'Not specified'}
+Description: {(body.description or '')[:3000]}
+Requirements: {(body.requirements or '')[:2000]}
+
+Return ONLY a JSON object (no markdown, no explanation):
+{{
+  "match_score": 0-100,
+  "recommendation": "strong_apply|apply|consider|weak|reject",
+  "matched_skills": ["skill1", "skill2"],
+  "missing_skills": ["skill1", "skill2"],
+  "reasoning": "One sentence explanation"
+}}
+
+Scoring: 90-100=strong_apply, 80-89=apply, 70-79=consider, 60-69=weak, <60=reject.
+Be strict and honest. Never inflate scores."""
+
+        response = provider.complete(model_name, prompt, 600, 0.3)
+        if not response:
+            return _fallback_score(profile_context, body)
+
+        cleaned = response.replace('```json', '').replace('```', '').strip()
+        result = json.loads(cleaned)
+
+        score = max(0, min(100, int(result.get('match_score', 0))))
+        result['match_score'] = score
+
+        if score >= 80:
+            result['recommendation'] = 'strong_apply'
+        elif score >= 70:
+            result['recommendation'] = 'apply'
+        elif score >= 60:
+            result['recommendation'] = 'consider'
+        elif score >= 40:
+            result['recommendation'] = 'weak'
+        else:
+            result['recommendation'] = 'reject'
+
+        return result
+
+    except Exception as e:
+        return _fallback_score(profile_context, body)
+
+
+def _fallback_score(profile_context: str, body: MatchScoreRequest) -> dict:
+    """Keyword-based fallback matching when AI is unavailable."""
+    profile_lower = profile_context.lower()
+    desc_lower = (body.description or '').lower()
+    req_lower = (body.requirements or '').lower()
+    combined = f"{desc_lower} {req_lower}"
+
+    # Extract common tech skills from job description
+    common_skills = [
+        'python', 'javascript', 'typescript', 'go', 'rust', 'java', 'c++', 'c#',
+        'react', 'vue', 'angular', 'next.js', 'node.js', 'django', 'flask', 'fastapi',
+        'postgresql', 'mysql', 'mongodb', 'redis', 'elasticsearch',
+        'aws', 'gcp', 'azure', 'docker', 'kubernetes', 'terraform',
+        'git', 'ci/cd', 'jenkins', 'github actions',
+        'graphql', 'rest', 'grpc', 'kafka', 'rabbitmq',
+    ]
+
+    matched = [s for s in common_skills if s in combined and s in profile_lower]
+    missing = [s for s in common_skills if s in combined and s not in profile_lower]
+
+    score = 50
+    score += min(30, len(matched) * 5)
+    score -= min(20, len(missing) * 3)
+    score = max(0, min(100, score))
+
+    if score >= 80:
+        rec = 'strong_apply'
+    elif score >= 70:
+        rec = 'apply'
+    elif score >= 60:
+        rec = 'consider'
+    elif score >= 40:
+        rec = 'weak'
+    else:
+        rec = 'reject'
+
+    return {
+        'match_score': score,
+        'recommendation': rec,
+        'matched_skills': matched[:10],
+        'missing_skills': missing[:10],
+        'reasoning': f'Keyword match: {len(matched)} skills found, {len(missing)} missing. (AI unavailable — heuristic score)',
+    }
 
 
 # ── Documents Endpoint ───────────────────────────────────────────────────────

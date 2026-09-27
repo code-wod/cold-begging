@@ -147,6 +147,26 @@ class ApiClient {
     });
   }
 
+  // ── Match Score (AI resume-to-job scoring) ──────────────────────────────────
+  async matchScore(job: {
+    title: string;
+    company: string;
+    location?: string;
+    description?: string;
+    requirements?: string;
+  }): Promise<{
+    match_score: number;
+    recommendation: string;
+    matched_skills: string[];
+    missing_skills: string[];
+    reasoning: string;
+  }> {
+    return this.request('/extension/match-score', {
+      method: 'POST',
+      body: JSON.stringify(job),
+    });
+  }
+
   // ── Documents ───────────────────────────────────────────────────────────
   async uploadDocument(file: File, type: 'resume' | 'cover_letter'): Promise<{ path: string; name: string }> {
     const formData = new FormData();

@@ -22,6 +22,14 @@ function App() {
   const [isAuth, setIsAuth] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [matchResult, setMatchResult] = useState<{
+    match_score: number;
+    recommendation: string;
+    matched_skills: string[];
+    missing_skills: string[];
+    reasoning: string;
+  } | null>(null);
+  const [matchLoading, setMatchLoading] = useState(false);
 
   useEffect(() => { init(); }, []);
 
@@ -65,6 +73,20 @@ function App() {
         setJobTitle(d.jobTitle || '');
         setCompany(d.company || '');
         setStatusText(`${d.platform || 'Unknown'} application detected`);
+        // Trigger match scoring if authenticated
+        if (api.isAuthenticated() && d.jobTitle && d.company) {
+          setMatchLoading(true);
+          api.matchScore({
+            title: d.jobTitle,
+            company: d.company,
+            location: d.location || '',
+            description: d.description || '',
+            requirements: '',
+          }).then(result => {
+            setMatchResult(result);
+            setMatchLoading(false);
+          }).catch(() => setMatchLoading(false));
+        }
       } else {
         // Not detected — still let user scan manually
         setStatusText('');
@@ -100,6 +122,13 @@ function App() {
         setPlatform(msg.platform);
         setJobTitle(msg.jobTitle || '');
         setCompany(msg.company || '');
+        // Reset match result on new detection
+        setMatchResult(null);
+        setMatchLoading(true);
+      }
+      if (msg.type === 'MATCH_SCORE_RESULT' && msg.matchResult) {
+        setMatchResult(msg.matchResult);
+        setMatchLoading(false);
       }
     };
     chrome.runtime.onMessage.addListener(listener);
@@ -391,9 +420,74 @@ function App() {
                 <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
                   {getPlatformName(platform)} Application Detected
                 </p>
+                {jobTitle && <p style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>{jobTitle}</p>}
+                {company && <p style={{ fontSize: 12, color: '#999', marginBottom: 12 }}>{company}</p>}
+
+                {/* Match Score Card */}
+                {matchLoading && !matchResult && (
+                  <div style={{ ...scoreCard, borderColor: '#e0e0e0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0' }}>
+                      <span style={{ fontSize: 12, color: '#999' }}>Analyzing match...</span>
+                    </div>
+                  </div>
+                )}
+
+                {matchResult && (
+                  <div style={{ ...scoreCard, borderColor: getScoreColor(matchResult.match_score) + '40' }}>
+                    {/* Score circle */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+                      <div style={{
+                        width: 56, height: 56, borderRadius: '50%',
+                        background: `conic-gradient(${getScoreColor(matchResult.match_score)} ${matchResult.match_score * 3.6}deg, #eee 0deg)`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        <div style={{
+                          width: 44, height: 44, borderRadius: '50%', background: '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 16, fontWeight: 700, color: getScoreColor(matchResult.match_score),
+                        }}>
+                          {matchResult.match_score}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'left', flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: getScoreColor(matchResult.match_score) }}>
+                          {getRecommendationLabel(matchResult.recommendation)}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#888', marginTop: 2, lineHeight: 1.4 }}>
+                          {matchResult.reasoning}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Skills */}
+                    {matchResult.matched_skills.length > 0 && (
+                      <div style={{ marginBottom: 8 }}>
+                        <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Matched</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {matchResult.matched_skills.map(s => (
+                            <span key={s} style={{ ...skillPill, background: '#dcfce7', color: '#166534' }}>{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {matchResult.missing_skills.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 10, color: '#dc2626', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Missing</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {matchResult.missing_skills.map(s => (
+                            <span key={s} style={{ ...skillPill, background: '#fef2f2', color: '#991b1b' }}>{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {profile?.personal?.firstName ? (
                   <button onClick={handleExtractAndFill} disabled={loading}
-                    style={{ ...s.primaryBtn, fontSize: 16, padding: '14px 24px' }}>
+                    style={{ ...s.primaryBtn, fontSize: 16, padding: '14px 24px', marginTop: matchResult || matchLoading ? 12 : 0 }}>
                     {loading ? 'Scanning...' : `⚡ Fill ${fieldCount} Fields`}
                   </button>
                 ) : (
@@ -511,6 +605,41 @@ function App() {
     </div>
   );
 }
+
+function getScoreColor(score: number): string {
+  if (score >= 80) return '#16a34a';
+  if (score >= 60) return '#d97706';
+  return '#dc2626';
+}
+
+function getRecommendationLabel(rec: string): string {
+  switch (rec) {
+    case 'strong_apply': return 'Strong Match — Apply Now';
+    case 'apply': return 'Good Match — Apply';
+    case 'consider': return 'Fair Match — Consider';
+    case 'weak': return 'Weak Match';
+    case 'reject': return 'Poor Match';
+    default: return rec;
+  }
+}
+
+const scoreCard: React.CSSProperties = {
+  background: 'white',
+  borderRadius: 10,
+  border: '1px solid #e5e7eb',
+  padding: 16,
+  marginBottom: 8,
+  textAlign: 'left',
+};
+
+const skillPill: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '2px 8px',
+  borderRadius: 4,
+  fontSize: 11,
+  fontWeight: 500,
+  lineHeight: '18px',
+};
 
 const s: Record<string, React.CSSProperties> = {
   container: { display: 'flex', flexDirection: 'column', height: '100vh', background: '#f8f9fa', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' },

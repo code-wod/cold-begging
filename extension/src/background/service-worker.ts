@@ -104,6 +104,23 @@ async function handleContentMsg(msg: any, tab: chrome.tabs.Tab): Promise<any> {
           employment_type: msg.employmentType || '',
           remote_type: msg.remoteType || '',
         }).then(r => log('Job saved:', r)).catch(e => log('Job save failed:', e));
+
+        // AI match scoring (fire-and-forget, result forwarded to panel)
+        api.matchScore({
+          title: msg.jobTitle,
+          company: msg.company,
+          location: msg.location || '',
+          description: msg.description || '',
+          requirements: '',
+        }).then(result => {
+          log('Match score:', result);
+          try {
+            chrome.runtime.sendMessage({
+              type: 'MATCH_SCORE_RESULT',
+              matchResult: result,
+            });
+          } catch {}
+        }).catch(e => log('Match score failed:', e));
       }
 
       // Forward detection to side panel
