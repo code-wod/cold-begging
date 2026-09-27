@@ -587,6 +587,20 @@ def get_match_score(
                 pass
 
     profile_context = '\n'.join(parts) if parts else 'No profile information available.'
+    has_resume = default_resume is not None and bool(default_resume.text_content)
+    has_preferences = prefs is not None and bool(prefs.preferred_roles)
+
+    # Early return if no resume — can't do meaningful scoring
+    if not has_resume:
+        return {
+            'match_score': 0,
+            'recommendation': 'setup_required',
+            'matched_skills': [],
+            'missing_skills': [],
+            'reasoning': '',
+            'has_resume': False,
+            'has_preferences': has_preferences,
+        }
 
     # Find AI provider
     model = db.query(AIModel).filter(AIModel.user_id == user.id, AIModel.is_default.is_(True)).first()
@@ -595,7 +609,7 @@ def get_match_score(
 
     if not model:
         # Fallback: keyword-based scoring
-        return _fallback_score(profile_context, body)
+        return _fallback_score(profile_context, body, has_resume, has_preferences)
 
     try:
         if is_managed(model):
@@ -608,7 +622,7 @@ def get_match_score(
             provider = provider_for(model, api_key=api_key)
             model_name = model.model
             if not provider:
-                return _fallback_score(profile_context, body)
+                return _fallback_score(profile_context, body, has_resume, has_preferences)
 
         prompt = f"""You are an expert career coach. Score how well this candidate matches the job.
 
@@ -636,13 +650,15 @@ Be strict and honest. Never inflate scores."""
 
         response = provider.complete(model_name, prompt, 600, 0.3)
         if not response:
-            return _fallback_score(profile_context, body)
+            return _fallback_score(profile_context, body, has_resume, has_preferences)
 
         cleaned = response.replace('```json', '').replace('```', '').strip()
         result = json.loads(cleaned)
 
         score = max(0, min(100, int(result.get('match_score', 0))))
         result['match_score'] = score
+        result['has_resume'] = has_resume
+        result['has_preferences'] = has_preferences
 
         if score >= 80:
             result['recommendation'] = 'strong_apply'
@@ -658,10 +674,10 @@ Be strict and honest. Never inflate scores."""
         return result
 
     except Exception as e:
-        return _fallback_score(profile_context, body)
+        return _fallback_score(profile_context, body, has_resume, has_preferences)
 
 
-def _fallback_score(profile_context: str, body: MatchScoreRequest) -> dict:
+def _fallback_score(profile_context: str, body: MatchScoreRequest, has_resume: bool = True, has_preferences: bool = True) -> dict:
     """Keyword-based fallback matching when AI is unavailable."""
     profile_lower = profile_context.lower()
     desc_lower = (body.description or '').lower()
@@ -703,6 +719,8 @@ def _fallback_score(profile_context: str, body: MatchScoreRequest) -> dict:
         'matched_skills': matched[:10],
         'missing_skills': missing[:10],
         'reasoning': f'Keyword match: {len(matched)} skills found, {len(missing)} missing. (AI unavailable — heuristic score)',
+        'has_resume': has_resume,
+        'has_preferences': has_preferences,
     }
 
 

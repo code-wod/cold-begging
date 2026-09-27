@@ -28,6 +28,8 @@ function App() {
     matched_skills: string[];
     missing_skills: string[];
     reasoning: string;
+    has_resume?: boolean;
+    has_preferences?: boolean;
   } | null>(null);
   const [matchLoading, setMatchLoading] = useState(false);
 
@@ -434,53 +436,77 @@ function App() {
 
                 {matchResult && (
                   <div style={{ ...scoreCard, borderColor: getScoreColor(matchResult.match_score) + '40' }}>
-                    {/* Score circle */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
-                      <div style={{
-                        width: 56, height: 56, borderRadius: '50%',
-                        background: `conic-gradient(${getScoreColor(matchResult.match_score)} ${matchResult.match_score * 3.6}deg, #eee 0deg)`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
-                      }}>
-                        <div style={{
-                          width: 44, height: 44, borderRadius: '50%', background: '#fff',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 16, fontWeight: 700, color: getScoreColor(matchResult.match_score),
-                        }}>
-                          {matchResult.match_score}
-                        </div>
+                    {/* No resume setup prompt */}
+                    {matchResult.recommendation === 'setup_required' ? (
+                      <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                        <p style={{ fontSize: 28, margin: '0 0 8px' }}>📋</p>
+                        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Complete your profile to see match scores</p>
+                        <p style={{ fontSize: 11, color: '#888', marginBottom: 12, lineHeight: 1.4 }}>
+                          Upload your resume and set job preferences on Codessy to get AI-powered match scoring.
+                        </p>
+                        <a
+                          href="https://cold-begging.vercel.app/resumes"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-block', padding: '8px 16px', background: '#ff9900', color: 'white',
+                            borderRadius: 6, fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer',
+                          }}
+                        >
+                          Upload Resume →
+                        </a>
                       </div>
-                      <div style={{ textAlign: 'left', flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: getScoreColor(matchResult.match_score) }}>
-                          {getRecommendationLabel(matchResult.recommendation)}
+                    ) : (
+                      <>
+                        {/* Score circle */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+                          <div style={{
+                            width: 56, height: 56, borderRadius: '50%',
+                            background: `conic-gradient(${getScoreColor(matchResult.match_score)} ${matchResult.match_score * 3.6}deg, #eee 0deg)`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0,
+                          }}>
+                            <div style={{
+                              width: 44, height: 44, borderRadius: '50%', background: '#fff',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 16, fontWeight: 700, color: getScoreColor(matchResult.match_score),
+                            }}>
+                              {matchResult.match_score}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'left', flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: getScoreColor(matchResult.match_score) }}>
+                              {getRecommendationLabel(matchResult.recommendation)}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#888', marginTop: 2, lineHeight: 1.4 }}>
+                              {matchResult.reasoning}
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ fontSize: 11, color: '#888', marginTop: 2, lineHeight: 1.4 }}>
-                          {matchResult.reasoning}
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Skills */}
-                    {matchResult.matched_skills.length > 0 && (
-                      <div style={{ marginBottom: 8 }}>
-                        <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Matched</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {matchResult.matched_skills.map(s => (
-                            <span key={s} style={{ ...skillPill, background: '#dcfce7', color: '#166534' }}>{s}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                        {/* Skills */}
+                        {matchResult.matched_skills.length > 0 && (
+                          <div style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Matched</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {matchResult.matched_skills.map(s => (
+                                <span key={s} style={{ ...skillPill, background: '#dcfce7', color: '#166534' }}>{s}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
-                    {matchResult.missing_skills.length > 0 && (
-                      <div>
-                        <div style={{ fontSize: 10, color: '#dc2626', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Missing</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {matchResult.missing_skills.map(s => (
-                            <span key={s} style={{ ...skillPill, background: '#fef2f2', color: '#991b1b' }}>{s}</span>
-                          ))}
-                        </div>
-                      </div>
+                        {matchResult.missing_skills.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 10, color: '#dc2626', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Missing</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {matchResult.missing_skills.map(s => (
+                                <span key={s} style={{ ...skillPill, background: '#fef2f2', color: '#991b1b' }}>{s}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -619,6 +645,7 @@ function getRecommendationLabel(rec: string): string {
     case 'consider': return 'Fair Match — Consider';
     case 'weak': return 'Weak Match';
     case 'reject': return 'Poor Match';
+    case 'setup_required': return 'Setup Required';
     default: return rec;
   }
 }
