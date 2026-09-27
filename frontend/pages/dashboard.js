@@ -112,7 +112,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr 320px', marginTop: 16 }}>
+      <div className="grid dashboard-grid" style={{ marginTop: 16 }}>
         <Panel title="Recent campaigns" actions={<Link href="/campaigns/new" className="btn sm">{Icons.plus} New</Link>}>
           {campaigns.length === 0 ? (
             <Empty message="No campaigns yet. Create your first campaign to get started." />

@@ -82,7 +82,7 @@ export default function Billing() {
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
+      <div className="grid billing-grid" style={{ gap: 16, alignItems: 'start' }}>
         <div>
           {/* Plans */}
           <Panel title="Choose a plan" style={{ marginBottom: 16 }}>
