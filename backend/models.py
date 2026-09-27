@@ -37,6 +37,7 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
     email_credits = Column(Integer, default=0, nullable=False)
+    resume_score_checks = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     phone = Column(String(64), default='')  # phone number

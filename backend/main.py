@@ -28,6 +28,7 @@ from .routers import (
     profile_assets,
     recipient_groups,
     recipients,
+    resume_score,
 )
 from .routers.auth import _user_out, verify_email
 from .security import get_current_user
@@ -51,6 +52,8 @@ ALLOWED_ORIGINS = [
     FRONTEND_URL,
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'https://www.codessy.site',
+    'https://codessy.site',
 ]
 # Add production origins from env if set
 import os
@@ -83,7 +86,7 @@ async def security_headers(request: Request, call_next):
     return response
 
 
-for router in (auth, recipients, recipient_groups, email_accounts, agents, campaigns, emails, analytics, billing, chat, admin, profile_assets, jobs, applications, n8n, job_portals, agent, job_application, browser_stream, extension, email_credits):
+for router in (auth, recipients, recipient_groups, email_accounts, agents, campaigns, emails, analytics, billing, chat, admin, profile_assets, jobs, applications, n8n, job_portals, agent, job_application, browser_stream, extension, email_credits, resume_score):
     app.include_router(router.router)
 
 

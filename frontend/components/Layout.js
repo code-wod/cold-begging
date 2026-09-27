@@ -23,6 +23,7 @@ const NAV = [
   { href: '/job-portals', label: 'Job Portals', icon: 'link' },
   { href: '/agent', label: 'Agent Control', icon: 'play' },
   { href: '/resumes', label: 'Resumes', icon: 'profile' },
+  { href: '/resume-score', label: 'Resume Score', icon: 'analytics' },
   { href: '/job-preferences', label: 'Job Preferences', icon: 'settings' },
   { section: 'Account' },
   { href: '/settings', label: 'Settings', icon: 'settings' },
