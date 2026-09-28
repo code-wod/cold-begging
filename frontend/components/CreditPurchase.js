@@ -72,6 +72,12 @@ export default function CreditPurchase({ onPurchased }) {
         },
       };
 
+      if (!window.Razorpay) {
+        toast('Payment system is loading. Please try again in a moment.', 'error');
+        setLoading(null);
+        return;
+      }
+
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', (response) => {
         toast(`Payment failed: ${response.error.description}`, 'error');
