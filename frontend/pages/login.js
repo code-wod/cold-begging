@@ -18,6 +18,16 @@ export default function Login() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const [verified, setVerified] = useState(false);
 
+  // Password reset state
+  const resetToken = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('reset_token')
+    : null;
+  const [resetPw, setResetPw] = useState('');
+  const [resetConfirm, setResetConfirm] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetDone, setResetDone] = useState(false);
+  const [resetError, setResetError] = useState('');
+
   useEffect(() => {
     const verifiedParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('verified');
     if (verifiedParam === '1') {
@@ -52,6 +62,26 @@ export default function Login() {
     }
   };
 
+  const handleReset = async (e) => {
+    e.preventDefault();
+    setResetError('');
+    if (resetPw.length < 8) { setResetError('Password must be at least 8 characters'); return; }
+    if (resetPw !== resetConfirm) { setResetError('Passwords do not match'); return; }
+    setResetBusy(true);
+    try {
+      await api('/api/auth/reset-password', {
+        method: 'POST',
+        body: { token: resetToken, new_password: resetPw },
+      });
+      setResetDone(true);
+      window.history.replaceState(null, '', '/login');
+    } catch (e) {
+      setResetError(e.message || 'Invalid or expired token');
+    } finally {
+      setResetBusy(false);
+    }
+  };
+
   const google = async () => {
     setGoogleBusy(true);
     setError('');
@@ -64,6 +94,60 @@ export default function Login() {
     }
   };
 
+  // ── Password reset form ──────────────────────────────────────────────
+  if (resetToken && !resetDone) {
+    return (
+      <div className="auth-wrap">
+        <div className="auth-theme"><ThemeToggle /></div>
+        <Panel bodyClassName="panel-body">
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <Logo size={40} showText={false} color="#fff" style={{ justifyContent: 'center' }} />
+            <h1 style={{ fontSize: 20, marginTop: 12 }}>Reset Password</h1>
+            <p className="muted mb-0">Enter your new password below.</p>
+          </div>
+          {resetError && <div className="toast error" style={{ position: 'static', marginBottom: 14 }}>{resetError}</div>}
+          <form onSubmit={handleReset}>
+            <Field label="New Password">
+              <div className="input-with-toggle">
+                <Input type={showPw ? 'text' : 'password'} required value={resetPw}
+                  onChange={(e) => setResetPw(e.target.value)} placeholder="At least 8 characters" minLength={8} />
+                <button type="button" className="pw-toggle" onClick={() => setShowPw(!showPw)} tabIndex={-1}>
+                  {showPw ? '🙈' : '👁️'}
+                </button>
+              </div>
+            </Field>
+            <Field label="Confirm Password">
+              <Input type="password" required value={resetConfirm}
+                onChange={(e) => setResetConfirm(e.target.value)} placeholder="Re-enter password" minLength={8} />
+            </Field>
+            <Button type="submit" disabled={resetBusy || !resetPw || !resetConfirm} style={{ width: '100%', justifyContent: 'center' }}>
+              {resetBusy ? 'Resetting…' : 'Reset Password'}
+            </Button>
+          </form>
+        </Panel>
+      </div>
+    );
+  }
+
+  // ── Reset success ────────────────────────────────────────────────────
+  if (resetDone) {
+    return (
+      <div className="auth-wrap">
+        <div className="auth-theme"><ThemeToggle /></div>
+        <Panel bodyClassName="panel-body" style={{ textAlign: 'center' }}>
+          <p style={{ fontSize: 32, margin: '0 0 12px' }}>✅</p>
+          <h1 style={{ fontSize: 20, marginTop: 0 }}>Password Updated</h1>
+          <p className="muted" style={{ marginBottom: 20 }}>Your password has been reset. You can now sign in.</p>
+          <Button onClick={() => { setResetDone(false); window.history.replaceState(null, '', '/login'); }}
+            style={{ width: '100%', justifyContent: 'center' }}>
+            Sign In
+          </Button>
+        </Panel>
+      </div>
+    );
+  }
+
+  // ── Normal login form ────────────────────────────────────────────────
   return (
     <div className="auth-wrap">
       <div className="auth-theme"><ThemeToggle /></div>
@@ -104,7 +188,7 @@ export default function Login() {
           {googleBusy ? 'Redirecting to Google…' : 'Continue with Google'}
         </Button>
         <div className="mt-16 flex" style={{ justifyContent: 'center', fontSize: 13 }}>
-          <Link href="#" onClick={(e) => { e.preventDefault(); alert('Please contact support to reset your password.'); }}>Forgot password?</Link>
+          <Link href="/forgot-password">Forgot password?</Link>
         </div>
         <div className="mt-8" style={{ textAlign: 'center', fontSize: 13 }}>
           New here? <Link href="/signup">Create an account</Link>
