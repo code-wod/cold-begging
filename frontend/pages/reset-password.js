@@ -7,14 +7,15 @@ import Logo from '../components/Logo';
 
 export default function ResetPassword() {
   const router = useRouter();
-  const { token } = router.query;
+  const { reset_token: rawToken } = router.query;
+  const token = rawToken;
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  if (!token) {
+  if (!rawToken) {
     return (
       <Layout title="Reset Password">
         <div style={{ maxWidth: 440, margin: '60px auto', padding: '0 16px', textAlign: 'center' }}>
@@ -42,7 +43,7 @@ export default function ResetPassword() {
     try {
       await api('/api/auth/reset-password', {
         method: 'POST',
-        body: { token, new_password: password },
+        body: { token: rawToken, new_password: password },
       });
       setSuccess(true);
     } catch (e) {
