@@ -46,6 +46,7 @@ export default function Landing() {
         <div className="landing-nav-links">
           <a href="#features">Features</a>
           <a href="#how">How it works</a>
+          <a href="#interviews">Interviews</a>
           <a href="#pricing">Pricing</a>
           <a href="#security">Security</a>
         </div>
@@ -251,6 +252,178 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── Upcoming: Interview Rooms ───────────────────────── */}
+      <section className="landing-section landing-interview" id="interviews">
+        <div className="landing-section-head">
+          <div className="landing-kicker">Upcoming · Interview Rooms</div>
+          <h2>Practice interviews that feel <em>real</em></h2>
+          <p>
+            Live one-to-one or panel rooms with screen share, live resume, and interviewer notes.
+            Free to join — earn credits by interviewing others.
+          </p>
+        </div>
+
+        {/* ── Room mockup ─────────────────────────────────── */}
+        <div className="ir-mock">
+          <div className="ir-mock-bar">
+            <span className="ir-dot ir-dot-r" /><span className="ir-dot ir-dot-y" /><span className="ir-dot ir-dot-g" />
+            <span className="ir-mock-url">room.codessy.site / panel-frontend-45m</span>
+            <span className="ir-live"><span className="ir-live-dot" />LIVE</span>
+          </div>
+
+          <div className="ir-room">
+            {/* Left — interviewer cards */}
+            <aside className="ir-side ir-left">
+              <div className="ir-side-label">Interviewers</div>
+              <div className="ir-person active">
+                <div className="ir-avatar ir-av-a">SK</div>
+                <div className="ir-person-meta">
+                  <div className="ir-person-name">Suresh K. <span className="ir-host">HOST</span></div>
+                  <div className="ir-person-role">Sr. Engineer · Google</div>
+                </div>
+                <span className="ir-mic on" />
+              </div>
+              <div className="ir-person">
+                <div className="ir-avatar ir-av-b">AP</div>
+                <div className="ir-person-meta">
+                  <div className="ir-person-name">Anita P.</div>
+                  <div className="ir-person-role">Eng Manager · Stripe</div>
+                </div>
+                <span className="ir-mic" />
+              </div>
+              <div className="ir-person">
+                <div className="ir-avatar ir-av-c">RJ</div>
+                <div className="ir-person-meta">
+                  <div className="ir-person-name">Rahul J.</div>
+                  <div className="ir-person-role">Staff Eng · Atlassian</div>
+                </div>
+                <span className="ir-mic" />
+              </div>
+              <div className="ir-side-label" style={{ marginTop: 14 }}>Candidate</div>
+              <div className="ir-person candidate">
+                <div className="ir-avatar ir-av-d">YOU</div>
+                <div className="ir-person-meta">
+                  <div className="ir-person-name">You</div>
+                  <div className="ir-person-role">Frontend · 3 YOE</div>
+                </div>
+                <span className="ir-mic on" />
+              </div>
+            </aside>
+
+            {/* Center — video + screen share */}
+            <div className="ir-center">
+              <div className="ir-video">
+                <div className="ir-video-wave" />
+                <div className="ir-video-initials">YO</div>
+                <div className="ir-video-name">You — answering · React hooks question</div>
+                <div className="ir-video-timer">24:18</div>
+              </div>
+              <div className="ir-share">
+                <div className="ir-share-bar">
+                  <span className="ir-share-tag">SCREEN SHARE</span>
+                  <span className="ir-share-file">useMemo-vs-useCallback.js — VS Code</span>
+                </div>
+                <div className="ir-share-body">
+                  <div className="ir-code">
+                    <div><span className="c-kw">const</span> memoized = <span className="c-fn">useMemo</span>(() =&gt; {'{'}</div>
+                    <div>&nbsp;&nbsp;<span className="c-kw">return</span> heavyList.<span className="c-fn">filter</span>(x =&gt; x.ok)</div>
+                    <div>{'}'}, [heavyList, filterFn])</div>
+                    <div className="c-blank">&nbsp;</div>
+                    <div><span className="c-cm">// interviewer: &quot;when would you pick useCallback?&quot;</span></div>
+                    <div><span className="c-kw">const</span> onClick = <span className="c-fn">useCallback</span>(() =&gt; {'{'}</div>
+                    <div className="ir-caret" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right — resume + notes */}
+            <aside className="ir-side ir-right">
+              <div className="ir-side-label">Candidate Resume</div>
+              <div className="ir-resume">
+                <div className="ir-resume-name">Your Name</div>
+                <div className="ir-resume-line w90" /><div className="ir-resume-line w75" />
+                <div className="ir-resume-line w85" /><div className="ir-resume-line w60" />
+                <div className="ir-resume-hl">Skills · React, TypeScript, Node</div>
+                <div className="ir-resume-line w80" /><div className="ir-resume-line w70" />
+                <div className="ir-resume-line w90" />
+              </div>
+              <div className="ir-side-label">Interviewer Notes</div>
+              <div className="ir-notes">
+                <div className="ir-note in">
+                  <b>Suresh:</b> Walk me through your approach before you code.
+                  <span className="ir-note-time">now</span>
+                </div>
+                <div className="ir-note">
+                  <b>Anita:</b> Nice answer — try to mention time complexity next time.
+                  <span className="ir-note-time">2m</span>
+                </div>
+                <div className="ir-note in">
+                  <b>Suresh:</b> Follow-up: how would you test this hook?
+                  <span className="ir-note-time">just now</span>
+                </div>
+                <div className="ir-typing"><span /><span /><span /></div>
+              </div>
+            </aside>
+          </div>
+
+          {/* Bottom controls */}
+          <div className="ir-controls">
+            <span className="ir-ctrl on">🎙 Mic</span>
+            <span className="ir-ctrl on">🎥 Camera</span>
+            <span className="ir-ctrl">🖥 Share</span>
+            <span className="ir-ctrl">✋ Raise</span>
+            <span className="ir-ctrl danger">✕ Leave</span>
+          </div>
+        </div>
+
+        {/* ── Modes + pricing strip ───────────────────────── */}
+        <div className="ir-modes">
+          <div className="ir-mode-card">
+            <div className="ir-mode-icon">🤝</div>
+            <h4>One-to-One</h4>
+            <p>Sit across from a single interviewer. Focused mock on your target role, timed like the real thing.</p>
+          </div>
+          <div className="ir-mode-card">
+            <div className="ir-mode-icon">👥</div>
+            <h4>Panel Room</h4>
+            <p>2–3 interviewers at once — system design, behavioral, and coding rounds in one session.</p>
+          </div>
+          <div className="ir-mode-card">
+            <div className="ir-mode-icon">🔄</div>
+            <h4>Earn Credits</h4>
+            <p>Interview someone else → earn interview credits. Give interviews, get interviews. Zero rupees.</p>
+          </div>
+        </div>
+
+        <div className="ir-pricing-strip">
+          <div className="ir-tier free">
+            <div className="ir-tier-badge">Free</div>
+            <ul>
+              <li>1 interview credit on signup</li>
+              <li>Earn 1 credit per interview you give</li>
+              <li>1-to-1 mock rooms</li>
+              <li>Basic resume panel</li>
+            </ul>
+          </div>
+          <div className="ir-tier pro">
+            <div className="ir-tier-badge">Pro ₹99/mo</div>
+            <ul>
+              <li>Unlimited panel rooms (2–3 interviewers)</li>
+              <li>Live screen share + code editor</li>
+              <li>Interviewer notes &amp; scoring sheet</li>
+              <li>Post-interview AI feedback report</li>
+              <li>Recorded session playback</li>
+            </ul>
+          </div>
+          <div className="ir-cta-box">
+            <div className="ir-cta-title">Get early access</div>
+            <p>Interview rooms ship soon. Sign up free — your first credit is waiting.</p>
+            <Link href="/signup" className="landing-cta">Join the waitlist</Link>
+          </div>
+        </div>
+      </section>
+
       {/* ── CTA ──────────────────────────────────────────────── */}
       <section className="landing-section landing-cta-section">
         <h2>Ready to send outreach that gets replies?</h2>
@@ -269,6 +442,7 @@ export default function Landing() {
             <h5>Product</h5>
             <a href="#features">Features</a>
             <a href="#how">How it works</a>
+            <a href="#interviews">Interview Rooms</a>
             <a href="#pricing">Pricing</a>
             <a href="#security">Security</a>
           </div>
