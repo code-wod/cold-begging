@@ -244,6 +244,12 @@ class ColdEmailAgent:
             'friendly': 'Friendly and warm',
             'formal': 'Formal and respectful',
         }
+        subject_map = {
+            'personalized': f'Personalized subject line about {company_data["company_name"]}',
+            'curiosity': 'Create a curiosity-driven subject line',
+            'benefit': 'Create a benefit-focused subject line',
+        }
+
 
         length_map = {
             'short': '2 short paragraphs maximum',
