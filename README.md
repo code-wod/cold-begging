@@ -1,3 +1,15 @@
+## Improvement in Readme For project Set Up
+- Clone the GitHub Repository
+- Changes directory to desired frontend and backend
+- for frontend type cd /frontend
+- for tuning frontend run rpm run dev
+- for running backend cd backend/
+- start the virtual environment
+
+
+
+
+
 # Cold Begging
 
 A cold email automation system for job opportunity outreach.
