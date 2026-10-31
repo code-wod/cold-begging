@@ -58,3 +58,11 @@ Required columns:
 - The frontend calls backend `/process` on `http://localhost:8000/process`.
 - Use dry run first to verify generated emails.
 - Sending via Gmail API requires credentials JSON.
+
+## New Setup Guildelines
+- first Clone the repo
+- change directory to the cold-beging
+- for backend changes directory backend/
+- for frontend changes directory frontend/
+- for running frontend write cmd cd frontend && nam run dev
+- for backend setup go to backend directory and start vent
