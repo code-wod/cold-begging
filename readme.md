@@ -1,5 +1,11 @@
 # Cold Begging
 
+## New Guidelines for developer for project setup in their local
+- First Step clone the repositry
+- after clone the repo move to desired directory like backend/ or frontend/
+- install the dependencies in respective dirctires
+- run the respective command in desired directory 
+
 A cold email automation system for job opportunity outreach.
 
 ## Architecture
